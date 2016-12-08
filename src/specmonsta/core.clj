@@ -3,10 +3,6 @@
             [loom.alg :as la]
             [medley.core :as medley]))
 
-#_(defn gen1
-  [spec]
-  (gen/generate (s/gen spec)))
-
 (defn expand-default-refs
   [default-refs]
   (medley/map-vals (fn [v] (if (vector? v)
