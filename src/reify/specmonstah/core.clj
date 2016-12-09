@@ -1,7 +1,8 @@
-(ns specmonsta.core
+(ns reify.specmonstah.core
   (:require [loom.graph :as g]
             [loom.alg :as la]
-            [medley.core :as medley]))
+            [medley.core :as medley])
+  (:refer-clojure :exclude [doall]))
 
 (defn expand-default-refs
   [default-refs]
@@ -12,6 +13,26 @@
                    default-refs))
 
 (defn expand-relation-template
+  "Allows you to write a template in a compact format, like 
+  
+  ```
+  (require '[reify.specmonstah :as rs])
+  (def relation-template
+   {::author [{}]
+    ::publisher [{}]
+    ::book [{:author-id [::author :id]
+             :publisher-id [::publisher :id]}]
+    ::chapter [{:book-id [::book :id]}]})
+
+  (rs/expand-relation-template relation-template)
+  ; => 
+  {::author {::rs/template [{} nil]}
+   ::publisher {::rs/template [{} nil]}
+   ::book {::rs/template [{:author-id [::author ::rs/template :id]
+                           :pubisher-id [::publisher ::rs/template :id]}
+                          nil]}
+   ::chapter {::rs/template [{:book-id [::book ::rs/template :id]} nil]}}
+  ```"
   [relation-template]
   (reduce-kv (fn [result relation-type [default-refs default-attrs]]
                (assoc result relation-type {::template [(expand-default-refs default-refs) default-attrs]}))
@@ -19,6 +40,7 @@
              relation-template))
 
 (defn ent-references
+  "Returns `[ent-type ent-name]` pairs from a ref map"
   [refs]
   (->> refs
        vals
@@ -26,7 +48,8 @@
        set))
 
 (defn topo
-  "takes named relations to produce a DAG of dependencies"
+  "takes ref paths `[ent-type ent-name]` to produce a DAG of
+  dependencies"
   [relations]
   (reduce-kv (fn [graph ent-type ents]
                (reduce-kv (fn [graph ent-name ent]
@@ -169,3 +192,16 @@
                            [ent-type (gen-ent [ent-refs ent-attrs] ent-type gen-fn tree)])
                          gen-formatted-query)
            ::order sorted-ents)))
+
+(defn dotree
+  [do-fn gen-fn relations query]
+  (let [tree (gen-tree gen-fn relations query)]
+    (doseq [ent-path (::order tree)]
+      (do-fn [(first ent-path) (get-in tree ent-path)]))
+    tree))
+
+(defn doall
+  [do-fn gen-fn relations query]
+  (let [tree (do-tree do-fn gen-fn relations query)]
+    (doseq [ent (::query tree)] (do-fn ent))
+    tree))
