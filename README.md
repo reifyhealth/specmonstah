@@ -3,7 +3,7 @@
 ## The Hook
 
 This code shows how you can use Specmonstah to generate and operate on
-the kind of graph we encounter offer when, for example, inserting
+the kind of graph we encounter often when, for example, inserting
 records in a relational database. In the example, you create and
 "insert" (update an atom) three _chapters_. Chapters reference
 _books_, and books reference _publishers_. (If you want to actually
