@@ -19,11 +19,11 @@
 (bootlaces! +version+)
 
 (task-options!
-  pom  {:project     'com.reifyhealth/specmonsta
+  pom  {:project     'com.reifyhealth/specmonstah
         :version     +version+
         :description "Generate and process records forming a DAG"
-        :url         "https://github.com/reifyhealth/specmonsta"
-        :scm         {:url "https://github.com/reifyhealth/specmonsta"}
+        :url         "https://github.com/reifyhealth/specmonstah"
+        :scm         {:url "https://github.com/reifyhealth/specmonstah"}
         :license     {"MIT" "https://opensource.org/licenses/MIT"}})
 
 (deftask testenv []
