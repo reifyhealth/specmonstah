@@ -2,12 +2,11 @@
 
 ## The Hook
 
-This code, which you can find in
-[examples/reify/specmonstah_examples.clj](examples/reify/specmonstah_examples.clj),
-shows how you can use Specmonstah to generate and operate on a
-graph. In the example, you create and "insert" (update an atom) three
-_chapters_. Chapters reference _books_, and books reference
-_publishers_.
+This code shows how you can use Specmonstah to generate and operate on
+a graph. In the example, you create and "insert" (update an atom)
+three _chapters_. Chapters reference _books_, and books reference
+_publishers_. (If you want to actually run the code, check out
+[examples/reify/specmonstah_examples.clj](examples/reify/specmonstah_examples.clj).)
 
 ```clojure
 (def inserted-records (atom []))
