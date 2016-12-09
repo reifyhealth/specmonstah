@@ -34,9 +34,10 @@ run the code, check out
 ```
 
 Our database `inserted-records` has had six vectors inserted into
-it. Notice that both book records have a `:publisher-id` of `1`, which
-is in fact the `:id` of the only publisher record. Notice also that
-we've specified a custom name for one of the books, `"Custom Book
+it. There's a _publisher_ record, even though publisher wasn't
+referenced directly. Both book records have a `:publisher-id` of `1`,
+which is in fact the `:id` of the only publisher record. Notice also
+that we've specified a custom name for one of the books, `"Custom Book
 Name"`. Among the chapters, two have the same default name and refer
 to the same book (`:book-id 3`), and the last has a custom name and
 refers to a different book (`:book-id 2`).
