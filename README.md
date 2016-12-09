@@ -9,7 +9,7 @@ graph. In the example, you create and "insert" (update an atom) three
 _chapters_. Chapters reference _books_, and books reference
 _publishers_.
 
-```
+```clojure
 (def inserted-records (atom []))
 
 (defn insert!
