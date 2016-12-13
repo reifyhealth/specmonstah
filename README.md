@@ -23,7 +23,7 @@ run the code, check out
            [::chapter {:book-id [:b1 {} {:book-name "Custom Book Name"}]}
                       {:chapter-name "Custom Chapter Name"}]])
 @inserted-records
-  
+
 ; =>
 [[::publisher {:id 1, :publisher-name "Deault Publisher Name"}]
  [::book {:id 2, :book-name "Custom Book Name", :publisher-id 1}]
@@ -116,7 +116,7 @@ This example won't actually work because we haven't defined specs for
 defined `insert!`. In the next section we'll look at a complete,
 working example.
 
-That said, when you use Specmonstah, you end up writing code 
+That said, when you use Specmonstah, you end up writing code
 
 With Specmonstah, you define how the nodes in your graph are related
 (`relations` in the example above). You also define a function to
@@ -126,3 +126,13 @@ specify a function to operate on the nodes (`insert!`).
 Finally, you write a query: `[::chapter]`.
 
 ## Tutorial
+
+## License
+
+Source Copyright © 2016 Reify Health, Inc.
+
+Distributed under the MIT License.  See the file LICENSE.
+
+## Credits
+
+Major thanks to @flyingmachine for bringing this proof of concept to life.
