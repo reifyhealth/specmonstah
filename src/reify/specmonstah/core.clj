@@ -202,6 +202,6 @@
 
 (defn doall
   [do-fn gen-fn relations query]
-  (let [tree (do-tree do-fn gen-fn relations query)]
+  (let [tree (dotree do-fn gen-fn relations query)]
     (doseq [ent (::query tree)] (do-fn ent))
     tree))

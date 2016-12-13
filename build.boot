@@ -1,5 +1,5 @@
 (set-env!
-  :source-paths   #{"src"}
+  :source-paths   #{"src" "test"}
   :resource-paths #{}
   :target-path    "target/build"
   :dependencies   '[[org.clojure/clojure         "1.9.0-alpha14" :scope "provided"]
@@ -26,6 +26,9 @@
         :scm         {:url "https://github.com/reifyhealth/specmonstah"}
         :license     {"MIT" "https://opensource.org/licenses/MIT"}})
 
-(deftask testenv []
-  (set-env! :source-paths #{"test"})
-  identity)
+(deftask make
+  "build a jar"
+  []
+  (comp (pom)
+        (jar :file (str "specmonsah-" +version+ ".jar"))
+        (target :dir #{"target/build"})))
