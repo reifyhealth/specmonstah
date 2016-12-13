@@ -19,7 +19,7 @@
 (bootlaces! +version+)
 
 (task-options!
-  pom  {:project     'com.reifyhealth/specmonstah
+  pom  {:project     'reifyhealth/specmonstah
         :version     +version+
         :description "Generate and process records forming a DAG"
         :url         "https://github.com/reifyhealth/specmonstah"
