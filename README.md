@@ -135,4 +135,5 @@ Distributed under the MIT License.  See the file LICENSE.
 
 ## Credits
 
-Major thanks to @flyingmachine for bringing this proof of concept to life.
+* @flyingmachine did the initial design and implementation with help from @khiemlam and @cldwalker
+* Specmonstah relies on [loom](https://github.com/aysylu/loom)
