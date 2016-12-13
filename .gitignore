@@ -13,3 +13,4 @@ ga-oauth-key*
 output
 crash.log
 tmp
+gpg.edn

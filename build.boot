@@ -19,7 +19,7 @@
 (bootlaces! +version+)
 
 (task-options!
-  pom  {:project     'com.reifyhealth/specmonstah
+  pom  {:project     'reifyhealth/specmonstah
         :version     +version+
         :description "Generate and process records forming a DAG"
         :url         "https://github.com/reifyhealth/specmonstah"
@@ -32,3 +32,15 @@
   (comp (pom)
         (jar :file (str "specmonsah-" +version+ ".jar"))
         (target :dir #{"target/build"})))
+
+(deftask push-release-without-gpg
+  "Deploy release version to Clojars without gpg signature."
+  [f file PATH str "The jar file to deploy."]
+  (comp
+   (#'adzerk.bootlaces/collect-clojars-credentials)
+   (push
+    :file           file
+    :tag            (boolean #'adzerk.bootlaces/+last-commit+)
+    :gpg-sign       false
+    :ensure-release true
+    :repo           "deploy-clojars")))
