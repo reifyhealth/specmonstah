@@ -51,7 +51,7 @@ belongs to a separate book, and each book has a separate publisher and
 separate address. Specmonstah lets you express this scenario using a
 compact DSL:
 
-```
+```clojure
 (specmonstah/dotree
   insert! gen1 relations
   [::chapter [::chapter {:book-id [:b1 {:publisher-id [:p1 {:address-id :a1}]}]}]])
