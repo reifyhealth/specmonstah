@@ -17,7 +17,7 @@ stupid annoying boilerplate to insert a _book_ and a _publisher_ and
 an _address_ because of foreign key constraints. Gross! Your gross
 code might look something like this:
 
-```
+```clojure
 (let [address (insert! :author {:street "10 Chestnut St" :id 10})
       publisher (insert! :publisher {:name "Publishy" :id 20 :address-id 10})
       book (insert! :book {:name "Booky Bookingsly" :id 30 :publisher-id 20})
@@ -33,7 +33,7 @@ _address_, making your code brittle.
 
 With specmonstah, your code can look like this:
 
-```
+```clojure
 (let [tree (specmonstah/dotree insert! gen1 relations [::chapter])
       chapter-data (get-in tree [::specmonstah/query 0])]
   (is (= (insert! :chapter chapter-data)
