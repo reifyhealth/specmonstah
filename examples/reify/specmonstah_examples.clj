@@ -44,13 +44,23 @@
 
 (def result-3 (rs/gen-tree gen1 relations [::book [::book {:publisher-id :p1}]]))
 
+(def result-4 (rs/gen-tree gen1 relations [::book
+                                           [::book {:publisher-id :p1}]
+                                           [::book {:publisher-id :p1}]]))
+
+(def result-5 (rs/gen-tree gen1 relations [::chapter
+                                           [::chapter {:book-id [:b1 {:publisher-id :p1}]}]]))
+
+(def result-6 (rs/gen-tree gen1 relations [[::chapter {} {:chapter-name "Custom Chapter Name"}]
+                                           [::book {:publisher-id [:p1 {} {:publisher-name "Custom Publisher Name"}]}]]))
+
 (def inserted-records (atom []))
 
 (defn insert!
   [record]
   (swap! inserted-records conj record))
 
-(rs/doall insert! #(gen/generate (s/gen %)) relations
+(rs/doall insert! gen1 relations
           [[::chapter]
            [::chapter]
            [::chapter {:book-id [:b1 {} {:book-name "Custom Book Name"}]}
