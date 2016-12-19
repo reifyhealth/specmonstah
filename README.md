@@ -7,8 +7,9 @@ inserting fixture records in a relational database.
 ## Brief Example
 
 The following examples won't actually run if you copy and paste them,
-they're just meant to convey Specmonstah's purpose. If you're a _just
-show me some code!_ kind of person, check out
+they're just meant to convey Specmonstah's purpose. The tutorial in
+the next section walks you through a fully-functioning example.  If
+you're a _just show me some code!_ kind of person, check out
 [examples/reify/specmonstah_examples.clj](examples/reify/specmonstah_examples.clj).
 
 Say you want to test what happens when you call an `insert!` function
@@ -156,9 +157,9 @@ result-1
 relations, and a query, and it returns a map.
 
 The query is `[::chapter]`. This tells `gen-tree`, "Generate the
-entire graph of entities that must exist for a `::chapter` to
-exist. Our `relations` maps specifies that a chapter refers to a book,
-and a book refers to a publisher. And indeed, the map returned by `gen-tree`
+entire graph of entities that must exist for a `::chapter` to exist."
+Our `relations` maps specifies that a chapter refers to a book, and a
+book refers to a publisher. And indeed, the map returned by `gen-tree`
 has a publisher and a book, which we can access like so:
 
 ```clojure
@@ -257,11 +258,11 @@ Under `::publisher`, there are now two keys: `::rs/template` and
 This query term says, "generate a book,
 but instead of getting its `:publisher-id` from the `::publisher`
 named `::rs/template`, create a new publisher named `:p1` and get the
-`:publisher-id` from that.
+`:publisher-id` from that."
 
 Extended query terms like `[::book {:publisher-id :p1}]` are vectors
 instead of just a keyword. The first element should be an entity type:
-`::book`, here. The second element should be a map where the keys
+`::book`, here. The second element should be a map where the keys are
 "foreign keys" (`:publisher-id`) and the value is some arbitrary name:
 `:p1` in this case, but `:pub1` or `:foobity` will work too.
 
