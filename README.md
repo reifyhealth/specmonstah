@@ -2,9 +2,10 @@
 
 Specmonstah uses the power of
 [clojure.spec](http://clojure.org/guides/spec) to let you concisely
-set up "the state of the world" for unit tests: If your domain has
-_chapters_ which belong to _books_ which belong to _publishers_ which
-have an _address_, you can write something like this:
+set up "the state of the world" for unit tests. If you need to test
+the insertion of a _chapter_ record into a database, but chapters
+belong to _books_ which belong to _publishers_ which have an
+_address_, you can write something like this:
 
 ```clojure
 (specmonstah/dotree insert! gen1 relations [::chapter])
@@ -12,7 +13,6 @@ have an _address_, you can write something like this:
 
 and Specmonstah will generate and insert an _address_, _publisher_ and
 _book_, so that you can focus on doing things with your _chapter_ data.
-
 
 ## Brief Example
 
