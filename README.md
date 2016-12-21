@@ -1,8 +1,18 @@
 # Specmonstah
 
-Specmonstah makes it easy to generate and operate on the kind of
-directed acyclic graph (DAG) we encounter often when, for example,
-inserting fixture records in a relational database.
+Specmonstah uses the power of
+[clojure.spec](http://clojure.org/guides/spec) to let you concisely
+set up "the state of the world" for unit tests: If your domain has
+_chapters_ which belong to _books_ which belong to _publishers_ which
+have an _address_, you can write something like this:
+
+```clojure
+(specmonstah/dotree insert! gen1 relations [::chapter])
+```
+
+and Specmonstah will generate and insert an _address_, _publisher_ and
+_book_, so that you can focus on doing things with your _chapter_ data.
+
 
 ## Brief Example
 
@@ -47,15 +57,16 @@ _book_ and _publisher_ records where all foreign keys are
 correct. `chapter-data`'s `:book-id` will be the id of the book that
 was created.
 
-Now imagine you want to work with two chapters, where each chapter
-belongs to a separate book, and each book has a separate publisher and
-separate address. Specmonstah lets you express this scenario using a
-compact DSL:
+Now imagine you want to work with two chapters where each chapter
+belongs to a separate book. Not only that, the books have separate
+publishers, and the publishers have separate addresses. Specmonstah
+lets you express this scenario using a compact DSL:
 
 ```clojure
 (specmonstah/dotree
   insert! gen1 relations
-  [::chapter [::chapter {:book-id [:b1 {:publisher-id [:p1 {:address-id :a1}]}]}]])
+  [::chapter
+   [::chapter {:book-id [:b1 {:publisher-id [:p1 {:address-id :a1}]}]}]])
 ```
 
 Of course the DSL looks like gibberish to you now, but hopefully it
@@ -173,7 +184,9 @@ has a publisher and a book, which we can access like so:
 (I'll explain this `::rs/template` business later.)
 
 Notice that the book's `:publisher-id` is `1`, which is the
-publisher's `:id`.
+publisher's `:id`. If you're following along in the repl, you probably
+won't have the same values; this is because we've set up our specs to
+generate random positive integers for `:id`.
 
 `rs/gen-tree`'s return value also includes entities generated for each
 query term under `::rs/query`:
