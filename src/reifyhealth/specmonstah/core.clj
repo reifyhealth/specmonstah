@@ -39,6 +39,10 @@
              {}
              relation-template))
 
+(defn- ref-names
+  [xs]
+  (medley/map-vals #(if (vector? %) (first %) %) xs))
+
 (defn- ent-references
   "Returns `[ent-type ent-name]` pairs from a ref map"
   [refs]
@@ -111,7 +115,7 @@
                      (add-query-term-relations [field-ref-type ref-refs]
                                                (assoc-in relations
                                                          [field-ref-type ref-name]
-                                                         [(merge-template-refs (first ref-template) (medley/map-vals (fn [n] (if (vector? n) (first n) n)) ref-refs))
+                                                         [(merge-template-refs (first ref-template) (ref-names ref-refs))
                                                           (merge (second ref-template) ref-attrs)])))
                    (assoc-in relations [field-ref-type ref-name] ref-template))))
              relations
@@ -135,7 +139,7 @@
   (mapv (fn [term]
           (let [[ent-type refs attrs] term]
             [ent-type
-             (medley/map-vals (fn [x] (if (vector? x) (first x) x)) refs)
+             (ref-names refs)
              attrs]))
         query))
 
