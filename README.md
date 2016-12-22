@@ -1,6 +1,6 @@
 # Specmonstah
 
-Specmonstah eanables you to use the power of
+Specmonstah enables you to use the power of
 [clojure.spec](http://clojure.org/guides/spec) to let you concisely
 set up "the state of the world" for unit tests. If you need to test
 the insertion of a _chapter_ record into a database, but chapters
