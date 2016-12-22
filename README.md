@@ -12,7 +12,7 @@ _address_, you can write something like this:
 ```
 
 and Specmonstah will generate and insert an _address_, _publisher_ and
-_book_, so that you can focus on doing things with your _chapter_ data.
+_book_, so that you can focus on doing things with your chapter data.
 
 ## Brief Example
 
