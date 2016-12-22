@@ -1,11 +1,11 @@
-(ns reify.specmontah-examples
-  (:require [reify.specmonstah.core :as rs]
+(ns reifyhealth.specmonstah-examples
+  (:require [reifyhealth.specmonstah.core :as rs]
             [clojure.spec :as s]
             [clojure.spec.gen :as gen]))
 
 (s/def ::id pos-int?)
 
-(s/def ::publisher-name #{"Deault Publisher Name"})
+(s/def ::publisher-name #{"Default Publisher Name"})
 (s/def ::publisher (s/keys :req-un [::id ::publisher-name]))
 
 (s/def ::book-name #{"Default Book Name"})
@@ -25,14 +25,14 @@
      ::chapter [{:book-id [::book :id]}]}))
 
 (def result-1 (rs/gen-tree gen1 relations [::chapter]))
-#_{::publisher {::rs/template {:id 1, :publisher-name "Deault Publisher Name"}}
+#_{::publisher {::rs/template {:id 1, :publisher-name "Default Publisher Name"}}
    ::book {::rs/template {:id 192108, :book-name "Default Book Name", :publisher-id 1}}
    ::rs/query [[::rs/chapter {:id 213, :chapter-name "Default Chapter Title", :book-id 192108}]]
    ::rs/order [[::publisher ::rs/template]
                [::book ::rs/template]]}
 
 (get-in result-1 [::publisher ::rs/template])
-; => {:id 1, :publisher-name "Deault Publisher Name"}
+; => {:id 1, :publisher-name "Default Publisher Name"}
 
 (get-in result-1 [::book ::rs/template])
 ; => {:id 192108, :book-name "Default Book Name", :publisher-id 1}

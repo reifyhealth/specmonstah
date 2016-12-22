@@ -1,6 +1,6 @@
 # Specmonstah
 
-Specmonstah uses the power of
+Specmonstah eanables you to use the power of
 [clojure.spec](http://clojure.org/guides/spec) to let you concisely
 set up "the state of the world" for unit tests. If you need to test
 the insertion of a _chapter_ record into a database, but chapters
@@ -12,7 +12,10 @@ _address_, you can write something like this:
 ```
 
 and Specmonstah will generate and insert an _address_, _publisher_ and
-_book_, so that you can focus on doing things with your chapter data.
+_book_, so that you can focus on doing things with your chapter
+data. Of course, you'll need to define `insert!`, `gen1`, `relations`,
+and the `::chapter` spec - the rest of this README will show you how
+to write these pieces and how they all fit together.
 
 ## Brief Example
 
@@ -20,7 +23,7 @@ The following examples won't actually run if you copy and paste them,
 they're just meant to convey Specmonstah's purpose. The tutorial in
 the next section walks you through a fully-functioning example.  If
 you're a _just show me some code!_ kind of person, check out
-[examples/reify/specmonstah_examples.clj](examples/reify/specmonstah_examples.clj).
+[examples/reifyhealth/specmonstah_examples.clj](examples/reifyhealth/specmonstah_examples.clj).
 
 Say you want to test what happens when you call an `insert!` function
 on a _chapter_ record, but before you do that you have to write ugly
@@ -90,20 +93,21 @@ To use Specmonstah, you define:
   for example, that a book's `:publisher-id` refers to a publisher's
   `:id`
 * A _query_ that specifies which entities you're interested in working
+  with
 
-Let's start with a simple example. In this example, we're going to
-focus only on _generating_ data structures; we're not going to insert
-them into a database.
+Let's start with a simple example. We're going to focus only on
+_generating_ data structures; we're not going to insert them into a
+database.
 
 ```clojure
-(ns reify.specmontah-examples
-  (:require [reify.specmonstah.core :as rs]
+(ns reifyhealth.specmonstah-examples
+  (:require [reifyhealth.specmonstah.core :as rs]
             [clojure.spec :as s]
             [clojure.spec.gen :as gen]))
 
 (s/def ::id pos-int?)
 
-(s/def ::publisher-name #{"Deault Publisher Name"})
+(s/def ::publisher-name #{"Default Publisher Name"})
 (s/def ::publisher (s/keys :req-un [::id ::publisher-name]))
 
 (s/def ::book-name #{"Default Book Name"})
@@ -149,15 +153,21 @@ We create a relations map with this bit:
 This lets you say that `::book` maps have a `:publisher-id`, and in
 order to set that `:publisher-id`, Specmonstah should generate a
 `::publisher` and use the value of its `:id`. Likewise with `::chapters`
-and their `:book-id`.
+and their `:book-id`. Publishers don't have any relations.
 
-Let's look at this in action:
+In the relation map, each key is an entity type (most likely a spec),
+and each value is a vector. The vector's first element is a map that
+specifies the relations, like `{:publisher-id [::publisher :id]}` for
+`::book`. Since `::publisher` doesn't have relations, the map is
+empty.
+
+Let's generate some data:
 
 ```clojure
 (def result-1 (rs/gen-tree gen1 relations [::chapter]))
 result-1
 ; =>
-{::publisher {::rs/template {:id 1, :publisher-name "Deault Publisher Name"}}
+{::publisher {::rs/template {:id 1, :publisher-name "Default Publisher Name"}}
  ::book {::rs/template {:id 192108, :book-name "Default Book Name", :publisher-id 1}}
  ::rs/query [[::rs/chapter {:id 213, :chapter-name "Default Chapter Title", :book-id 192108}]]
  ::rs/order [[::publisher ::rs/template]
@@ -175,7 +185,7 @@ has a publisher and a book, which we can access like so:
 
 ```clojure
 (get-in result-1 [::publisher ::rs/template])
-; => {:id 1, :publisher-name "Deault Publisher Name"}
+; => {:id 1, :publisher-name "Default Publisher Name"}
 
 (get-in result-1 [::book ::rs/template])
 ; => {:id 192108, :book-name "Default Book Name", :publisher-id 1}
@@ -219,7 +229,7 @@ You can have more than one query term:
 (def result-2 (rs/gen-tree gen1 relations [::chapter ::book]))
 result-2
 ; => 
-{::publisher {::rs/template {:id 9365, :publisher-name "Deault Publisher Name"}}
+{::publisher {::rs/template {:id 9365, :publisher-name "Default Publisher Name"}}
  ::book {::rs/template {:id 6119, :book-name "Default Book Name", :publisher-id 9365}}
  ::rs/query [[::chapter {:id 69189760, :chapter-name "Default Chapter Title", :book-id 6119}]
              [::book {:id 6938682, :book-name "Default Book Name", :publisher-id 9365}]]
@@ -256,8 +266,8 @@ publishers? You could do that like this:
 (def result-3 (rs/gen-tree gen1 relations [::book [::book {:publisher-id :p1}]]))
 result-3
 ; =>
-{::publisher {::rs/template {:id 1002, :publisher-name "Deault Publisher Name"}
-              :p1 {:id 14419, :publisher-name "Deault Publisher Name"}}
+{::publisher {::rs/template {:id 1002, :publisher-name "Default Publisher Name"}
+              :p1 {:id 14419, :publisher-name "Default Publisher Name"}}
  ::rs/query [[::book {:id 1, :book-name "Default Book Name", :publisher-id 1002}]
              [::book {:id 10, :book-name "Default Book Name", :publisher-id 14419}]]
  ::order ([::publisher ::rs/template]
@@ -291,7 +301,11 @@ result-4
 ```
 
 This generates three books. The second and third will have the same
-`:publisher-id`, and the first will have a different `:publisher-id`.
+`:publisher-id`, and the first will have a different
+`:publisher-id`. Whenever you don't specify a custom relation,
+Specmonstah defaults to using the entity named by `::rs/template`. In
+the query above, for example, the first `::book`'s `:publisher-id` is
+taken from `(get-in result-4 [::publisher ::rs/template :id])`.
 
 ### Specifying Nested Relationships
 
@@ -397,7 +411,7 @@ database will just be an atom:
                       {:chapter-name "Custom Chapter Name"}]])
 @inserted-records
 ; =>
-[[::publisher {:id 1, :publisher-name "Deault Publisher Name"}]
+[[::publisher {:id 1, :publisher-name "Default Publisher Name"}]
  [::book {:id 2, :book-name "Custom Book Name", :publisher-id 1}]
  [::book {:id 3, :book-name "Default Book Name", :publisher-id 1}]
  [::chapter {:id 4, :chapter-name "Default Chapter Title", :book-id 3}]
