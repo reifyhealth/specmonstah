@@ -12,7 +12,7 @@
                             v))
                    default-refs))
 
-(defn- expand-relation-template
+(defn expand-relation-template
   "Allows you to write a template in a compact format, like 
   
   ```
