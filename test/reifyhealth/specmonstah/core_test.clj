@@ -1,4 +1,4 @@
-(ns reify.specmonstah.core-test
+(ns reifyhealth.specmonstah.core-test
   (:require [reify.specmonstah.core :as sm]
             [clojure.spec :as s]
             [clojure.test :as t :refer [deftest is use-fixtures testing]]

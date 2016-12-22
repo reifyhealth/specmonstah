@@ -1,4 +1,4 @@
-(ns reify.specmonstah.core
+(ns reifyhealth.specmonstah.core
   (:require [loom.graph :as g]
             [loom.alg :as la]
             [medley.core :as medley])
