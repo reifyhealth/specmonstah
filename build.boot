@@ -21,7 +21,7 @@
 (task-options!
   pom  {:project     'reifyhealth/specmonstah
         :version     +version+
-        :description "Generate"
+        :description "Generate and process arbitrary graphs of dependencies"
         :url         "https://github.com/reifyhealth/specmonstah"
         :scm         {:url "https://github.com/reifyhealth/specmonstah"}
         :license     {"MIT" "https://opensource.org/licenses/MIT"}})
