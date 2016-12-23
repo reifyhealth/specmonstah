@@ -1,11 +1,14 @@
 # Specmonstah
 
-Specmonstah enables you to use the power of
-[clojure.spec](http://clojure.org/guides/spec) to let you concisely
-set up "the state of the world" for unit tests. If you need to test
-the insertion of a _chapter_ record into a database, but chapters
-belong to _books_ which belong to _publishers_ which have an
-_address_, you can write something like this:
+Specmonstah lets you use the power of
+[clojure.spec](http://clojure.org/guides/spec) to concisely set up
+"the state of the world" for unit tests.
+
+![Specmonstah purpose](docs/diagram.png)
+
+If you need to test the insertion of a _chapter_ record into a
+database, but chapters belong to _books_ which belong to _publishers_
+which have an _address_, you can write something like this:
 
 ```clojure
 (specmonstah/dotree insert! gen1 relations [::chapter])
