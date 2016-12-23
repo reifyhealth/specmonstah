@@ -20,6 +20,14 @@ data. Of course, you'll need to define `insert!`, `gen1`, `relations`,
 and the `::chapter` spec - the rest of this README will show you how
 to write these pieces and how they all fit together.
 
+## Installation
+
+Add the following to your project `:dependencies`:
+
+```clojure
+[reifyhealth/specmonstah "1.0.0"]
+```
+
 ## Brief Example
 
 The following examples won't actually run if you copy and paste them,
