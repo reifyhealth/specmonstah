@@ -30,7 +30,7 @@
   "build a jar"
   []
   (comp (pom)
-        (jar :file (str "specmonsah-" +version+ ".jar"))
+        (jar :file (str "specmonstah-" +version+ ".jar"))
         (target :dir #{"target/build"})))
 
 (deftask push-release-without-gpg
