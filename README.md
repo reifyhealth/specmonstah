@@ -35,11 +35,11 @@ an _address_ because of foreign key constraints. Gross! Your gross
 code might look something like this:
 
 ```clojure
-(let [address (insert! :author {:street "10 Chestnut St" :id 10})
-      publisher (insert! :publisher {:name "Publishy" :id 20 :address-id 10})
-      book (insert! :book {:name "Booky Bookingsly" :id 30 :publisher-id 20})
+(let [address (insert! ::author {:street "10 Chestnut St" :id 10})
+      publisher (insert! ::publisher {:name "Publishy" :id 20 :address-id 10})
+      book (insert! ::book {:name "Booky Bookingsly" :id 30 :publisher-id 20})
       chapter-data {:name "Chapter Chaptersly" :id 40 :book-id 30}]
-  (is (= (insert! :chapter chapter-data)
+  (is (= (insert! ::chapter chapter-data)
          chapter-data)))
 ```
 
@@ -98,7 +98,7 @@ To use Specmonstah, you define:
 * A _query_ that specifies which entities you're interested in working
   with
 
-Let's start with a simple example. We're going to focus only on
+Let's start with a basic example. We're going to focus only on
 _generating_ data structures; we're not going to insert them into a
 database.
 
@@ -145,7 +145,7 @@ or `::publisher`:
 
 We create a relations map with this bit:
 
-```
+```clojure
 (def relations
   (rs/expand-relation-template
     {::publisher [{}]
@@ -197,9 +197,11 @@ has a publisher and a book, which we can access like so:
 (I'll explain this `::rs/template` business later.)
 
 Notice that the book's `:publisher-id` is `1`, which is the
-publisher's `:id`. If you're following along in the repl, you probably
-won't have the same values; this is because we've set up our specs to
-generate random positive integers for `:id`.
+publisher's `:id`. If you inserted the publisher map in a database and
+then the book, your foreign key constraints would be happy. (If you're
+following along in the repl, you probably won't have the same values;
+this is because we've set up our specs to generate random positive
+integers for `:id`.)
 
 `rs/gen-tree`'s return value also includes entities generated for each
 query term under `::rs/query`:
@@ -220,7 +222,7 @@ dependencies that must exist, so please generate those dependencies
 and make sure that the _::chapter_ points to them."
 
 That's the heart of what Specmonstah does, but it can get a lot more
-sophisticated. Let's look at more complex and interesting queries.
+interesting. Let's look at more complex and interesting queries.
 
 ## More Query Features
 
@@ -260,6 +262,8 @@ book under `::rs/query` and under `(get-in result-2
 at `(get-in result-2 [::book ::rs/template])`, _not_ the book under
 `::rs/query`.
 
+![multiple query terms](docs/multiple-terms.png)
+
 ### Specifying Relationships
 
 What if you want to work with two books that belong to different
@@ -286,6 +290,8 @@ but instead of getting its `:publisher-id` from the `::publisher`
 named `::rs/template`, create a new publisher named `:p1` and get the
 `:publisher-id` from that."
 
+![multiple query terms](docs/spec-relations-1.png)
+
 Extended query terms like `[::book {:publisher-id :p1}]` are vectors
 instead of just a keyword. The first element should be an entity type:
 `::book`, here. The second element should be a map where the keys are
@@ -309,6 +315,8 @@ This generates three books. The second and third will have the same
 Specmonstah defaults to using the entity named by `::rs/template`. In
 the query above, for example, the first `::book`'s `:publisher-id` is
 taken from `(get-in result-4 [::publisher ::rs/template :id])`.
+
+![multiple query terms](docs/spec-relations-2.png)
 
 ### Specifying Nested Relationships
 
