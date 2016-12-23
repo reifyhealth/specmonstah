@@ -15,16 +15,16 @@
          '[adzerk.boot-test :refer :all])
 
 
-(def +version+ "0.1.0")
+(def +version+ "1.0.0")
 (bootlaces! +version+)
 
 (task-options!
   pom  {:project     'reifyhealth/specmonstah
         :version     +version+
-        :description "Generate and process records forming a DAG"
+        :description "Generate"
         :url         "https://github.com/reifyhealth/specmonstah"
         :scm         {:url "https://github.com/reifyhealth/specmonstah"}
-        :license     {"MIT" "https://opensource.org/licenses/MIT"}})
+        :license     {"MIT" "https://opensource.org/licenses/MIT"}})f
 
 (deftask make
   "build a jar"
@@ -37,10 +37,10 @@
   "Deploy release version to Clojars without gpg signature."
   [f file PATH str "The jar file to deploy."]
   (comp
-   (#'adzerk.bootlaces/collect-clojars-credentials)
-   (push
-    :file           file
-    :tag            (boolean #'adzerk.bootlaces/+last-commit+)
-    :gpg-sign       false
-    :ensure-release true
-    :repo           "deploy-clojars")))
+    (#'adzerk.bootlaces/collect-clojars-credentials)
+    (push
+      :file           file
+      :tag            (boolean #'adzerk.bootlaces/+last-commit+)
+      :gpg-sign       false
+      :ensure-release true
+      :repo           "deploy-clojars")))
