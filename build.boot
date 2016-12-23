@@ -24,7 +24,7 @@
         :description "Generate"
         :url         "https://github.com/reifyhealth/specmonstah"
         :scm         {:url "https://github.com/reifyhealth/specmonstah"}
-        :license     {"MIT" "https://opensource.org/licenses/MIT"}})f
+        :license     {"MIT" "https://opensource.org/licenses/MIT"}})
 
 (deftask make
   "build a jar"
