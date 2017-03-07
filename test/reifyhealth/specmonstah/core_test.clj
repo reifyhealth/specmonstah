@@ -198,11 +198,18 @@
                       [::author :a1]
                       [::book :b1]]}))
 
-  (is (= (#'sm/gen-tree gen1 template-relations [[::chapter {:book-id [:b1 {} {:author-id "Custom Author Id" :book-name "Nested Query Book Name"}]}]])
+  ;; Test that nested ref attributes get merged. :book-name and
+  ;; :author-id are added in separate refs, but the result has them
+  ;; merged.
+  (is (= (#'sm/gen-tree gen1 template-relations [[::chapter {:book-id [:b1 {} {:book-name "Nested Query Book Name"}]}]
+                                                 [::chapter {:book-id [:b1 {} {:author-id "Custom Author Id"}]}]
+                                                 [::chapter {:book-id [:b1 {} {}]}]])
          {::author {::sm/template {:id 10 :author-name "Fabrizio S."}}
           ::publisher {::sm/template {:id 11 :publisher-name "PublishCo"}}
           ::book {:b1 {:id 12 :book-name "Nested Query Book Name" :author-id "Custom Author Id" :publisher-id 11}}
-          ::sm/query [[::chapter {:id 13 :chapter-name "Chapter 1" :book-id 12}]]
+          ::sm/query [[::chapter {:id 13 :chapter-name "Chapter 1" :book-id 12}]
+                      [::chapter {:id 14 :chapter-name "Chapter 1" :book-id 12}]
+                      [::chapter {:id 15 :chapter-name "Chapter 1" :book-id 12}]]
           ::sm/order [[::author ::sm/template]
                       [::publisher ::sm/template]
                       [::book :b1]]})))

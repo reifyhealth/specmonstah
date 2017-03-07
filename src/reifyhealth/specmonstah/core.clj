@@ -98,13 +98,15 @@
               refs))
 
 (defn- add-query-term-relations
-  "Unpacks the query DSL, inserting referenced entities. For example,
+  "Recusively unpacks the query DSL, inserting referenced entities. For example,
   if the query includes the term
   
   [::book {:author-id :a1}]
   
   Then this function will insert a copy of 
-  (get-in relations [::author ::template]) at [::author :a1]."
+  (get-in relations [::author ::template]) at [::author :a1].
+
+  Also merges all attributes specified for referenced entities"
   [[ent-type refs] relations]
   (reduce-kv (fn [relations ent-field ref-name]
                (let [field-ref-type (get-in relations [ent-type ::template 0 ent-field 0])
@@ -116,7 +118,9 @@
                                                (assoc-in relations
                                                          [field-ref-type ref-name]
                                                          [(merge-template-refs (first ref-template) (ref-names ref-refs))
-                                                          (merge (second ref-template) ref-attrs)])))
+                                                          (merge (second ref-template)
+                                                                 (get-in relations [field-ref-type ref-name 1])
+                                                                 ref-attrs)])))
                    (assoc-in relations [field-ref-type ref-name] ref-template))))
              relations
              refs))
