@@ -1,0 +1,6 @@
+# Change Log
+All notable changes to this project will be documented in this file.
+
+## [1.0.1] - 2017-03-09
+### Fixed
+- Fix issue where, if you referenced the same entity in multiple locations, attributes would not be set unless you set them on the last reference.
