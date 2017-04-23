@@ -171,7 +171,7 @@
        (empty? (last ref))))
 
 (defn- bind-branch-relations
-  ([relations query] (bind-branch-relations relations query {}))
+  ([relations query-term] (bind-branch-relations relations query-term {}))
   ([relations [ent-type refs attrs query-ref-name generated?] bindings]
    (let [template (get-in relations [ent-type ::template 0])
          bindings (reduce-kv (fn [bindings ref-attr ref-name]
@@ -180,34 +180,21 @@
                              refs)
          term [(or query-ref-name ent-type)
                (->> (reduce-kv (fn [refs template-ref-attr template-ref-path]
-                                 (let [ref-ent-type (first template-ref-path)]
-                                   (if-let [ref-name (get bindings template-ref-path)]
-                                     ;; recursively update ref-name
-                                     (assoc refs
-                                            template-ref-attr
-                                            (if (vector? ref-name)
-                                              (bind-branch-relations relations
-                                                                     [ref-ent-type
-                                                                      (second ref-name)
-                                                                      (nth ref-name 2)
-                                                                      (first ref-name)]
-                                                                     ref-name
-                                                                     bindings)
-                                              (bind-branch-relations relations
-                                                                     [ref-ent-type
-                                                                      {}
-                                                                      {}
-                                                                      ref-name
-                                                                      false])))
-                                     (assoc refs
-                                            template-ref-attr
-                                            (bind-branch-relations relations
-                                                                   [ref-ent-type
-                                                                    {}
-                                                                    {}
-                                                                    (keyword (gensym (name ref-ent-type)))
-                                                                    true]
-                                                                   bindings)))))
+                                 (assoc refs
+                                        template-ref-attr
+                                        (bind-branch-relations relations
+                                                               (let [ref-ent-type (first template-ref-path)
+                                                                     ref (get bindings template-ref-path)
+                                                                     extended-ref? (vector? ref)]
+                                                                 [ref-ent-type
+                                                                  (if extended-ref? (second ref) {}) ;; refs
+                                                                  (if extended-ref? (nth ref 2) {})  ;; attrs
+                                                                  (cond extended-ref? (first ref)    ;; query-ref-name
+                                                                        ref ref
+                                                                        :else (keyword (gensym (name ref-ent-type))))
+                                                                  (not ref) ;; generated?
+                                                                  ])
+                                                               bindings)))
                                refs
                                template)
                     (medley/remove-vals empty-ref?))
