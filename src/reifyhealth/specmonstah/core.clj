@@ -164,6 +164,34 @@
   (->> (flatten-query relations query)
        (merge-query-refs relations)))
 
+(defn- bind-branch-relations
+  ([relations query] (bind-branch-relations relations query {}))
+  ([relations [ent-type refs attrs query-ref-name] bindings]
+   (let [template (get-in relations [ent-type ::template 0])
+         bindings (reduce-kv (fn [bindings ref-attr ref-name]
+                               (assoc bindings (template ref-attr) ref-name))
+                             bindings
+                             refs)]
+     [(or query-ref-name ent-type)
+      (->> (reduce-kv (fn [refs template-ref-attr template-ref-path]
+                        (if-let [ref-name (get bindings template-ref-path)]
+                          ;; recursively update ref-name
+                          (assoc refs template-ref-attr ref-name)
+                          (let [ref-ent-type (first template-ref-path)]
+                            (assoc refs template-ref-attr
+                                   (bind-branch-relations relations
+                                                          [ref-ent-type
+                                                           {}
+                                                           {}
+                                                           (keyword (gensym (name ref-ent-type)))] bindings)))))
+                      refs
+                      template)
+           (medley/remove-vals (fn [ref]
+                                 (and (vector? ref)
+                                      (empty? (second ref))
+                                      (empty? (last ref))))))
+      attrs])))
+
 (defn- vectorize-query-terms
   [query]
   (mapv (fn [term] (if (vector? term) term [term])) query))
