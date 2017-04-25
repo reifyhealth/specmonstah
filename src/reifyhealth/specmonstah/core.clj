@@ -111,6 +111,10 @@
   (reduce-kv (fn [relations ent-field ref-name]
                (let [field-ref-type (get-in relations [ent-type ::template 0 ent-field 0])
                      ref-template (get-in relations [field-ref-type ::template])]
+                 (if-not field-ref-type
+                   (throw (ex-info (str "The relation " ent-field " for " ent-type " does not exist")
+                                   {:ent-type ent-type
+                                    :ent-field ent-field})))
                  (if (vector? ref-name)
                    ;; ref recursively queries its own refs
                    (let [[ref-name ref-refs ref-attrs] ref-name]
