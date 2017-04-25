@@ -189,7 +189,7 @@
                                                [::chapter {:book-id [:b1 {:author-id :a1} {:book-name "Nested Query Book Name"}]}]])
          {::author {:a1 {:id 6 :author-name "Fabrizio S."}
                     ::sm/template {:id 4 :author-name "Fabrizio S."}}
-          ::publisher {::sm/template {:id 5 :publisher-name "PublishCo"}}
+          ::publisher {::sm/template {:id 5 :publisher-name "PublishCo"}}xb
           ::book {:b1 {:id 7 :book-name "Nested Query Book Name" :author-id 6 :publisher-id 5}}
           ::sm/query [[::book {:id 8 :book-name "Custom Book Name 1" :author-id 4 :publisher-id 5}]
                       [::chapter {:id 9 :chapter-name "Chapter 1" :book-id 7}]]
@@ -214,7 +214,7 @@
                       [::publisher ::sm/template]
                       [::book :b1]]})))
 
-(deftest handles-nonexistent-ref
+(deftest handles-nonexistent-relation
   (is (thrown-with-msg?
         clojure.lang.ExceptionInfo
         #"The relation :.*? for :.*? does not exist"
