@@ -230,4 +230,9 @@
   (is (= (sm/gen-tree gen1 default-attr-relations [::book])
          {::author {::sm/template {:id 1 :author-name "default"}}
           ::sm/query [[::book {:id 2 :book-name "The Book" :author-id 1}]]
-          ::sm/order [[::author ::sm/template]]})))
+          ::sm/order [[::author ::sm/template]]}))
+
+  (is (= (sm/gen-tree gen1 default-attr-relations [[::book {:author-id [:a1 {} {:id 10}]}]])
+         {::author {:a1 {:id 10 :author-name "default"}}
+          ::sm/query [[::book {:id 4 :book-name "The Book" :author-id 10}]]
+          ::sm/order [[::author :a1]]})))
