@@ -246,7 +246,11 @@
   [key-prefixes xs]
   (let [counter (atom (into {} (map (fn [prefix] [prefix -1]) key-prefixes)))
         key-prefixes (set key-prefixes)
-        matches? (fn [kw] (some #(and (.contains (str kw) (str %)) %) key-prefixes))]
+        matches? (fn [kw]
+                   (some (fn [prefix]
+                           (and (re-matches (re-pattern (str "^" prefix "\\d+")) (str kw))
+                                prefix))
+                         key-prefixes))]
     (walk/postwalk (fn [x]
                      (if-let [prefix (and (keyword? x) (matches? x))]
                        (do (swap! counter update prefix inc)
@@ -256,6 +260,7 @@
 
 (deftest bind-term-relations
   (testing "binds entire tree when ref key is a vector"
+    ;; renames :site-tag434154 to :site-tag-0
     (is (= (->> (#'sm/bind-term-relations binding-template-relations [::site-user {:site-id :s1
                                                                                    [::site-foo :id] :sf1}])
                 (rename-generated-keys [:site-tag]))
@@ -268,13 +273,14 @@
 
 (deftest gen-tree-with-bindings
   (testing "generates tree with bindings"
+    ;; renames :site-tag434154 to :site-tag-0
     (is (= (-> (sm/gen-tree gen1 binding-template-relations [[::site-user {[::site-foo :id] :sf1}]])
                (update ::site-tag #(rename-generated-keys [:site-tag] %))
                (update ::sm/order #(rename-generated-keys [:site-tag] %)))
            {::site {::sm/template {:id 1, :site-name "Site"}}
             ::site-foo {:sf1 {:id 2}}
             ::site-tag {:site-tag-0 {:id 3, :site-tag-name "Taggity", :site-foo-id 2, :site-id 1}},
-            :sm/query
+            ::sm/query
             [[::site-user {:id 5,
                            :site-user-name "Flamantha",
                            :site-user-tag-id 3,
