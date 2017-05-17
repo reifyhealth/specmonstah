@@ -178,15 +178,15 @@
           ::chapter {::sm/template [{:book-id [::book ::sm/template :id]} nil]}})))
 
 (deftest gen-tree
-  (is (= (#'sm/gen-tree gen1 template-relations [::book])
+  (is (= (sm/gen-tree gen1 template-relations [::book])
          {::author {::sm/template {:id 1 :author-name "Fabrizio S."}}
           ::publisher {::sm/template {:id 2 :publisher-name "PublishCo"}}
           ::sm/query [[::book {:id 3 :book-name "The Book" :author-id 1 :publisher-id 2}]]
           ::sm/order [[::author ::sm/template]
                       [::publisher ::sm/template]]}))
 
-  (is (= (#'sm/gen-tree gen1 template-relations [[::book {} {:book-name "Custom Book Name 1"}]
-                                                 [::chapter {:book-id [:b1 {:author-id :a1} {:book-name "Nested Query Book Name"}]}]])
+  (is (= (sm/gen-tree gen1 template-relations [[::book {} {:book-name "Custom Book Name 1"}]
+                                               [::chapter {:book-id [:b1 {:author-id :a1} {:book-name "Nested Query Book Name"}]}]])
          {::author {:a1 {:id 6 :author-name "Fabrizio S."}
                     ::sm/template {:id 4 :author-name "Fabrizio S."}}
           ::publisher {::sm/template {:id 5 :publisher-name "PublishCo"}}
@@ -201,9 +201,9 @@
   ;; Test that nested ref attributes get merged. :book-name and
   ;; :author-id are added in separate refs, but the result has them
   ;; merged.
-  (is (= (#'sm/gen-tree gen1 template-relations [[::chapter {:book-id [:b1 {} {:book-name "Nested Query Book Name"}]}]
-                                                 [::chapter {:book-id [:b1 {} {:author-id "Custom Author Id"}]}]
-                                                 [::chapter {:book-id [:b1 {} {}]}]])
+  (is (= (sm/gen-tree gen1 template-relations [[::chapter {:book-id [:b1 {} {:book-name "Nested Query Book Name"}]}]
+                                               [::chapter {:book-id [:b1 {} {:author-id "Custom Author Id"}]}]
+                                               [::chapter {:book-id [:b1 {} {}]}]])
          {::author {::sm/template {:id 10 :author-name "Fabrizio S."}}
           ::publisher {::sm/template {:id 11 :publisher-name "PublishCo"}}
           ::book {:b1 {:id 12 :book-name "Nested Query Book Name" :author-id "Custom Author Id" :publisher-id 11}}
@@ -246,3 +246,27 @@
       (is (= :s1 (get-in refs [:site-user-tag-id 1 :site-id])))
       (is (= [:site-id :site-user-tag-id] (keys refs)))
       (is (nil? attrs)))))
+
+(deftest handles-nonexistent-relation
+  (is (thrown-with-msg?
+        clojure.lang.ExceptionInfo
+        #"The relation :.*? for :.*? does not exist"
+        (sm/gen-tree gen1 template-relations [[::chapter {:nonexistent-id :n1}]]))))
+
+(def default-attr-relation-template
+  {::author [{} {:author-name "default"}]
+   ::book [{:author-id [::author :id]}]})
+
+(def default-attr-relations (sm/expand-relation-template default-attr-relation-template))
+
+(deftest uses-default-attrs
+  (is (= (sm/gen-tree gen1 default-attr-relations [::book])
+         {::author {::sm/template {:id 1 :author-name "default"}}
+          ::sm/query [[::book {:id 2 :book-name "The Book" :author-id 1}]]
+          ::sm/order [[::author ::sm/template]]}))
+
+  (is (= (sm/gen-tree gen1 default-attr-relations [[::book {:author-id [:a1 {} {:id 10}]}]])
+         {::author {:a1 {:id 10 :author-name "default"}}
+          ::sm/query [[::book {:id 4 :book-name "The Book" :author-id 10}]]
+          ::sm/order [[::author :a1]]})))
+
