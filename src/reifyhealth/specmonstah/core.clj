@@ -4,6 +4,8 @@
             [medley.core :as medley])
   (:refer-clojure :exclude [doall]))
 
+(def ^:private query-term-arity 4)
+
 (defn- expand-default-refs
   [default-refs]
   (medley/map-vals (fn [v] (if (vector? v)
@@ -161,21 +163,34 @@
            attrs])
         query))
 
-(defn- gen-format-query
-  "Takes a query written in the query DSL and transforms it to a
-  format used to generate a map from the query term"
-  [relations query]
-  (->> (flatten-query relations query)
-       (merge-query-refs relations)))
-
 (defn empty-ref?
   [ref]
   (and (vector? ref)
        (empty? (second ref))
        (empty? (last ref))))
 
-(defn- bind-branch-relations
-  ([relations query-term] (bind-branch-relations relations query-term {}))
+(defn- query-term-bindings
+  [query-term]
+  (->> (second query-term)
+       (medley/filter-keys vector?)
+       (medley/map-keys (fn [k] (if (= (count k) 2)
+                                 [(first k) ::template (second k)]
+                                 k)))))
+
+(defn- remove-query-term-bindings
+  [query-term]
+  (update query-term 1 (partial medley/filter-keys (complement vector?))))
+
+(defn- bind-term-relations
+  "Ensures that relations are consistent across a query term's tree"
+  ([relations query-term]
+   (let [bindings (query-term-bindings query-term)]
+     (if (empty? bindings)
+       query-term
+       (bind-term-relations
+         relations
+         (remove-query-term-bindings query-term)
+         bindings))))
   ([relations [ent-type refs attrs query-ref-name generated?] bindings]
    (let [template (get-in relations [ent-type ::template 0])
          bindings (reduce-kv (fn [bindings ref-attr ref-name]
@@ -186,19 +201,19 @@
                (->> (reduce-kv (fn [refs template-ref-attr template-ref-path]
                                  (assoc refs
                                         template-ref-attr
-                                        (bind-branch-relations relations
-                                                               (let [ref-ent-type (first template-ref-path)
-                                                                     ref (get bindings template-ref-path)
-                                                                     extended-ref? (vector? ref)]
-                                                                 [ref-ent-type
-                                                                  (if extended-ref? (second ref) {}) ;; refs
-                                                                  (if extended-ref? (nth ref 2) {})  ;; attrs
-                                                                  (cond extended-ref? (first ref)    ;; query-ref-name
-                                                                        ref ref
-                                                                        :else (keyword (gensym (name ref-ent-type))))
-                                                                  (not ref) ;; generated?
-                                                                  ])
-                                                               bindings)))
+                                        (bind-term-relations relations
+                                                             (let [ref-ent-type (first template-ref-path)
+                                                                   ref (get bindings template-ref-path)
+                                                                   extended-ref? (vector? ref)]
+                                                               [ref-ent-type
+                                                                (if extended-ref? (second ref) {}) ;; refs
+                                                                (if extended-ref? (nth ref 2) {})  ;; attrs
+                                                                (cond extended-ref? (first ref)    ;; query-ref-name
+                                                                      ref ref
+                                                                      :else (keyword (gensym (name ref-ent-type))))
+                                                                (not ref) ;; generated?
+                                                                ])
+                                                             bindings)))
                                refs
                                template)
                     (medley/remove-vals empty-ref?))
@@ -207,9 +222,38 @@
        query-ref-name
        term))))
 
+(defn bind-relations
+  "Updates terms to include `binding`"
+  [bindings & terms]
+  (let [bindings (apply hash-map bindings)]
+    (mapv (fn [term]
+            (-> (partition query-term-arity query-term-arity (repeat nil) term)
+                first
+                vec
+                (update (dec query-term-arity) #(merge bindings %))))
+          terms)))
+
+(defn- gen-format-query
+  "Takes a query written in the query DSL and transforms it to a
+  format used to generate a map from the query term"
+  [relations query]
+  (->> (flatten-query relations query)
+       (merge-query-refs relations)))
+
 (defn- vectorize-query-terms
   [query]
   (mapv (fn [term] (if (vector? term) term [term])) query))
+
+(defn- format-query
+  "Takes a query written in the query DSL and"
+  [relations query]
+  (->> (vectorize-query-terms query)
+       (reduce (fn [xs x]
+                 (if (vector? (first x))
+                   (into xs x)
+                   (conj xs x)))
+               [])
+       (map #(bind-term-relations relations %))))
 
 (defn- gen-refs
   "Given a tree and refs `{:foo [::bar ::template :id]}`
@@ -231,7 +275,7 @@
   "Generates the entire graph necessary for `query` to exist. See
   the README or examples/reifyhealth/specmonstah_examples.clj"
   [gen-fn relations query]
-  (let [query (vectorize-query-terms query)
+  (let [query (format-query relations query)
         gen-formatted-query (gen-format-query relations query)
         full-relations (add-query-relations relations query)
         sorted-ents (selected-ents full-relations gen-formatted-query)

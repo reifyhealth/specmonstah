@@ -214,38 +214,48 @@
                       [::publisher ::sm/template]
                       [::book :b1]]})))
 
+;; ---------
+;; Test binding
+;; ---------
+
 (s/def ::site-name #{"Site"})
 (s/def ::site (s/keys :req-un [::id ::site]))
 
-(s/def ::site-tag-name #{"Taggity"})
-(s/def ::site-tag (s/keys :req-un [::id ::site-tag-name]))
+(s/def ::site-foo (s/keys :req-un [::id]))
 
-(s/def ::foo (s/keys :req-un [::id]))
+(s/def ::site-tag-name #{"Taggity"})
+(s/def ::site-tag (s/keys :req-un [::id ::site-tag-name ::site-foo-id]))
 
 (s/def ::site-user-name #{"Flamantha"})
 (s/def ::site-user-tag-id ::id)
-(s/def ::foo-id ::id)
-(s/def ::site-user (s/keys :req-un [::id ::site-user-name ::site-user-tag-id ::foo-id]))
+(s/def ::site-user (s/keys :req-un [::id ::site-user-name ::site-user-tag-id]))
 
 (def binding-relation-template
   {::site []
-   ::site-tag [{:site-id [::site :id]}]
+   ::site-tag [{:site-id [::site :id]
+                :site-foo-id [::site-foo :id]}]
    ::site-user [{:site-id [::site :id]
-                 :foo-id [::foo :id]
                  :site-user-tag-id [::site-tag :id]}]})
 
 (def binding-template-relations (sm/expand-relation-template binding-relation-template))
 
-(deftest bind-branch-relations
+(deftest bind-term-relations
   (testing ""
-    (let [[ent-type refs attrs] (#'sm/bind-branch-relations binding-template-relations [::site-user {:site-id :s1}])]
+    (let [[ent-type refs attrs] (#'sm/bind-term-relations binding-template-relations [::site-user {:site-id :s1
+                                                                                                   [::site-foo :id] :sf1}])]
       ;; produces a data structure like
-      ;; [::site-user {:site-id :s1, :site-user-tag-id [:site-tag30834 {:site-id :s1} {}]} nil]
+      ;; [::site-user {:site-id :s1, :site-user-tag-id [:site-tag30834 {:site-id :s1, :site-foo-id :sf1} {}]} nil]
       (is (= ::site-user ent-type))
       (is (= :s1 (:site-id refs)))
-      (is (= :s1 (get-in refs [:site-user-tag-id 1 :site-id])))
+      (is (= (get-in refs [:site-user-tag-id 1])
+             {:site-id :s1
+              :site-foo-id :sf1}))
       (is (= [:site-id :site-user-tag-id] (keys refs)))
       (is (nil? attrs)))))
+
+;; ---------
+;; Test nonexistent relation handling
+;; ---------
 
 (deftest handles-nonexistent-relation
   (is (thrown-with-msg?
@@ -269,4 +279,3 @@
          {::author {:a1 {:id 10 :author-name "default"}}
           ::sm/query [[::book {:id 4 :book-name "The Book" :author-id 10}]]
           ::sm/order [[::author :a1]]})))
-
