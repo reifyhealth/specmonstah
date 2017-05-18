@@ -305,16 +305,14 @@
            {::site {::sm/template {:id 1, :site-name "Site"}},
             ::site-foo {:sf1 {:id 2}},
             ::site-tag {:st1 {:id 3, :site-tag-name "Taggity", :site-foo-id 2, :site-id 1}},
-            ::sm/query [[::site-user
-                         {:id 5,
-                          :site-user-name "Flamantha",
-                          :site-user-tag-id 3,
-                          :site-id 1}]
-                        [::site-user
-                         {:id 7,
-                          :site-user-name "Flamantha",
-                          :site-user-tag-id 3,
-                          :site-id 1}]],
+            ::sm/query [[::site-user {:id 5,
+                                      :site-user-name "Flamantha",
+                                      :site-user-tag-id 3,
+                                      :site-id 1}]
+                        [::site-user {:id 7,
+                                      :site-user-name "Flamantha",
+                                      :site-user-tag-id 3,
+                                      :site-id 1}]],
             ::sm/order [[::site
                          :reifyhealth.specmonstah.core/template]
                         [::site-foo :sf1]
