@@ -4,8 +4,6 @@
             [medley.core :as medley])
   (:refer-clojure :exclude [doall]))
 
-(def ^:private query-term-arity 4)
-
 (defn- expand-default-refs
   [default-refs]
   (medley/map-vals (fn [v] (if (vector? v)
@@ -227,10 +225,7 @@
   [bindings & terms]
   (let [bindings (apply hash-map bindings)]
     (mapv (fn [term]
-            (-> (partition query-term-arity query-term-arity (repeat nil) term)
-                first
-                vec
-                (update (dec query-term-arity) #(merge bindings %))))
+            (update term 1 #(merge bindings %)))
           terms)))
 
 (defn- gen-format-query
