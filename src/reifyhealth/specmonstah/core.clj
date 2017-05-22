@@ -161,6 +161,106 @@
            attrs])
         query))
 
+(defn empty-ref?
+  ""
+  [ref]
+  (and (vector? ref)
+       (empty? (second ref))
+       (empty? (last ref))))
+
+(defn- query-term-bindings
+  "Helper function that seeds third argument of `bind-term-relations`
+  with bindings that should apply across the query term's tree. This
+  is necessary because query term bindings share a map with refs, like
+  this:
+
+  ```
+  {:book-id :b1
+   [::author :id] :a1}
+  ```
+
+  In the above, `{:book-id :b1}` is a ref and `{[::author :id] :a1}`
+  is a binding.
+
+  This function is used by `bind-term-relations` to retrieve just the
+  bindings."
+  [query-term]
+  (->> (second query-term)
+       (medley/filter-keys vector?)
+       (medley/map-keys (fn [k] (if (= (count k) 2)
+                                 [(first k) ::template (second k)]
+                                 k)))))
+
+(defn- remove-query-term-bindings
+  "Helper function that removes bindings from a query term. This is
+  necessary because query term bindings share a map with refs, like
+  this:
+
+  ```
+  {:book-id :b1
+   [::author :id] :a1}
+  ```
+
+  In the above, `{:book-id :b1}` is a ref and `{[::author :id] :a1}`
+  is a binding.
+
+  This function is used by `bind-term-relations` to remove bindings,
+  leaving just the refs."
+  [query-term]
+  (update query-term 1 (partial medley/filter-keys (complement vector?))))
+
+(defn- bind-term-relations
+  "Ensures that relations are consistent across a query term's tree"
+  ([relations query-term]
+   (let [bindings (query-term-bindings query-term)]
+     (if (empty? bindings)
+       query-term
+       (bind-term-relations
+         relations
+         (remove-query-term-bindings query-term)
+         bindings))))
+  ([relations [ent-type refs attrs query-ref-name generated?] bindings]
+   (let [template (get-in relations [ent-type ::template 0])
+         bindings (reduce-kv (fn [bindings ref-attr ref-name]
+                               (assoc bindings (template ref-attr) ref-name))
+                             bindings
+                             refs)
+         term [(or query-ref-name ent-type)
+               (->> (reduce-kv (fn [refs template-ref-attr template-ref-path]
+                                 (assoc refs
+                                        template-ref-attr
+                                        (bind-term-relations relations
+                                                             (let [ref-ent-type (first template-ref-path)
+                                                                   ref (get bindings template-ref-path)
+                                                                   extended-ref? (vector? ref)]
+                                                               [ref-ent-type
+                                                                (if extended-ref? (second ref) {}) ;; refs
+                                                                (if extended-ref? (nth ref 2) {})  ;; attrs
+                                                                (cond extended-ref? (first ref)    ;; query-ref-name
+                                                                      ref ref
+                                                                      :else (keyword (gensym (name ref-ent-type))))
+                                                                (not ref) ;; generated?
+                                                                ])
+                                                             bindings)))
+                               refs
+                               template)
+                    (medley/remove-vals empty-ref?))
+               attrs]]
+     ;; Given something like [:a1 nil nil], return :a1
+     ;; otherwise return full term: something like
+     ;; [:a1 {:publisher-id :p1}]
+     (if (and (empty-ref? term) (not generated?))
+       query-ref-name
+       term))))
+
+(defn bind-relations
+  "Updates `terms` to include `bindings`"
+  [bindings & terms]
+  (let [bindings (apply hash-map bindings)]
+    (mapv (fn [term]
+            (update term 1 #(merge bindings %)))
+          terms)))
+
 (defn- gen-format-query
   "Takes a query written in the query DSL and transforms it to a
   format used to generate a map from the query term"
@@ -171,6 +271,30 @@
 (defn- vectorize-query-terms
   [query]
   (mapv (fn [term] (if (vector? term) term [term])) query))
+
+(defn- format-query
+  "Takes a query written in the query DSL and:
+
+  1. Vectorizes each term so that e.g. `::author` becomes `[::author]`
+
+  2. Incorporates the results of the `bind-relations` function. When
+  you call `bind-relations` you end up with query like:
+
+  `[::author [[::author] [::author]]]`
+  
+  The `reduce` below returns
+
+  `[::author [::author] [::author]]`
+
+  3. Binds query term relations"
+  [relations query]
+  (->> (vectorize-query-terms query)
+       (reduce (fn [xs x]
+                 (if (vector? (first x))
+                   (into xs x)
+                   (conj xs x)))
+               [])
+       (map #(bind-term-relations relations %))))
 
 (defn- gen-refs
   "Given a tree and refs `{:foo [::bar ::template :id]}`
@@ -192,7 +316,7 @@
   "Generates the entire graph necessary for `query` to exist. See
   the README or examples/reifyhealth/specmonstah_examples.clj"
   [gen-fn relations query]
-  (let [query (vectorize-query-terms query)
+  (let [query (format-query relations query)
         gen-formatted-query (gen-format-query relations query)
         full-relations (add-query-relations relations query)
         sorted-ents (selected-ents full-relations gen-formatted-query)
