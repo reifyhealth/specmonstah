@@ -162,12 +162,28 @@
         query))
 
 (defn empty-ref?
+  ""
   [ref]
   (and (vector? ref)
        (empty? (second ref))
        (empty? (last ref))))
 
 (defn- query-term-bindings
+  "Helper function that seeds third argument of `bind-term-relations`
+  with bindings that should apply across the query term's tree. This
+  is necessary because query term bindings share a map with refs, like
+  this:
+
+  ```
+  {:book-id :b1
+   [::author :id] :a1}
+  ```
+
+  In the above, `{:book-id :b1}` is a ref and `{[::author :id] :a1}`
+  is a binding.
+
+  This function is used by `bind-term-relations` to retrieve just the
+  bindings."
   [query-term]
   (->> (second query-term)
        (medley/filter-keys vector?)
@@ -176,6 +192,20 @@
                                  k)))))
 
 (defn- remove-query-term-bindings
+  "Helper function that removes bindings from a query term. This is
+  necessary because query term bindings share a map with refs, like
+  this:
+
+  ```
+  {:book-id :b1
+   [::author :id] :a1}
+  ```
+
+  In the above, `{:book-id :b1}` is a ref and `{[::author :id] :a1}`
+  is a binding.
+
+  This function is used by `bind-term-relations` to remove bindings,
+  leaving just the refs."
   [query-term]
   (update query-term 1 (partial medley/filter-keys (complement vector?))))
 
@@ -216,12 +246,15 @@
                                template)
                     (medley/remove-vals empty-ref?))
                attrs]]
+     ;; Given something like [:a1 nil nil], return :a1
+     ;; otherwise return full term: something like
+     ;; [:a1 {:publisher-id :p1}]
      (if (and (empty-ref? term) (not generated?))
        query-ref-name
        term))))
 
 (defn bind-relations
-  "Updates terms to include `binding`"
+  "Updates `terms` to include `bindings`"
   [bindings & terms]
   (let [bindings (apply hash-map bindings)]
     (mapv (fn [term]
@@ -240,7 +273,20 @@
   (mapv (fn [term] (if (vector? term) term [term])) query))
 
 (defn- format-query
-  "Takes a query written in the query DSL and"
+  "Takes a query written in the query DSL and:
+
+  1. Vectorizes each term so that e.g. `::author` becomes `[::author]`
+
+  2. Incorporates the results of the `bind-relations` function. When
+  you call `bind-relations` you end up with query like:
+
+  `[::author [[::author] [::author]]]`
+  
+  The `reduce` below returns
+
+  `[::author [::author] [::author]]`
+
+  3. Binds query term relations"
   [relations query]
   (->> (vectorize-query-terms query)
        (reduce (fn [xs x]
