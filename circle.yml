@@ -1,0 +1,28 @@
+machine:
+  java:
+    version: oraclejdk8
+  environment:
+    _JAVA_OPTIONS: "-Xms512m -Xmx1024m"
+dependencies:
+  pre:
+    - curl -L https://github.com/boot-clj/boot-bin/releases/download/latest/boot.sh -o ~/bin/boot
+    - chmod +x ~/bin/boot
+  override:
+    - boot show -d
+    - boot test
+    - boot make # Validate the namespaces are correct
+  cache_directories:
+    - "~/bin"
+    - "~/.m2"
+    - "~/.boot/cache/bin"
+    - "~/.boot/cache/lib"
+
+test:
+  override:
+    - echo 1
+
+deployment:
+  clojars:
+    branch: master
+    commands:
+      - boot push-release-without-gpg

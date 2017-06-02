@@ -28,6 +28,8 @@ Add the following to your project `:dependencies`:
 [reifyhealth/specmonstah "1.0.0"]
 ```
 
+[![CircleCI](https://circleci.com/gh/reifyhealth/specmonstah.svg?style=svg)](https://circleci.com/gh/reifyhealth/specmonstah)
+
 ## Brief Example
 
 The following examples won't actually run if you copy and paste them,
@@ -241,7 +243,7 @@ You can have more than one query term:
 ```clojure
 (def result-2 (rs/gen-tree gen1 relations [::chapter ::book]))
 result-2
-; => 
+; =>
 {::publisher {::rs/template {:id 9365, :publisher-name "Default Publisher Name"}}
  ::book {::rs/template {:id 6119, :book-name "Default Book Name", :publisher-id 9365}}
  ::rs/query [[::chapter {:id 69189760, :chapter-name "Default Chapter Title", :book-id 6119}]
@@ -257,7 +259,7 @@ and a book has been generated at `(get-in result-2
 
 ```clojure
 (::rs/query result-2)
-; => 
+; =>
 [[::chapter {:id 69189760, :chapter-name "Default Chapter Title", :book-id 6119}]
  [::book {:id 6938682, :book-name "Default Book Name", :publisher-id 9365}]]
 ```
@@ -314,7 +316,7 @@ same entity:
                                            [::book {:publisher-id :p1}]
                                            [::book {:publisher-id :p1}]]))
 result-4
-; => 
+; =>
 ```
 
 This generates three books. The second and third will have the same
