@@ -285,14 +285,20 @@
     ;; test helper renames :site-tag434154 to :site-tag-0
     (is (= (->> (sm/gen-tree gen1 binding-template-relations [[::site-user {[::site-foo :id] :sf1}]])
                 (rename-generated-keys [:site-tag]))
-           {::site {::sm/template {:id 1, :site-name "Site"}}
-            ::site-foo {:sf1 {:id 2}}
-            ::site-tag {:site-tag-0 {:id 3, :site-tag-name "Taggity", :site-foo-id 2, :site-id 1}},
-            ::sm/query [[::site-user {:id 5,
-                                      :site-user-name "Flamantha",
-                                      :site-user-tag-id 3,
-                                      :site-id 1}]],
-            ::sm/order [[::site ::sm/template]
+           {::site-tag-group {::sm/template {:id 1}}
+            ::site {::sm/template {:id 2 :site-name "Site"}}
+            ::site-foo {:sf1 {:id 3}}
+            ::site-tag {:site-tag-0 {:id 4
+                                     :site-tag-name "Taggity"
+                                     :site-foo-id 3
+                                     :site-id 2
+                                     :site-tag-group-id 1}}
+            ::sm/query [[::site-user {:id 6,
+                                      :site-user-name "Flamantha"
+                                      :site-user-tag-id 4
+                                      :site-id 2}]]
+            ::sm/order [[::site-tag-group ::sm/template]
+                        [::site ::sm/template]
                         [::site-foo :sf1]
                         [::site-tag :site-tag-0]]}))))
 
@@ -305,19 +311,24 @@
                                        [::site-foo :id] :sf1]
                      [::site-user]
                      [::site-user])]))
-           {::site {::sm/template {:id 1, :site-name "Site"}},
-            ::site-foo {:sf1 {:id 2}},
-            ::site-tag {:st1 {:id 3, :site-tag-name "Taggity", :site-foo-id 2, :site-id 1}},
-            ::sm/query [[::site-user {:id 5,
+           {::site-tag-group {::sm/template {:id 1}}
+            ::site {::sm/template {:id 2, :site-name "Site"}},
+            ::site-foo {:sf1 {:id 3}},
+            ::site-tag {:st1 {:id 4
+                              :site-tag-name "Taggity"
+                              :site-foo-id 3
+                              :site-tag-group-id 1
+                              :site-id 2}}
+            ::sm/query [[::site-user {:id 6,
                                       :site-user-name "Flamantha",
-                                      :site-user-tag-id 3,
-                                      :site-id 1}]
-                        [::site-user {:id 7,
+                                      :site-user-tag-id 4,
+                                      :site-id 2}]
+                        [::site-user {:id 8,
                                       :site-user-name "Flamantha",
-                                      :site-user-tag-id 3,
-                                      :site-id 1}]],
-            ::sm/order [[::site
-                         :reifyhealth.specmonstah.core/template]
+                                      :site-user-tag-id 4,
+                                      :site-id 2}]],
+            ::sm/order [[::site-tag-group ::sm/template]
+                        [::site ::sm/template]
                         [::site-foo :sf1]
                         [::site-tag :st1]]}))))
 
