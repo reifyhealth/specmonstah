@@ -20,3 +20,9 @@ dependencies:
 test:
   override:
     - echo 1
+
+deployment:
+  clojars:
+    branch: master
+    commands:
+      - boot push-release-without-gpg

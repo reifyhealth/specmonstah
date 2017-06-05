@@ -235,7 +235,7 @@
                                                                    extended-ref? (vector? ref)]
                                                                [ref-ent-type
                                                                 (if extended-ref? (second ref) {}) ;; refs
-                                                                (if extended-ref? (nth ref 2) {})  ;; attrs
+                                                                (if extended-ref? (get ref 2) {})  ;; attrs
                                                                 (cond extended-ref? (first ref)    ;; query-ref-name
                                                                       ref ref
                                                                       :else (keyword (gensym (name ref-ent-type))))
@@ -257,8 +257,7 @@
   "Updates `terms` to include `bindings`"
   [bindings & terms]
   (let [bindings (apply hash-map bindings)]
-    (mapv (fn [term]
-            (update term 1 #(merge bindings %)))
+    (mapv (fn [term] (update term 1 #(merge bindings %)))
           terms)))
 
 (defn- gen-format-query
