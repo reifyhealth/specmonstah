@@ -1,6 +1,15 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2017-06-05
+
+### New
+
+- Added a new binding syntax that ensures references are consistent across a query term's graph
+- Added the `bind-relations` helper which adds bindings to many query terms
+
 ## [1.0.1] - 2017-03-09
+
 ### Fixed
+
 - Fix issue where, if you referenced the same entity in multiple locations, attributes would not be set unless you set them on the last reference.
