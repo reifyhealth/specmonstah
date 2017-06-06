@@ -25,4 +25,4 @@ deployment:
   clojars:
     branch: master
     commands:
-      - boot push-release-without-gpg
+      - boot make push-release-without-gpg
