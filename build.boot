@@ -33,6 +33,12 @@
         :license     {"MIT" "https://opensource.org/licenses/MIT"}}
   test-cljs {:js-env :node})
 
+(deftask test-all
+  "unit tests and cljs tests"
+  []
+  (comp (test)
+        (test-cljs :exit? true)))
+
 (deftask make
   "build a jar"
   []

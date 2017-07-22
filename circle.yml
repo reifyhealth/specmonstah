@@ -9,7 +9,7 @@ dependencies:
     - chmod +x ~/bin/boot
   override:
     - boot show -d
-    - boot test
+    - boot test-all
     - boot make # Validate the namespaces are correct
   cache_directories:
     - "~/bin"
