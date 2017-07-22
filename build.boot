@@ -2,7 +2,7 @@
   :source-paths   #{"src" "test"}
   :resource-paths #{}
   :target-path    "target/build"
-  :dependencies   '[[org.clojure/clojure         "1.9.0-alpha14" :scope "provided"]
+  :dependencies   '[[org.clojure/clojure         "1.9.0-alpha17" :scope "provided"]
                     [org.clojure/clojurescript   "1.9.562"       :scope "provided"]
                     [boot/core                   "2.5.5"         :scope "provided"]
                     [adzerk/boot-test            "1.1.1"         :scope "test"]
@@ -12,6 +12,7 @@
                     [adzerk/boot-cljs            "2.0.0"         :scope "test"]
                     [crisptrutski/boot-cljs-test "0.3.0"         :scope "test"]
                     [doo                         "0.1.7"         :scope "test"]
+                    [org.clojure/spec.alpha      "0.1.123"       :scope "test"]
                     [aysylu/loom "1.0.0"]
                     [medley "0.8.3"]])
 

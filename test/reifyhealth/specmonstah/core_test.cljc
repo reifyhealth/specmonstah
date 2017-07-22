@@ -1,6 +1,6 @@
 (ns reifyhealth.specmonstah.core-test
   (:require [reifyhealth.specmonstah.core :as sm]
-            [clojure.spec :as s]
+            [clojure.spec.alpha :as s]
             [clojure.test :as t :refer [deftest is use-fixtures testing]]
             [clojure.test.check.generators :as gen :include-macros true]
             [clojure.walk :as walk]))
@@ -367,7 +367,8 @@
 
 (deftest handles-nonexistent-relation
   (is (thrown-with-msg?
-        clojure.lang.ExceptionInfo
+        #?(:clj clojure.lang.ExceptionInfo
+           :cljs cljs.core.ExceptionInfo)
         #"The relation :.*? for :.*? does not exist"
         (sm/gen-tree gen1 template-relations [[::chapter {:nonexistent-id :n1}]]))))
 
