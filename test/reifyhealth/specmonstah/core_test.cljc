@@ -201,34 +201,34 @@
            #{[::author ::sm/template]
              [::publisher ::sm/template]})))
 
-  (is (= (sm/gen-tree gen1 template-relations [[::book {} {:book-name "Custom Book Name 1"}]
-                                               [::chapter {:book-id [:b1 {:author-id :a1} {:book-name "Nested Query Book Name"}]}]])
-         {::author {:a1 {:id 6 :author-name "Fabrizio S."}
-                    ::sm/template {:id 4 :author-name "Fabrizio S."}}
-          ::publisher {::sm/template {:id 5 :publisher-name "PublishCo"}}
-          ::book {:b1 {:id 7 :book-name "Nested Query Book Name" :author-id 6 :publisher-id 5}}
-          ::sm/query [[::book {:id 8 :book-name "Custom Book Name 1" :author-id 4 :publisher-id 5}]
-                      [::chapter {:id 9 :chapter-name "Chapter 1" :book-id 7}]]
-          ::sm/order [[::author ::sm/template]
-                      [::publisher ::sm/template]
-                      [::author :a1]
-                      [::book :b1]]}))
+  (let [tree (sm/gen-tree gen1 template-relations [[::book {} {:book-name "Custom Book Name 1"}]
+                                                   [::chapter {:book-id [:b1 {:author-id :a1} {:book-name "Nested Query Book Name"}]}]])
+        order (::sm/order tree)]
+    (is (= (set order)
+           #{[::author ::sm/template]
+             [::publisher ::sm/template]
+             [::author :a1]
+             [::book :b1]}))
+    (is (before? [::author :a1] [::book :b1] order))
+    (is (before? [::publisher ::sm/template] [::book :b1] order))
+
+    ;; book query references author and publisher
+    (is (references? [::sm/query 0 1 :author-id] [::author ::sm/template :id] tree))
+    (is (references? [::sm/query 0 1 :publisher-id-id] [::publisher ::sm/template :id] tree))
+
+    ;; chapter query references book
+    (is (references? [::sm/query 1 1 :book-id] [::book :b1 :id] tree))
+
+    (is (references? [::book :b1 :author-id] [::author :a1 :id] tree)))
 
   ;; Test that nested ref attributes get merged. :book-name and
   ;; :author-id are added in separate refs, but the result has them
   ;; merged.
-  (is (= (sm/gen-tree gen1 template-relations [[::chapter {:book-id [:b1 {} {:book-name "Nested Query Book Name"}]}]
-                                               [::chapter {:book-id [:b1 {} {:author-id "Custom Author Id"}]}]
-                                               [::chapter {:book-id [:b1 {} {}]}]])
-         {::author {::sm/template {:id 10 :author-name "Fabrizio S."}}
-          ::publisher {::sm/template {:id 11 :publisher-name "PublishCo"}}
-          ::book {:b1 {:id 12 :book-name "Nested Query Book Name" :author-id "Custom Author Id" :publisher-id 11}}
-          ::sm/query [[::chapter {:id 13 :chapter-name "Chapter 1" :book-id 12}]
-                      [::chapter {:id 14 :chapter-name "Chapter 1" :book-id 12}]
-                      [::chapter {:id 15 :chapter-name "Chapter 1" :book-id 12}]]
-          ::sm/order [[::author ::sm/template]
-                      [::publisher ::sm/template]
-                      [::book :b1]]})))
+  (let [tree (sm/gen-tree gen1 template-relations [[::chapter {:book-id [:b1 {} {:book-name "Nested Query Book Name"}]}]
+                                                   [::chapter {:book-id [:b1 {} {:author-id "Custom Author Id"}]}]
+                                                   [::chapter {:book-id [:b1 {} {}]}]])]
+    (is (= (select-keys (get-in tree [::book :b1]) [:book-name :author-id])
+           {:book-name "Nested Query Book Name" :author-id "Custom Author Id"}))))
 
 ;; ---------
 ;; Test binding
