@@ -17,6 +17,14 @@
 
 (use-fixtures :each test-fixture)
 
+(defn before? [a b xs]
+  (< (.indexOf xs a)
+     (.indexOf xs b)))
+
+(defn references? [tree p1 p2]
+  (= (get-in tree p1)
+     (get-in tree p2)))
+
 (s/def ::id
   (s/with-gen
     pos-int?
@@ -142,13 +150,16 @@
           [::book ::sm/template] #{[::author ::sm/template] [::publisher ::sm/template]}
           [::chapter ::sm/template] #{[::book ::sm/template]}})))
 
+;; TODO update
+
 (deftest selected-ents
-  (let [query [[::book] [::book {:author-id :auth1}]]
-        formatted-query (#'sm/gen-format-query template-relations query)]
-    (is (= (#'sm/selected-ents (#'sm/add-query-relations template-relations query) formatted-query)
-           [[::author ::sm/template]
-            [::publisher ::sm/template]
-            [::author :auth1]]))))
+  (let [query [[::chapter] [::chapter {:book-id [:book1 {:author-id :auth1}]}]]
+        formatted-query (#'sm/gen-format-query template-relations query)
+        selected (#'sm/selected-ents (#'sm/add-query-relations template-relations query) formatted-query)]
+    (is (before? [::author :auth1] [::book :book1] selected))
+    (is (before? [::author ::sm/template] [::book ::sm/template] selected))
+    (is (before? [::publisher ::sm/template][::book ::sm/template] selected))))
+
 
 (deftest flatten-query
   (is (= (#'sm/flatten-query template-relations [[::book] [::chapter {:book-id [:b1 {:author-id :a1}]}]])
@@ -179,12 +190,16 @@
           ::chapter {::sm/template [{:book-id [::book ::sm/template :id]} nil]}})))
 
 (deftest gen-tree
-  (is (= (sm/gen-tree gen1 template-relations [::book])
-         {::author {::sm/template {:id 1 :author-name "Fabrizio S."}}
-          ::publisher {::sm/template {:id 2 :publisher-name "PublishCo"}}
-          ::sm/query [[::book {:id 3 :book-name "The Book" :author-id 1 :publisher-id 2}]]
-          ::sm/order [[::author ::sm/template]
-                      [::publisher ::sm/template]]}))
+  (let [tree (sm/gen-tree gen1 template-relations [::book])]
+    ;; Remove order because it's nondeterministic for nodes that are
+    ;; topographically on the same level
+    (is (= (dissoc tree ::sm/order)
+           {::author {::sm/template {:id 1 :author-name "Fabrizio S."}}
+            ::publisher {::sm/template {:id 2 :publisher-name "PublishCo"}}
+            ::sm/query [[::book {:id 3 :book-name "The Book" :author-id 1 :publisher-id 2}]]}))
+    (is (= (set (::sm/order tree))
+           #{[::author ::sm/template]
+             [::publisher ::sm/template]})))
 
   (is (= (sm/gen-tree gen1 template-relations [[::book {} {:book-name "Custom Book Name 1"}]
                                                [::chapter {:book-id [:b1 {:author-id :a1} {:book-name "Nested Query Book Name"}]}]])
@@ -334,29 +349,25 @@
 
 (deftest gen-tree-with-bind-relations-nested
   (testing "bind-relations helper merges the binding with user-defined relations"
-    (is (= (->> (sm/gen-tree
-                  gen1
-                  binding-template-relations
-                  [(sm/bind-relations [[::site-tag-group :id] :stg1]
-                     [::site-user {:site-user-tag-id [:st1 {:site-foo-id :sf1}]}])])
-                (rename-generated-keys [:site-tag]))
-           {::site {::sm/template {:id 1, :site-name "Site"}},
-            ::site-foo {:sf1 {:id 2}},
-            ::site-tag-group {:stg1 {:id 3}},
-            ::site-tag {:st1 {:id 4,
-                              :site-tag-name "Taggity",
-                              :site-foo-id 2,
-                              :site-id 1,
-                              :site-tag-group-id 3}},
-            ::sm/query [[::site-user
-                         {:id 6,
-                          :site-user-name "Flamantha",
-                          :site-user-tag-id 4,
-                          :site-id 1}]],
-            ::sm/order [[::site ::sm/template]
-                        [::site-foo :sf1]
-                        [::site-tag-group :stg1]
-                        [::site-tag :st1]]}))))
+    (let [tree (->> (sm/gen-tree
+                      gen1
+                      binding-template-relations
+                      [(sm/bind-relations [[::site-tag-group :id] :stg1]
+                         [::site-user {:site-user-tag-id [:st1 {:site-foo-id :sf1}]}])])
+                    (rename-generated-keys [:site-tag]))
+          order (::sm/order tree)]
+      (is (references? tree [::site-tag :st1 :site-foo-id]       [::site-foo :sf1 :id]))
+      (is (references? tree [::site-tag :st1 :site-id]           [::site ::sm/template :id]))
+      (is (references? tree [::site-tag :st1 :site-tag-group-id] [::site-tag-group :stg1 :id]))
+      (is (references? tree [::sm/query 0 1 :site-user-tag-id]   [::site-tag :st1 :id]))
+
+      (is (= (set order)
+             #{[::site ::sm/template]
+               [::site-foo :sf1]
+               [::site-tag-group :stg1]
+               [::site-tag :st1]}))
+      (is (before? [::site-tag-group :stg1] [::site-tag :st1] order))
+      (is (before? [::site ::sm/template] [::site-foo :sf1] order)))))
 
 
 
