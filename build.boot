@@ -21,7 +21,7 @@
          '[crisptrutski.boot-cljs-test :refer [test-cljs]])
 
 
-(def +version+ "1.1.0")
+(def +version+ "1.1.1")
 (bootlaces! +version+)
 
 (task-options!
