@@ -10,7 +10,7 @@
                            (prop :license :license)
                            (prop :description :description)
                            [:dependencies (conj (get-env :dependencies)
-                                                ['boot/core "2.6.0" :scope "compile"])
+                                                ['boot/core "2.7.1" :scope "compile"])
                             :repositories (get-env :repositories)
                             :source-paths (vec (concat (get-env :source-paths)
                                                        (get-env :resource-paths)))]))
