@@ -1,351 +1,287 @@
 (ns reifyhealth.specmonstah.core
-  (:require [loom.graph :as g]
-            [loom.alg :as la]
-            [medley.core :as medley])
-  (:refer-clojure :exclude [doall]))
+  (:require [loom.alg :as la]
+            [loom.attr :as lat]
+            [loom.graph :as lg]
+            [loom.derived :as ld]
+            [medley.core :as medley]
+            [better-cond.core :as b]
+            [clojure.test.check.generators :as gen :include-macros true]
+            [clojure.set :as set]
+            [clojure.spec.alpha :as s]))
 
-(defn- expand-default-refs
-  [default-refs]
-  (medley/map-vals (fn [v] (if (vector? v)
-                            (let [[relation-type field] v]
-                              [relation-type ::template field])
-                            v))
-                   default-refs))
+(s/def ::any (constantly true))
+(s/def ::ent-type keyword?)
+(s/def ::ent-name keyword?)
+(s/def ::ent-attr keyword?)
+(s/def ::ent-count int?)
+(s/def ::prefix keyword?)
+(s/def ::constraint keyword?)
+(s/def ::spec (s/and keyword? namespace))
 
-(defn expand-relation-template
-  "Allows you to write a template in a compact format, like 
+;; schema specs
+(s/def ::relation-path
+  (s/cat :ent-type ::ent-type
+         :path (s/+ ::any)))
+
+(s/def ::relations
+  (s/map-of ::ent-attr ::relation-path))
+
+(s/def ::constraints
+  (s/map-of ::ent-attr ::constraint))
+
+(s/def ::ent-type-schema
+  (s/keys :req-un [::prefix]
+          :opt-un [::relations ::constraints ::spec]))
+
+(s/def ::schema
+  (s/map-of ::ent-type ::ent-type-schema))
+
+;; query specs
+(s/def ::query-bindings
+  (s/nilable (s/map-of ::ent-type ::ent-name)))
+
+(s/def ::query-relations
+  (s/nilable (s/map-of ::ent-attr (s/or :ent-name ::ent-name
+                                        :ent-names (s/coll-of ::ent-name)
+                                        :ent-count ::ent-count))))
+
+(s/def ::extended-query-term
+  (s/or :n-1 (s/cat :ent-name (s/nilable ::ent-name))
+        :n-2 (s/cat :ent-name (s/nilable ::ent-name)
+                    :query-relations ::query-relations)
+        :n-3 (s/cat :ent-name (s/nilable ::ent-name)
+                    :query-relations ::query-relations
+                    :query-bindings ::query-bindings)
+        :n-* (s/cat :ent-name (s/nilable ::ent-name)
+                    :query-relations ::query-relations
+                    :query-bindings ::query-bindings
+                    :query-args (s/* ::any))))
+
+(s/def ::query-term
+  (s/nilable
+    (s/or :ent-count ::ent-count
+          :extended-query-term ::extended-query-term)))
+
+(s/def ::query
+  (s/map-of ::ent-type (s/coll-of ::query-term)))
+
+;; db specs
+(s/def ::db
+  (s/keys :req-un [::schema]))
+
+(declare add-ent)
+
+(defn relation-graph
+  "A graph of the type dependencies in a schema. If entities of type
+  `:project` reference an entity of type `:user` via `:owner-id`, then
+  this will return a graph where the `:project` node connects to the
+  `:user` node"
+  [schema]
+  (->> schema
+       (medley/map-vals (fn [v] (->> v :relations vals (map first) set)))
+       (lg/digraph)))
+
+(defn ent-index
+  "Used to keep track of entity's insertion order in graph relative to
+  other entities of the same type."
+  [g ent-type]
+  (count (lg/successors g ent-type)))
+
+(defn numeric-node-name
+  "Template for generating a node name"
+  [schema ent-type index]
+  (let [prefix (get-in schema [ent-type :prefix])]
+    (keyword (str (name prefix) index))))
+
+(defn default-node-name
+  "Whenever specmonstah needs to create a node that's not manually
+  named, it uses this to generate the default name."
+  [{:keys [schema]} ent-type]
+  (numeric-node-name schema ent-type 0))
+
+(defn incrementing-node-name
+  "A template for creating distinct node names."
+  [{:keys [data schema]} ent-type]
+  (numeric-node-name schema ent-type (ent-index data ent-type)))
+
+(defn add-edge-with-id
+  "When indicating :ent-a references :ent-b, include a
+  `:relation-attrs` graph attribute that includes the attributes via
+  which `:ent-a` references `:ent-b`. 
+
+  For example, if the `:project` named `:p0` has an `:owner-id` and
+  `:updated-by-id` that both reference the `:user` named `:u0`, then
+  the edge from `:p0` to `:u0` will if a `:relation-attrs` attribute
+  with value `#{:owner-id :updated-by-id}`.
+
+  This can be used e.g. to set the values for `:owner-id` and
+  `:updated-by-id`."
+  [g ent-name related-ent-name id]
+  (let [ids (lat/attr g ent-name related-ent-name :relation-attrs)]
+    (-> g
+        (lg/add-edges [ent-name related-ent-name])
+        (lat/add-attr ent-name related-ent-name :relation-attrs (conj (or ids #{}) id)))))
+
+(defn bound-name
+  "If `query-bindings` contains the binding `{:user :horton}` and the
+  `relation-attr` `:owner-id` references a user, then `:owner-id`
+  should reference `:horton`"
+  [schema query-bindings ent-type relation-attr]
+  (get query-bindings (get-in schema [ent-type :relations relation-attr 0])))
+
+(defn bound-descendants?
+  "Check whether `query-relations` contains bindings that apply to any
+  descendants of `related-ent-type`"
+  [{:keys [types schema relation-graph]} query-bindings related-ent-type]
+  (not-empty (set/intersection (disj (set (lg/nodes (ld/subgraph-reachable-from relation-graph related-ent-type))) related-ent-type)
+                               (set (keys query-bindings)))))
+
+(defn bound-relation-attr-name
+  "Template for when a binding necessitates you add a new entity"
+  [{:keys [schema]} ent-name related-ent-type index]
+  (let [{:keys [prefix]} (related-ent-type schema)]
+    (keyword (str (name prefix) "-bound-" (name ent-name) "-" index))))
+
+(defn related-ents
+  "Returns all related ents for an ent's relation-attr"
+  [{:keys [schema data] :as db} ent-name ent-type relation-attr query-term]
+  (let [{:keys [relations constraints]}          (ent-type schema)
+        {:keys [query-relations query-bindings]} (-> (s/conform ::query-term query-term) second second)
+        related-ent-type                         (-> relations relation-attr first)
+        [qr-type qr-term]                        (relation-attr query-relations)]
+    (b/cond (= qr-type :ent-count) (mapv (partial numeric-node-name schema related-ent-type) (range qr-term))
+            (= qr-type :ent-names) qr-term
+            (= qr-type :ent-name)  [qr-term]
+            :let [bn (bound-name schema query-bindings ent-type relation-attr)]
+            bn   [bn]
+            
+            :let [has-bound-descendants? (bound-descendants? db query-bindings related-ent-type)
+                  uniq?                  (= (relation-attr constraints) :uniq)
+                  ent-index              (lat/attr data ent-name :index)]
+            (and has-bound-descendants? uniq?) [(bound-relation-attr-name db ent-name related-ent-type ent-index)]
+            has-bound-descendants?             [(bound-relation-attr-name db ent-name related-ent-type 0)]
+            uniq?                              [(numeric-node-name schema related-ent-type ent-index)]
+            related-ent-type                   [(default-node-name db related-ent-type)]
+            :else                              [])))
+
+(defn add-related-ents
+  [{:keys [schema types data] :as db} ent-name ent-type query-term]
+  (let [relation-schema (get-in schema [ent-type :relations])]
+    (reduce (fn [db relation-attr]
+              (let [[relation-type] (get-in db [:schema ent-type :relations relation-attr])]
+                (reduce (fn [db related-ent]
+                          (-> db
+                              (add-ent related-ent relation-type (if-let [query-bindings (get query-term 2)]
+                                                                   [nil nil query-bindings]
+                                                                   nil))
+                              (update :data add-edge-with-id ent-name related-ent relation-attr)))
+                        db
+                        (related-ents db ent-name ent-type relation-attr query-term))))
+            db
+            (keys relation-schema))))
+
+(defn add-ent
+  "Add an ent, and its related ents, to the ent-db"
+  [{:keys [data] :as db} ent-name ent-type query-term]
+  ;; don't try to add an ent if it's already been added
+  (if ((lg/nodes data) ent-name)
+    db
+    (-> db
+        (update :data (fn [data]
+                        (-> data
+                            (lg/add-edges [ent-type ent-name])
+                            (lat/add-attr ent-type :type :ent-type)
+                            (lat/add-attr ent-name :type :ent)
+                            (lat/add-attr ent-name :index (ent-index data ent-type))
+                            (lat/add-attr ent-name :ent-type ent-type)
+                            (lat/add-attr ent-name :query-term query-term))))
+        (add-related-ents ent-name ent-type query-term))))
+
+(defn add-anonymous-ents
+  [db ent-type num-ents]
+  (loop [db db
+         n  num-ents]
+    (if (zero? n)
+      db
+      (recur (add-ent db (incrementing-node-name db ent-type) ent-type nil)
+             (dec n)))))
+
+(defn add-ent-type-query
+  [db ent-type-query ent-type]
+  (reduce (fn [db query-term]
+            (let [[query-term-type annotated-query-term] (s/conform ::query-term query-term)]
+              (case query-term-type
+                :ent-count           (add-anonymous-ents db ent-type query-term)
+                :extended-query-term (add-ent db
+                                              (:ent-name (second annotated-query-term))
+                                              ent-type
+                                              query-term))))
+          db
+          ent-type-query))
+
+(defn init-db
+  [{:keys [schema] :as db}]
+  (let [rg (relation-graph schema)]
+    (-> db
+        (update :data #(or % (lg/digraph)))
+        (assoc :relation-graph rg
+               :types (set (keys schema))
+               :type-order (reverse (la/topsort rg))))))
+
+(defn throw-invalid-spec
+  [arg-name spec data]
+  (if-not (s/valid? spec data)
+    (throw (ex-info (str arg-name " is invalid") {::s/explain-data (s/explain-data spec data)}))))
+
+(defn invalid-schema-relations
+  [schema]
+  (set/difference (->> schema
+                       vals
+                       (mapcat (comp #(map first %) vals :relations))
+                       set)
+                  (set (keys schema))))
+
+(defn build-ent-db
+  "Produce a new db that contains all ents specified by query"
+  [db query]
+  (let [isr (invalid-schema-relations (:schema db))]
+    (assert (empty? isr) (str "Your schema relations reference nonexistent types: " isr)))
+  (throw-invalid-spec "db" ::db db)
+  (throw-invalid-spec "query" ::query query)
   
-  ```
-  (require '[reify.specmonstah :as rs])
-  (def relation-template
-   {::author [{}]
-    ::publisher [{}]
-    ::book [{:author-id [::author :id]
-             :publisher-id [::publisher :id]}]
-    ::chapter [{:book-id [::book :id]}]})
+  (let [db (init-db db)]
+    (reduce (fn [db ent-type]
+              (if-let [ent-type-query (ent-type query)]
+                (add-ent-type-query db ent-type-query ent-type)
+                db))
+            db
+            (:type-order db))))
 
-  (rs/expand-relation-template relation-template)
-  ; => 
-  {::author {::rs/template [{} nil]}
-   ::publisher {::rs/template [{} nil]}
-   ::book {::rs/template [{:author-id [::author ::rs/template :id]
-                           :pubisher-id [::publisher ::rs/template :id]}
-                          nil]}
-   ::chapter {::rs/template [{:book-id [::book ::rs/template :id]} nil]}}
-  ```"
-  [relation-template]
-  (reduce-kv (fn [result relation-type [default-refs default-attrs]]
-               (assoc result relation-type {::template [(expand-default-refs default-refs) default-attrs]}))
-             {}
-             relation-template))
+(defn ordered-ents
+  "Given a db, returns all ents ordered first by type order, than by
+  index."
+  [{:keys [type-order data]}]
+  (mapcat (fn [ent-type]
+            (sort-by #(lat/attr data % :index)
+                     (lg/successors data ent-type)))
+          type-order))
 
-(defn- ref-names
-  [xs]
-  (medley/map-vals #(if (vector? %) (first %) %) xs))
+(defn traverse-ents-add-attr
+  "Traverse ents (no ent type nodes), adding val returned by `ent-fn`
+  as an attr named `ent-attr-key`. Does not replace existing value of
+  `ent-attr-key` for node."
+  [db ent-attr-key attr-fn]
+  (reduce (fn [{:keys [data] :as db} ent-node]
+            (if (lat/attr data ent-node ent-attr-key)
+              db
+              (update db :data lat/add-attr ent-node ent-attr-key (attr-fn db ent-node ent-attr-key))))
+          db
+          (ordered-ents db)))
 
-(defn- ent-references
-  "Returns `[ent-type ent-name]` pairs from a ref map"
-  [refs]
-  (->> refs
-       vals
-       (map #(vec (take 2 %)))
-       set))
-
-(defn- topo
-  "takes ref paths `[ent-type ent-name]` to produce a DAG of
-  dependencies"
-  [relations]
-  (reduce-kv (fn [graph ent-type ents]
-               (reduce-kv (fn [graph ent-name ent]
-                            (assoc graph [ent-type ent-name] (ent-references (first ent))))
-                          graph
-                          ents))
-             {}
-             relations))
-
-(defn- references
-  "Pull references from default ent, accessed by [relation-type
-  relation-name], merged with custom attributes from query. Expects a
-  gen-formatted query."
-  [query]
-  (reduce (fn [refs term] (into refs (ent-references (second term))))
-          #{}
-          query))
-
-(defn- selected-ents
-  "Use a query to select which entities from `relations` should be
-  used, sorted topographically. This way, if Entity A references
-  Entity B, we can insert Entity B before Entity A. Expects a
-  gen-formatted query."
-  [relations query]
-  (let [graph (-> relations
-                  topo
-                  g/digraph)]
-    (->> (references query)
-         (map #(la/bf-traverse graph %))
-         (reduce into [])
-         (g/subgraph graph)
-         (la/topsort)
-         reverse)))
-
-(defn- merge-template-refs
-  "(merge-template-refs {:author-id [::author ::template :id]} {:author-id :a1})
-   => {:author-id [::author :a1 :id]}"
-  [template refs]
-  (merge-with (fn [template-relation new-relation-name]
-                (assoc template-relation 1 new-relation-name))
-              template
-              refs))
-
-(defn- add-query-term-relations
-  "Recusively unpacks the query DSL, inserting referenced entities. For example,
-  if the query includes the term
-  
-  [::book {:author-id :a1}]
-  
-  Then this function will insert a copy of 
-  (get-in relations [::author ::template]) at [::author :a1].
-
-  Also merges all attributes specified for referenced entities"
-  [[ent-type refs] relations]
-  (reduce-kv (fn [relations ent-field ref-name]
-               (let [field-ref-type (get-in relations [ent-type ::template 0 ent-field 0])
-                     ref-template (get-in relations [field-ref-type ::template])]
-                 (when-not field-ref-type
-                   (throw (ex-info (str "The relation " ent-field " for " ent-type " does not exist")
-                                   {:ent-type ent-type
-                                    :ent-field ent-field})))
-                 (if (vector? ref-name)
-                   ;; ref recursively queries its own refs
-                   (let [[ref-name ref-refs ref-attrs] ref-name]
-                     (add-query-term-relations [field-ref-type ref-refs]
-                                               (assoc-in relations
-                                                         [field-ref-type ref-name]
-                                                         [(merge-template-refs (first ref-template) (ref-names ref-refs))
-                                                          (merge (second ref-template)
-                                                                 (get-in relations [field-ref-type ref-name 1])
-                                                                 ref-attrs)])))
-                   (assoc-in relations [field-ref-type ref-name] ref-template))))
-             relations
-             refs))
-
-(defn- add-query-relations
-  "Takes a raw query and adds all the entities referenced"
-  [relations query]
-  (reduce (fn [relations query-term] (add-query-term-relations query-term relations))
-          relations
-          query))
-
-(defn- flatten-query
-  "Ensures that every query term is of the form `[spec refs]`,
-  where `refs` is a map.
-
-  Also ensures that `refs` is only one level deep, so
-  [[::chapter {:book-id [:b1 {:author-id :a1}]}]] becomes
-  [[::chapter {:book-id :b1}]]"
-  [relations query]
-  (mapv (fn [term]
-          (let [[ent-type refs attrs] term]
-            [ent-type
-             (ref-names refs)
-             attrs]))
-        query))
-
-(defn- merge-query-refs
-  "Merges a query term's custom refs with that entity's template"
-  [relations query]
-  (mapv (fn [[ent-type refs attrs]]
-          [ent-type
-           (let [template-refs (get-in relations [ent-type ::template 0])]
-             (merge-template-refs template-refs refs))
-           attrs])
-        query))
-
-(defn empty-ref?
-  ""
-  [ref]
-  (and (vector? ref)
-       (empty? (second ref))
-       (empty? (last ref))))
-
-(defn- query-term-bindings
-  "Helper function that seeds third argument of `bind-term-relations`
-  with bindings that should apply across the query term's tree. This
-  is necessary because query term bindings share a map with refs, like
-  this:
-
-  ```
-  {:book-id :b1
-   [::author :id] :a1}
-  ```
-
-  In the above, `{:book-id :b1}` is a ref and `{[::author :id] :a1}`
-  is a binding.
-
-  This function is used by `bind-term-relations` to retrieve just the
-  bindings."
-  [query-term]
-  (->> (second query-term)
-       (medley/filter-keys vector?)
-       (medley/map-keys (fn [k] (if (= (count k) 2)
-                                 [(first k) ::template (second k)]
-                                 k)))))
-
-(defn- remove-query-term-bindings
-  "Helper function that removes bindings from a query term. This is
-  necessary because query term bindings share a map with refs, like
-  this:
-
-  ```
-  {:book-id :b1
-   [::author :id] :a1}
-  ```
-
-  In the above, `{:book-id :b1}` is a ref and `{[::author :id] :a1}`
-  is a binding.
-
-  This function is used by `bind-term-relations` to remove bindings,
-  leaving just the refs."
-  [query-term]
-  (update query-term 1 (partial medley/filter-keys (complement vector?))))
-
-(defn- bind-term-relations
-  "Ensures that relations are consistent across a query term's tree"
-  ([relations query-term]
-   (let [bindings (query-term-bindings query-term)]
-     (if (empty? bindings)
-       query-term
-       (bind-term-relations
-         relations
-         (remove-query-term-bindings query-term)
-         bindings))))
-  ([relations [ent-type refs attrs query-ref-name generated?] bindings]
-   (let [template (get-in relations [ent-type ::template 0])
-         bindings (reduce-kv (fn [bindings ref-attr ref-name]
-                               (assoc bindings (template ref-attr) ref-name))
-                             bindings
-                             refs)
-         term [(or query-ref-name ent-type)
-               (->> (reduce-kv (fn [refs template-ref-attr template-ref-path]
-                                 (assoc refs
-                                        template-ref-attr
-                                        (bind-term-relations relations
-                                                             (let [ref-ent-type (first template-ref-path)
-                                                                   ref (get bindings template-ref-path)
-                                                                   extended-ref? (vector? ref)]
-                                                               [ref-ent-type
-                                                                (if extended-ref? (second ref) {}) ;; refs
-                                                                (if extended-ref? (get ref 2) {})  ;; attrs
-                                                                (cond extended-ref? (first ref)    ;; query-ref-name
-                                                                      ref ref
-                                                                      :else (keyword (gensym (name ref-ent-type))))
-                                                                (not ref) ;; generated?
-                                                                ])
-                                                             bindings)))
-                               refs
-                               template)
-                    (medley/remove-vals empty-ref?))
-               attrs]]
-     ;; Given something like [:a1 nil nil], return :a1
-     ;; otherwise return full term: something like
-     ;; [:a1 {:publisher-id :p1}]
-     (if (and (empty-ref? term) (not generated?))
-       query-ref-name
-       term))))
-
-(defn bind-relations
-  "Updates `terms` to include `bindings`"
-  [bindings & terms]
-  (let [bindings (apply hash-map bindings)]
-    (mapv (fn [term] (update term 1 #(merge bindings %)))
-          terms)))
-
-(defn- gen-format-query
-  "Takes a query written in the query DSL and transforms it to a
-  format used to generate a map from the query term"
-  [relations query]
-  (->> (flatten-query relations query)
-       (merge-query-refs relations)))
-
-(defn- vectorize-query-terms
-  [query]
-  (mapv (fn [term] (if (vector? term) term [term])) query))
-
-(defn- format-query
-  "Takes a query written in the query DSL and:
-
-  1. Vectorizes each term so that e.g. `::author` becomes `[::author]`
-
-  2. Incorporates the results of the `bind-relations` function. When
-  you call `bind-relations` you end up with query like:
-
-  `[::author [[::author] [::author]]]`
-  
-  The `reduce` below returns
-
-  `[::author [::author] [::author]]`
-
-  3. Binds query term relations"
-  [relations query]
-  (->> (vectorize-query-terms query)
-       (reduce (fn [xs x]
-                 (if (vector? (first x))
-                   (into xs x)
-                   (conj xs x)))
-               [])
-       (map #(bind-term-relations relations %))))
-
-(defn- gen-refs
-  "Given a tree and refs `{:foo [::bar ::template :id]}`
-  returns a map with key `:foo` and value 
-  `(get-in tree [::bar ::template :id])`"
-  [tree refs]
-  (reduce-kv (fn [attrs k path]
-               (assoc attrs k (get-in tree path)))
-             {}
-             refs))
-
-(defn- gen-ent
-  [[ent-refs ent-attrs] ent-type gen-fn tree]
-  (merge (gen-fn ent-type)
-         (gen-refs tree ent-refs)
-         ent-attrs))
-
-(defn gen-tree
-  "Generates the entire graph necessary for `query` to exist. See
-  the README or examples/reifyhealth/specmonstah_examples.clj"
-  [gen-fn relations query]
-  (let [query (format-query relations query)
-        gen-formatted-query (gen-format-query relations query)
-        full-relations (add-query-relations relations query)
-        sorted-ents (selected-ents full-relations gen-formatted-query)
-        tree (reduce (fn [tree ent-path]
-                       (let [[ent-type ent-name] ent-path
-                             ent (get-in full-relations ent-path)]
-                         (assoc-in tree [ent-type ent-name] (gen-ent ent ent-type gen-fn tree))))
-                     {} sorted-ents)]
-    (assoc tree
-           ::query (mapv (fn [[ent-type ent-refs ent-attrs]]
-                           [ent-type (gen-ent [ent-refs ent-attrs] ent-type gen-fn tree)])
-                         gen-formatted-query)
-           ::order sorted-ents)))
-
-(defn dotree
-  "Generates the entire graph necessary for `query` to exist, and
-  calls `do-fn` on each node of that graph. `do-fn` expects one
-  argument, a vector, where the first elemeent is a type (typically a
-  spec, like `::book`), and the second element is data generated by
-  `gen-tree`."
-  [do-fn gen-fn relations query]
-  (let [tree (gen-tree gen-fn relations query)]
-    (doseq [ent-path (::order tree)]
-      (do-fn [(first ent-path) (get-in tree ent-path)]))
-    tree))
-
-(defn doall
-  "Calls `dotree`, and also calls `do-fn` on each element in the key
-  `::query` of the map returned by `gen-tree`"
-  [do-fn gen-fn relations query]
-  (let [tree (dotree do-fn gen-fn relations query)]
-    (doseq [ent (::query tree)] (do-fn ent))
-    tree))
+(defn map-attr
+  "Produce a map where each key is a node and its value is a graph
+  attr on that node"
+  [{:keys [data] :as db} attr]
+  (reduce (fn [m ent] (assoc m ent (lat/attr data ent attr)))
+          {}
+          (ordered-ents db)))

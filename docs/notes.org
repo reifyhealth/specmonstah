@@ -1,0 +1,88 @@
+* requirements
+** automatically construct related ents
+** allow naming a non-default related ent, automatically construct it
+** specify a non-default ent
+** auto-alias
+*** ::x/abc can be referred to as :abc
+** auto-prefix
+*** ::x/project gets :p
+*** ::x/project-supporter gets :ps
+*** ::x/project-supporter-blah gets :psb
+** allow binding, such that all edges to node of type go to same node
+** constraints
+*** uniq: for every generated record, specified relation must generate new unique ent
+*** has-many: gen many, collect ids in vector
+*** 
+* implementation
+** nodes are spec namespaced keywords
+** edges have path attr that includes how to set child val
+*** multiple edges to same node (user, owner and updated-by)
+** auto-gen
+*** what are auto gen'd ents named?
+rule is, if it's not explicitly named it gets a prefix name
+**** spec: ::realm
+**** alias: :realm
+**** WINNER: prefixed: :r-1
+** scratch pad
+*** schema-spec will probably be necessary
+we can just have that be the schema, I don't think we need to iterate
+over the abstract relation topo except to set up the initial
+graph. And maybe not event then?
+*** add query terms to nodes?
+*** ensure that existing query term is used
+** next steps
+*** DONE generate data
+**** DONE traverse nodes
+- skip type nodes
+- use type sort to traverse in order to preserve order
+  - sort by topsort, then by index attr on nodes
+- function should return a key/value pair that gets added to node;
+  another possibility is to update attr map
+- post-traverse
+- use schema as input
+- some gen fn?
+*** DONE decide whether to pass in traverse attr or not
+*** DONE add back has-many constraint to indicate autogen should be in vector
+**** also update spec-gen to handle has-many
+**** re-write spec-gen to iterate over relation attrs first, not edges
+*** DONE allow overwriting of gen data
+**** look up query term
+*** DONE transact the data
+**** a traversal function that relies on some other attrs of node
+**** test that gen / traverse only happen once
+*** DONE spec the schema
+*** DONE in has-many relation, specify names of ents
+*** DONE find some other way to indicate bindings that can't conflict with fk attrs
+*** DONE use conform for dsl parsing
+**** handle s/? regex case - arg is optional, but position should always mean binding
+**** DONE update query term spec to handle vector of names
+*** TODO allow :_ for auto name
+*** TODO resolve ent/node ambiguity
+**** node: any node on graph
+**** ent: node of type ent
+*** TODO better error handling
+**** check refs and ent types
+**** raise exception for s/conform errors
+**** add an exception for spec-gen s/conform on fourth arg
+*** TODO some way to compose specs
+traversal functions can expect different query terms, schema
+*** TODO only allow vector or int on has-many relationships
+*** TODO something better than falsey for attr update checking
+equivalent of has-key for node attrs
+* glossary
+** entity type
+Roughly corresponds to a relation in an RDBMS
+** entity
+an instance of an entity type
+** schema
+A schema is used to generate a dataase
+
+A schema describes entity types, and how entities of a type relate to
+other entities. A schema also specifies has-many and uniq constraints.
+
+entities of another type
+*** the metadata describing: 
+- how the type relates to other types
+- how to generate the type
+- how to name the generated ents
+** schema

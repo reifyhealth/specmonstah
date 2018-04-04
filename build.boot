@@ -13,6 +13,7 @@
                     [crisptrutski/boot-cljs-test "0.3.0"         :scope "test"]
                     [doo                         "0.1.7"         :scope "test"]
                     [org.clojure/spec.alpha      "0.1.123"       :scope "test"]
+                    [better-cond "1.0.1"]
                     [aysylu/loom "1.0.0"]
                     [medley "0.8.3"]])
 
@@ -20,8 +21,7 @@
          '[adzerk.boot-test :refer :all]
          '[crisptrutski.boot-cljs-test :refer [test-cljs]])
 
-
-(def +version+ "1.1.1")
+(def +version+ "2.0.0")
 (bootlaces! +version+)
 
 (task-options!
