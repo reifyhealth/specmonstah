@@ -62,13 +62,17 @@ graph. And maybe not event then?
 **** ent: node of type ent
 *** TODO better error handling
 **** check refs and ent types
-**** raise exception for s/conform errors
+**** DONE raise exception for s/conform errors
 **** add an exception for spec-gen s/conform on fourth arg
+**** exception when multiple types have the same prefix
 *** TODO some way to compose specs
 traversal functions can expect different query terms, schema
 *** TODO only allow vector or int on has-many relationships
 *** TODO something better than falsey for attr update checking
 equivalent of has-key for node attrs
+*** TODO insertion order for A->A refs
+for example if a user has `created-by`, the `created-by` needs to be inserted first
+*** TODO handle non-insertion in query-arg
 * glossary
 ** entity type
 Roughly corresponds to a relation in an RDBMS
@@ -85,4 +89,3 @@ entities of another type
 - how the type relates to other types
 - how to generate the type
 - how to name the generated ents
-** schema
