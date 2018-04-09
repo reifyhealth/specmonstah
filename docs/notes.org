@@ -56,14 +56,20 @@ graph. And maybe not event then?
 *** DONE use conform for dsl parsing
 **** handle s/? regex case - arg is optional, but position should always mean binding
 **** DONE update query term spec to handle vector of names
-*** TODO only allow vector or int on has-many relationships
+*** DONE only allow vector or int on has-many relationships
 - has many has vector or int
 - non has-many only allowed to have keyword
 *** TODO insertion order for A->A refs
 for example if a user has `created-by`, the `created-by` needs to be inserted first
+
+Update: this is possible but we wouldn't be able to use :type-order
+hack because it relies on topsort, and topsort does not abide
+cycles. :type-order makes it much easier to create the entity DAG
+without confusing recursion , but it should be possible to build the
+entity DAG without it
+*** TODO allow :_ for auto name
 *** TODO something better than falsey for attr update checking
 equivalent of has-key for node attrs
-*** TODO allow :_ for auto name
 *** TODO handle non-insertion in query-arg
 this is specific to a node traversal, not to core
 *** TODO resolve ent/node ambiguity
@@ -82,6 +88,7 @@ traversal functions can expect different query terms, schema
 **** ent
 **** ent type
 **** update
+*** TODO use throw-invalid-spec for query relations assertions
 * glossary
 ** entity type
 Roughly corresponds to a relation in an RDBMS

@@ -69,26 +69,7 @@
                :prefix    :tl
                :relations {:todo-id [:todo :id]}}})
 
-(comment
-  ;; TODO delete this after demo
-  
-  ;; create one user identified by :custom-user
-  (sm/build-ent-db {:schema schema} {:user [[:custom-user]]})
-
-  ;; creates users u0-u2, and :custom-user
-  (sm/build-ent-db {:schema schema} {:user [3 [:custom-user]]})
-
-  ;; query form
-  {entity-type [query-term-1 query-term-2]}
-
-  ;; query term form
-  [name-of-entity relations bindings custom-1 custom-2 ... custom-n]
-
-  ;; create a project with a custom name
-  (sm/build-ent-db {:schema schema} {:project [[:p0 nil nil {:project-name "Peas"}]]})
-
-  ;; binds all user references to :bloop
-  (sm/build-ent-db {:schema td/schema} {:project-supporter [[:ps0 {} {:user :bloop}]]})
-
-  ;; creates unique supporters
-  (sm/build-ent-db {:schema td/schema} {:project-supporter [2]}))
+(def a->a-schema
+  {:user  {:spec      ::user
+           :relations {:updated-by-id [:user :id]}
+           :prefix    :u}})
