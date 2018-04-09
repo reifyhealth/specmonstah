@@ -158,7 +158,9 @@
         related-ent-type                         (-> relations relation-attr first)
         [qr-constraint [qr-type qr-term]]        (relation-attr query-relations)]
 
-    (cond (and (= constraint :has-many) (not= qr-constraint :has-many))
+    (cond (nil? qr-constraint) nil
+          
+          (and (= constraint :has-many) (not= qr-constraint :has-many))
           (throw (ex-info "Query-relations for has-many attrs must be a number or vector"
                           {:spec-data (s/explain-data ::has-many-query-relations qr-term)}))
 
@@ -201,18 +203,19 @@
   "Add an ent, and its related ents, to the ent-db"
   [{:keys [data] :as db} ent-name ent-type query-term]
   ;; don't try to add an ent if it's already been added
-  (if ((lg/nodes data) ent-name)
-    db
-    (-> db
-        (update :data (fn [data]
-                        (-> data
-                            (lg/add-edges [ent-type ent-name])
-                            (lat/add-attr ent-type :type :ent-type)
-                            (lat/add-attr ent-name :type :ent)
-                            (lat/add-attr ent-name :index (ent-index data ent-type))
-                            (lat/add-attr ent-name :ent-type ent-type)
-                            (lat/add-attr ent-name :query-term query-term))))
-        (add-related-ents ent-name ent-type query-term))))
+  (let [ent-name (if (= ent-name :_) (incrementing-node-name db ent-type) ent-name)]
+    (if ((lg/nodes data) ent-name)
+      db
+      (-> db
+          (update :data (fn [data]
+                          (-> data
+                              (lg/add-edges [ent-type ent-name])
+                              (lat/add-attr ent-type :type :ent-type)
+                              (lat/add-attr ent-name :type :ent)
+                              (lat/add-attr ent-name :index (ent-index data ent-type))
+                              (lat/add-attr ent-name :ent-type ent-type)
+                              (lat/add-attr ent-name :query-term query-term))))
+          (add-related-ents ent-name ent-type query-term)))))
 
 (defn add-anonymous-ents
   [db ent-type num-ents]

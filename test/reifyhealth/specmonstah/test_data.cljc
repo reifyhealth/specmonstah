@@ -65,9 +65,10 @@
 
    :todo      {:spec   ::todo
                :prefix :t}
-   :todo-list {:spec      ::todo-list
-               :prefix    :tl
-               :relations {:todo-id [:todo :id]}}})
+   :todo-list {:spec        ::todo-list
+               :prefix      :tl
+               :relations   {:todo-id [:todo :id]}
+               :constraints {:todo-id :has-many}}})
 
 (def a->a-schema
   {:user  {:spec      ::user
