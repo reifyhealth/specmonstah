@@ -309,6 +309,21 @@
                (lat/add-attr :s1 :u0 :relation-attrs #{:updated-by-id :owner-id})
                (lat/add-attr :p0 :u0 :relation-attrs #{:updated-by-id :owner-id}))))))
 
+(deftest queries-can-have-anon-names
+  (let [db (strip-db (sm/build-ent-db {:schema td/schema} {:user [[:_] [:_]]}))]
+    (is (= (:schema db) td/schema))
+    (is (= (:data db)
+           (-> (lg/digraph [:user :u0] [:user :u1] )
+               (lat/add-attr :user :type :ent-type)
+               (lat/add-attr :u0 :type :ent)
+               (lat/add-attr :u0 :index 0)
+               (lat/add-attr :u0 :query-term [:_])
+               (lat/add-attr :u0 :ent-type :user)
+               (lat/add-attr :u1 :type :ent)
+               (lat/add-attr :u1 :index 1)
+               (lat/add-attr :u1 :query-term [:_])
+               (lat/add-attr :u1 :ent-type :user))))))
+
 (deftest test-build-ent-db-throws-exception-on-invalid-db
   (is (thrown-with-msg? clojure.lang.ExceptionInfo
                         #"db is invalid"
