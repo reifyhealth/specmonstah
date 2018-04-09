@@ -40,10 +40,17 @@
 (s/def ::query-bindings
   (s/nilable (s/map-of ::ent-type ::ent-name)))
 
+
+(s/def ::has-many-query-relations
+  (s/or :ent-names (s/coll-of ::ent-name)
+        :ent-count ::ent-count))
+
+(s/def ::has-one-query-relations
+  (s/or :ent-name ::ent-name))
+
 (s/def ::query-relations
-  (s/nilable (s/map-of ::ent-attr (s/or :ent-name ::ent-name
-                                        :ent-names (s/coll-of ::ent-name)
-                                        :ent-count ::ent-count))))
+  (s/nilable (s/map-of ::ent-attr (s/or :has-many ::has-many-query-relations
+                                        :has-one  ::has-one-query-relations))))
 
 (s/def ::extended-query-term
   (s/or :n-1 (s/cat :ent-name (s/nilable ::ent-name))
@@ -146,9 +153,19 @@
   "Returns all related ents for an ent's relation-attr"
   [{:keys [schema data] :as db} ent-name ent-type relation-attr query-term]
   (let [{:keys [relations constraints]}          (ent-type schema)
+        constraint                               (relation-attr constraints)
         {:keys [query-relations query-bindings]} (-> (s/conform ::query-term query-term) second second)
         related-ent-type                         (-> relations relation-attr first)
-        [qr-type qr-term]                        (relation-attr query-relations)]
+        [qr-constraint [qr-type qr-term]]        (relation-attr query-relations)]
+
+    (cond (and (= constraint :has-many) (not= qr-constraint :has-many))
+          (throw (ex-info "Query-relations for has-many attrs must be a number or vector"
+                          {:spec-data (s/explain-data ::has-many-query-relations qr-term)}))
+
+          (and (not= constraint :has-many) (not= qr-constraint :has-one))
+          (throw (ex-info "Query-relations for has-one attrs must be a keyword"
+                          {:spec-data (s/explain-data ::has-one-query-relations qr-term)})))
+    
     (b/cond (= qr-type :ent-count) (mapv (partial numeric-node-name schema related-ent-type) (range qr-term))
             (= qr-type :ent-names) qr-term
             (= qr-type :ent-name)  [qr-term]
@@ -156,7 +173,7 @@
             bn   [bn]
             
             :let [has-bound-descendants? (bound-descendants? db query-bindings related-ent-type)
-                  uniq?                  (= (relation-attr constraints) :uniq)
+                  uniq?                  (= constraint :uniq)
                   ent-index              (lat/attr data ent-name :index)]
             (and has-bound-descendants? uniq?) [(bound-relation-attr-name db ent-name related-ent-type ent-index)]
             has-bound-descendants?             [(bound-relation-attr-name db ent-name related-ent-type 0)]

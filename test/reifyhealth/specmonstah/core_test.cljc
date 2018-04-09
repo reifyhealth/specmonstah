@@ -321,3 +321,14 @@
   (is (thrown-with-msg? java.lang.AssertionError
                         #"Your schema relations reference nonexistent types: "
                         (sm/build-ent-db {:schema {:user {:relations {:u1 [:circle :circle-id]}}}} {}))))
+
+(deftest enforces-has-many-schema-constraints
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                        #"Query-relations for has-many attrs must be a number or vector"
+                        (sm/build-ent-db {:schema td/schema} {:ps-list [[:_ {:ps-ids :ps1}]]}))))
+
+(deftest enforces-has-one-schema-constraints
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                        #"Query-relations for has-one attrs must be a keyword"
+                        (sm/build-ent-db {:schema td/schema} {:project [[:_ {:owner-id [:u1 :u2]}]]}))))
+
