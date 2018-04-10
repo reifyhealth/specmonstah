@@ -332,6 +332,18 @@
                         #"query is invalid"
                         (sm/build-ent-db {:schema td/schema} {:user [[]]}))))
 
+(deftest updates-node-attrs
+  (let [db (-> (sm/build-ent-db {:schema td/schema} {:user [[:_]]})
+               (sm/traverse-ents-add-attr :custom-attr-key (constantly "yaaaaay a key")))]
+    (is (= (lat/attr (:data db) :u0 :custom-attr-key)
+           "yaaaaay a key"))))
+
+(deftest does-not-override-node-attr
+  (let [db (-> (sm/build-ent-db {:schema td/schema} {:user [[:_]]})
+               (sm/traverse-ents-add-attr :custom-attr-key (constantly nil))
+               (sm/traverse-ents-add-attr :custom-attr-key (constantly "yaaaaay a key")))]
+    (is (nil? (lat/attr (:data db) :u0 :custom-attr-key)))))
+
 (deftest test-build-ent-db-throws-exception-on-nonexistent-schema-refs
   (is (thrown-with-msg? java.lang.AssertionError
                         #"Your schema relations reference nonexistent types: "

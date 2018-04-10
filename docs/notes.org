@@ -59,27 +59,16 @@ graph. And maybe not event then?
 *** DONE only allow vector or int on has-many relationships
 - has many has vector or int
 - non has-many only allowed to have keyword
-*** TODO insertion order for A->A refs
-for example if a user has `created-by`, the `created-by` needs to be inserted first
-
-Update: this is possible but we wouldn't be able to use :type-order
-hack because it relies on topsort, and topsort does not abide
-cycles. :type-order makes it much easier to create the entity DAG
-without confusing recursion , but it should be possible to build the
-entity DAG without it
-*** TODO allow :_ for auto name
-*** TODO something better than falsey for attr update checking
+*** DONE allow :_ for auto name
+*** DONE something better than falsey for attr update checking
 equivalent of has-key for node attrs
 *** TODO handle non-insertion in query-arg
-this is specific to a node traversal, not to core
-*** TODO resolve ent/node ambiguity
-**** node: any node on graph
-**** ent: node of type ent
+(this is specific to a node traversal, not to core)
 *** TODO better error handling
-**** check refs and ent types
+**** DONE check refs and ent types
 **** DONE raise exception for s/conform errors
-**** add an exception for spec-gen s/conform on fourth arg
-**** exception when multiple types have the same prefix
+**** TODO add an exception for spec-gen s/conform on fourth arg
+**** TODO exception when multiple types have the same prefix
 *** TODO some way to compose specs
 traversal functions can expect different query terms, schema
 *** TODO clear vocabulary / documentation for aspects of system
@@ -89,6 +78,14 @@ traversal functions can expect different query terms, schema
 **** ent type
 **** update
 *** TODO use throw-invalid-spec for query relations assertions
+*** TODO insertion order for A->A refs
+for example if a user has `created-by`, the `created-by` needs to be inserted first
+
+Update: this is possible but we wouldn't be able to use :type-order
+hack because it relies on topsort, and topsort does not abide
+cycles. :type-order makes it much easier to create the entity DAG
+without confusing recursion , but it should be possible to build the
+entity DAG without it
 * glossary
 ** entity type
 Roughly corresponds to a relation in an RDBMS

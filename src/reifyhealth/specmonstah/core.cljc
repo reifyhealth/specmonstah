@@ -292,7 +292,7 @@
   `ent-attr-key` for node."
   [db ent-attr-key attr-fn]
   (reduce (fn [{:keys [data] :as db} ent-node]
-            (if (lat/attr data ent-node ent-attr-key)
+            (if (contains? (get-in data [:attrs ent-node]) ent-attr-key)
               db
               (update db :data lat/add-attr ent-node ent-attr-key (attr-fn db ent-node ent-attr-key))))
           db
