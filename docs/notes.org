@@ -67,8 +67,8 @@ equivalent of has-key for node attrs
 *** TODO better error handling
 **** DONE check refs and ent types
 **** DONE raise exception for s/conform errors
+**** DONE exception when multiple types have the same prefix
 **** TODO add an exception for spec-gen s/conform on fourth arg
-**** TODO exception when multiple types have the same prefix
 *** TODO some way to compose specs
 traversal functions can expect different query terms, schema
 *** TODO clear vocabulary / documentation for aspects of system

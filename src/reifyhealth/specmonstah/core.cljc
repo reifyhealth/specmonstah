@@ -253,6 +253,14 @@
   (if-not (s/valid? spec data)
     (throw (ex-info (str arg-name " is invalid") {::s/explain-data (s/explain-data spec data)}))))
 
+(defn identical-prefixes
+  [schema]
+  (->> (medley/map-vals :prefix schema)
+       (reduce-kv (fn [grouping ent-type prefix]
+                    (update grouping prefix (fn [x] (conj (or x #{}) ent-type))))
+                  {})
+       (medley/filter-vals #(> (count %) 1))))
+
 (defn invalid-schema-relations
   [schema]
   (set/difference (->> schema
@@ -263,9 +271,11 @@
 
 (defn build-ent-db
   "Produce a new db that contains all ents specified by query"
-  [db query]
-  (let [isr (invalid-schema-relations (:schema db))]
+  [{:keys [schema] :as db} query]
+  (let [isr (invalid-schema-relations schema)]
     (assert (empty? isr) (str "Your schema relations reference nonexistent types: " isr)))
+  (let [prefix-dupes (identical-prefixes schema)]
+    (assert (empty? prefix-dupes) (str "You have used the same prefix for multiple entity types: " prefix-dupes)))
   (throw-invalid-spec "db" ::db db)
   (throw-invalid-spec "query" ::query query)
   

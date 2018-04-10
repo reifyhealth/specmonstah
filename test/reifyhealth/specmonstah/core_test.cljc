@@ -344,10 +344,16 @@
                (sm/traverse-ents-add-attr :custom-attr-key (constantly "yaaaaay a key")))]
     (is (nil? (lat/attr (:data db) :u0 :custom-attr-key)))))
 
-(deftest test-build-ent-db-throws-exception-on-nonexistent-schema-refs
+(deftest assert-schema-refs-must-exist
   (is (thrown-with-msg? java.lang.AssertionError
                         #"Your schema relations reference nonexistent types: "
                         (sm/build-ent-db {:schema {:user {:relations {:u1 [:circle :circle-id]}}}} {}))))
+
+(deftest assert-no-dupe-prefixes
+  (is (thrown-with-msg? java.lang.AssertionError
+                        #"You have used the same prefix for multiple entity types: "
+                        (sm/build-ent-db {:schema {:user  {:prefix :u}
+                                                   :user2 {:prefix :u}}} {}))))
 
 (deftest enforces-has-many-schema-constraints
   (is (thrown-with-msg? clojure.lang.ExceptionInfo
