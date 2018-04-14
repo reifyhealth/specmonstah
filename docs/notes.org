@@ -96,6 +96,9 @@ entity DAG without it
 **** a project has many todo lists...
 but if you create a project with many todo lists, there won't be any
 todos
+*** TODO make n anonymous with attrs, relations, query term etc
+*** TODO define constraints with relations as metadata
+*** TODO test watcher group
 * glossary
 ** entity type
 Roughly corresponds to a relation in an RDBMS

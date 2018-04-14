@@ -42,16 +42,16 @@
   (s/nilable (s/map-of ::ent-type ::ent-name)))
 
 
-(s/def ::has-many-query-relations
+(s/def ::coll-query-relations
   (s/or :ent-names (s/coll-of ::ent-name)
         :ent-count ::ent-count))
 
-(s/def ::has-one-query-relations
+(s/def ::unary-query-relations
   (s/or :ent-name ::ent-name))
 
 (s/def ::query-relations
-  (s/nilable (s/map-of ::ent-attr (s/or :has-many ::has-many-query-relations
-                                        :has-one  ::has-one-query-relations))))
+  (s/nilable (s/map-of ::ent-attr (s/or :coll  ::coll-query-relations
+                                        :unary ::single-query-relations))))
 
 (s/def ::extended-query-term
   (s/or :n-1 (s/cat :ent-name (s/nilable ::ent-name))
@@ -168,11 +168,11 @@
 
     (cond (nil? qr-constraint) nil
           
-          (and (= constraint :has-many) (not= qr-constraint :has-many))
+          (and (= constraint :has-many) (not= qr-constraint :coll))
           (throw (ex-info "Query-relations for has-many attrs must be a number or vector"
                           {:spec-data (s/explain-data ::has-many-query-relations qr-term)}))
 
-          (and (not= constraint :has-many) (not= qr-constraint :has-one))
+          (and (not= constraint :has-many) (not= qr-constraint :unary))
           (throw (ex-info "Query-relations for has-one attrs must be a keyword"
                           {:spec-data (s/explain-data ::has-one-query-relations qr-term)})))
     
