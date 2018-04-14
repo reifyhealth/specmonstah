@@ -93,6 +93,35 @@
                  
                  (lat/add-attr :tl0 :u0 :relation-attrs #{:created-by-id :updated-by-id}))))
 
+(deftest test-build-ent-db-mult-ents-w-extended-query
+  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list [[2 {:created-by-id :bloop :updated-by-id :bloop}]]}))
+             (-> (lg/digraph [:user :bloop]
+                             [:todo-list :tl0]
+                             [:todo-list :tl1]
+                             [:tl0 :bloop]
+                             [:tl1 :bloop])
+                 
+                 (lat/add-attr :user :type :ent-type)
+                 (lat/add-attr :bloop :type :ent)
+                 (lat/add-attr :bloop :index 0)
+                 (lat/add-attr :bloop :query-term nil)
+                 (lat/add-attr :bloop :ent-type :user)
+
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl0 :type :ent)
+                 (lat/add-attr :tl0 :index 0)
+                 (lat/add-attr :tl0 :ent-type :todo-list)
+                 (lat/add-attr :tl0 :query-term [2 {:created-by-id :bloop :updated-by-id :bloop}])
+
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl1 :type :ent)
+                 (lat/add-attr :tl1 :index 1)
+                 (lat/add-attr :tl1 :ent-type :todo-list)
+                 (lat/add-attr :tl1 :query-term [2 {:created-by-id :bloop :updated-by-id :bloop}])
+
+                 (lat/add-attr :tl0 :bloop :relation-attrs #{:created-by-id :updated-by-id})
+                 (lat/add-attr :tl1 :bloop :relation-attrs #{:created-by-id :updated-by-id}))))
+
 (deftest test-build-ent-db-one-level-relation-binding
   (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list [[:_ nil {:user :bloop}]]}))
              (-> (lg/digraph [:user :bloop] [:todo-list :tl0] [:tl0 :bloop])
@@ -108,7 +137,22 @@
                  (lat/add-attr :tl0 :query-term [:_ nil {:user :bloop}])
                  (lat/add-attr :tl0 :bloop :relation-attrs #{:created-by-id :updated-by-id}))))
 
-
+(deftest test-build-ent-db-one-level-relation-custom-related
+  (is-graph= (:data (strip-db (sm/build-ent-db {:schema td/schema} {:todo-list [[:_ {:created-by-id :owner0
+                                                                                     :updated-by-id :owner0}]]})))
+             (-> (lg/digraph [:user :owner0] [:todo-list :tl0] [:tl0 :owner0])
+                 (lat/add-attr :user :type :ent-type)
+                 (lat/add-attr :owner0 :type :ent)
+                 (lat/add-attr :owner0 :index 0)
+                 (lat/add-attr :owner0 :query-term nil)
+                 (lat/add-attr :owner0 :ent-type :user)
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl0 :type :ent)
+                 (lat/add-attr :tl0 :index 0)
+                 (lat/add-attr :tl0 :ent-type :todo-list)
+                 (lat/add-attr :tl0 :query-term [:_ {:created-by-id :owner0
+                                                    :updated-by-id :owner0}])
+                 (lat/add-attr :tl0 :owner0 :relation-attrs #{:updated-by-id :created-by-id}))))
 
 #_(deftest test-build-ent-db-two-level-coll-relation
   (testing "can specify how many ents to gen in a coll relationship"
@@ -179,23 +223,6 @@
                (lat/add-attr :tl0 :my-todo :relation-attrs #{:todo-ids})
                (lat/add-attr :tl0 :my-todo-2 :relation-attrs #{:todo-ids})
                (lat/add-attr :tl0 :u0 :relation-attrs #{:created-by-id :updated-by-id}))))))
-
-#_(deftest test-build-ent-db-one-level-relation-custom-related
-  (is (= (:data (strip-db (sm/build-ent-db {:schema td/schema} {:todo [[:_ {:created-by-id :owner0
-                                                                            :updated-by-id :owner0}]]})))
-         (-> (lg/digraph [:user :owner0] [:todo :t0] [:t0 :owner0])
-             (lat/add-attr :user :type :ent-type)
-             (lat/add-attr :owner0 :type :ent)
-             (lat/add-attr :owner0 :index 0)
-             (lat/add-attr :owner0 :query-term nil)
-             (lat/add-attr :owner0 :ent-type :user)
-             (lat/add-attr :todo :type :ent-type)
-             (lat/add-attr :t0 :type :ent)
-             (lat/add-attr :t0 :index 0)
-             (lat/add-attr :t0 :ent-type :todo)
-             (lat/add-attr :t0 :query-term [:_ {:created-by-id :owner0
-                                                :updated-by-id :owner0}])
-             (lat/add-attr :t0 :owner0 :relation-attrs #{:updated-by-id :created-by-id})))))
 
 #_(deftest test-build-ent-db-three-level-relation-binding
   (is (= (:data (sm/build-ent-db {:schema td/schema} {:project [[:_ nil {:user :bloop}]]}))

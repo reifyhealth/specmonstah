@@ -99,6 +99,7 @@ todos
 *** TODO make n anonymous with attrs, relations, query term etc
 *** TODO define constraints with relations as metadata
 *** TODO test watcher group
+*** TODO rename 'has-many' and 'has-one' to 'coll' and 'unary'
 * glossary
 ** entity type
 Roughly corresponds to a relation in an RDBMS

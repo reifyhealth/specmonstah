@@ -51,16 +51,18 @@
                                    :updated-by-id [:user :id]
                                    :todo-list-id  [:todo-list :id]}
                        :prefix    :t}
-   :todo-list         {:spec       ::todo-list
-                       :relations  {:created-by-id [:user :id]
-                                    :updated-by-id [:user :id]}
-                       :prefix     :tl}
-   :todo-list-watcher {:spec      ::todo-list-watcher
-                       :relations {:todo-list-id ^:uniq [:todo-list :id]
-                                   :watcher-id   [:user :id]}
-                       :prefix    :tlw}
-   :project           {:spec      ::project
+   :todo-list         {:spec      ::todo-list
                        :relations {:created-by-id [:user :id]
-                                   :updated-by-id [:user :id]
-                                   :todo-list-ids ^:coll [:todo-list :id]}
-                       :prefix    :p}})
+                                   :updated-by-id [:user :id]}
+                       :prefix    :tl}
+   :todo-list-watcher {:spec        ::todo-list-watcher
+                       :relations   {:todo-list-id [:todo-list :id]
+                                     :watcher-id   [:user :id]}
+                       :constraints {:todo-list-id :uniq}
+                       :prefix      :tlw}
+   :project           {:spec        ::project
+                       :relations   {:created-by-id [:user :id]
+                                     :updated-by-id [:user :id]
+                                     :todo-list-ids [:todo-list :id]}
+                       :constraints {:todo-list-ids :has-many}
+                       :prefix      :p}})

@@ -42,32 +42,45 @@
   (s/nilable (s/map-of ::ent-type ::ent-name)))
 
 
-(s/def ::coll-query-relations
+(s/def ::has-many-query-relations
   (s/or :ent-names (s/coll-of ::ent-name)
         :ent-count ::ent-count))
 
-(s/def ::unary-query-relations
+(s/def ::has-one-query-relations
   (s/or :ent-name ::ent-name))
 
 (s/def ::query-relations
-  (s/nilable (s/map-of ::ent-attr (s/or :coll  ::coll-query-relations
-                                        :unary ::single-query-relations))))
+  (s/nilable (s/map-of ::ent-attr (s/or :has-many ::has-many-query-relations
+                                        :has-one  ::has-one-query-relations))))
 
 (s/def ::extended-query-term
-  (s/or :n-1 (s/cat :ent-name (s/nilable ::ent-name))
-        :n-2 (s/cat :ent-name (s/nilable ::ent-name)
+  (s/or :n-1 (s/cat :ent-name ::ent-name)
+        :n-2 (s/cat :ent-name ::ent-name
                     :query-relations ::query-relations)
-        :n-3 (s/cat :ent-name (s/nilable ::ent-name)
+        :n-3 (s/cat :ent-name ::ent-name
                     :query-relations ::query-relations
                     :query-bindings ::query-bindings)
-        :n-* (s/cat :ent-name (s/nilable ::ent-name)
+        :n-* (s/cat :ent-name ::ent-name
+                    :query-relations ::query-relations
+                    :query-bindings ::query-bindings
+                    :query-args (s/* ::any))))
+
+(s/def ::extended-ent-count
+  (s/or :n-1 (s/cat :ent-count ::ent-count)
+        :n-2 (s/cat :ent-count ::ent-count
+                    :query-relations ::query-relations)
+        :n-3 (s/cat :ent-count ::ent-count
+                    :query-relations ::query-relations
+                    :query-bindings ::query-bindings)
+        :n-* (s/cat :ent-count ::ent-count
                     :query-relations ::query-relations
                     :query-bindings ::query-bindings
                     :query-args (s/* ::any))))
 
 (s/def ::query-term
   (s/nilable
-    (s/or :ent-count ::ent-count
+    (s/or :ent-count           ::ent-count
+          :extended-ent-count  ::extended-ent-count
           :extended-query-term ::extended-query-term)))
 
 (s/def ::query
@@ -168,11 +181,11 @@
 
     (cond (nil? qr-constraint) nil
           
-          (and (= constraint :has-many) (not= qr-constraint :coll))
+          (and (= constraint :has-many) (not= qr-constraint :has-many))
           (throw (ex-info "Query-relations for has-many attrs must be a number or vector"
                           {:spec-data (s/explain-data ::has-many-query-relations qr-term)}))
 
-          (and (not= constraint :has-many) (not= qr-constraint :unary))
+          (and (not= constraint :has-many) (not= qr-constraint :has-one))
           (throw (ex-info "Query-relations for has-one attrs must be a keyword"
                           {:spec-data (s/explain-data ::has-one-query-relations qr-term)})))
     
@@ -226,22 +239,26 @@
           (add-related-ents ent-name ent-type query-term)))))
 
 (defn add-anonymous-ents
-  [db ent-type num-ents]
+  [db ent-type num-ents query-term]
   (loop [db db
          n  num-ents]
     (if (zero? n)
       db
-      (recur (add-ent db (incrementing-node-name db ent-type) ent-type nil)
+      (recur (add-ent db (incrementing-node-name db ent-type) ent-type query-term)
              (dec n)))))
 
 (defn add-ent-type-query
   [db ent-type-query ent-type]
   (reduce (fn [db query-term]
-            (let [[query-term-type annotated-query-term] (s/conform ::query-term query-term)]
+            (let [[query-term-type [_ conformed-query-term]] (s/conform ::query-term query-term)]
               (case query-term-type
-                :ent-count           (add-anonymous-ents db ent-type query-term)
+                :ent-count           (add-anonymous-ents db ent-type query-term nil)
+                :extended-ent-count  (add-anonymous-ents db
+                                                         ent-type
+                                                         (:ent-count conformed-query-term)
+                                                         query-term)
                 :extended-query-term (add-ent db
-                                              (:ent-name (second annotated-query-term))
+                                              (:ent-name conformed-query-term)
                                               ent-type
                                               query-term))))
           db
