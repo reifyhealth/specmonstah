@@ -250,15 +250,15 @@
 (defn add-ent-type-query
   [db ent-type-query ent-type]
   (reduce (fn [db query-term]
-            (let [[query-term-type [_ conformed-query-term]] (s/conform ::query-term query-term)]
+            (let [[query-term-type conformed-query-term] (s/conform ::query-term query-term)]
               (case query-term-type
                 :ent-count           (add-anonymous-ents db ent-type query-term nil)
                 :extended-ent-count  (add-anonymous-ents db
                                                          ent-type
-                                                         (:ent-count conformed-query-term)
+                                                         (:ent-count (second conformed-query-term))
                                                          query-term)
                 :extended-query-term (add-ent db
-                                              (:ent-name conformed-query-term)
+                                              (:ent-name (second conformed-query-term))
                                               ent-type
                                               query-term))))
           db
