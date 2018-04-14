@@ -6,6 +6,7 @@
             [medley.core :as medley]
             [better-cond.core :as b]
             [clojure.test.check.generators :as gen :include-macros true]
+            [clojure.string :as str]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]))
 
@@ -143,11 +144,18 @@
   (not-empty (set/intersection (disj (set (lg/nodes (ld/subgraph-reachable-from relation-graph related-ent-type))) related-ent-type)
                                (set (keys query-bindings)))))
 
+(defn bound-relation-attr-name-source
+  [ent-name]
+  (-> ent-name
+      name
+      (str/replace #"-\d+$" "")
+      (str/replace #".*-bound-" "")))
+
 (defn bound-relation-attr-name
   "Template for when a binding necessitates you add a new entity"
   [{:keys [schema]} ent-name related-ent-type index]
   (let [{:keys [prefix]} (related-ent-type schema)]
-    (keyword (str (name prefix) "-bound-" (name ent-name) "-" index))))
+    (keyword (str (name prefix) "-bound-" (bound-relation-attr-name-source ent-name) "-" index))))
 
 (defn related-ents
   "Returns all related ents for an ent's relation-attr"
@@ -155,8 +163,8 @@
   (let [{:keys [relations constraints]}          (ent-type schema)
         constraint                               (relation-attr constraints)
         {:keys [query-relations query-bindings]} (-> (s/conform ::query-term query-term) second second)
-        related-ent-type                         (-> relations relation-attr first)
-        [qr-constraint [qr-type qr-term]]        (relation-attr query-relations)]
+        [qr-constraint [qr-type qr-term]]        (relation-attr query-relations)
+        related-ent-type                         (-> relations relation-attr first)]
 
     (cond (nil? qr-constraint) nil
           
@@ -288,7 +296,7 @@
             (:type-order db))))
 
 (defn ordered-ents
-  "Given a db, returns all ents ordered first by type order, than by
+  "Given a db, returns all ents ordered first by type order, then by
   index."
   [{:keys [type-order data]}]
   (mapcat (fn [ent-type]

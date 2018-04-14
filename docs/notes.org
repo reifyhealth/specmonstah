@@ -69,6 +69,7 @@ equivalent of has-key for node attrs
 **** DONE raise exception for s/conform errors
 **** DONE exception when multiple types have the same prefix
 **** TODO add an exception for spec-gen s/conform on fourth arg
+**** TODO exception when constraints reference relations that don't exist
 *** TODO some way to compose specs
 traversal functions can expect different query terms, schema
 *** TODO clear vocabulary / documentation for aspects of system
@@ -77,7 +78,8 @@ traversal functions can expect different query terms, schema
 **** ent
 **** ent type
 **** update
-*** TODO use throw-invalid-spec for query relations assertions
+*** TODO do something about ::any
+bad hack! bad! can't gen!
 *** TODO insertion order for A->A refs
 for example if a user has `created-by`, the `created-by` needs to be inserted first
 
@@ -86,6 +88,14 @@ hack because it relies on topsort, and topsort does not abide
 cycles. :type-order makes it much easier to create the entity DAG
 without confusing recursion , but it should be possible to build the
 entity DAG without it
+*** TODO re-work examples to something more familiar
+*** TODO binding naming for nested bound names
+:tl-bound-p0-0
+:t-bound-tl-bound-p0-0-0
+*** TODO handle case of todo / todo list
+**** a project has many todo lists...
+but if you create a project with many todo lists, there won't be any
+todos
 * glossary
 ** entity type
 Roughly corresponds to a relation in an RDBMS

@@ -1,9 +1,9 @@
 (ns reifyhealth.specmonstah.spec-gen
   (:require [loom.attr :as lat]
             [loom.graph :as lg]
-            [clojure.test.check.generators :as gen :include-macros true]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as gen]
             [medley.core :as medley]
             [reifyhealth.specmonstah.core :as sm]))
 
