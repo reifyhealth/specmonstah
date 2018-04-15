@@ -30,8 +30,8 @@
   (is-graph= (sm/relation-graph td/schema)
              (lg/digraph [:project :todo-list]
                          [:project :user]
-                         [:todo-list-watcher :todo-list]
-                         [:todo-list-watcher :user]
+                         [:todo-list-watch :todo-list]
+                         [:todo-list-watch :user]
                          [:todo :todo-list]
                          [:todo-list :user]
                          [:todo :user]
@@ -308,73 +308,63 @@
 
                  (lat/add-attr :tl-bound-a0-0 :bloop :relation-attrs #{:created-by-id :updated-by-id}))))
 =
-#_(deftest test-build-ent-db-uniq-constraint
-  (is (= (:data (sm/build-ent-db {:schema td/schema} {:project-supporter [2]}))
-         (-> (lg/digraph [:user :u0]
-                         [:project :p0]
-                         [:supporter :s0]
-                         [:supporter :s1]
-                         [:project-supporter :ps0]
-                         [:ps0 :s0]
-                         [:ps0 :p0]
-                         [:ps0 :u0]
-                         [:project-supporter :ps1]
-                         [:ps1 :s1]
-                         [:ps1 :p0]
-                         [:ps1 :u0]
-                         [:p0 :u0]
-                         [:s0 :u0]
-                         [:s1 :u0])
-             (lat/add-attr :user :type :ent-type)
-             (lat/add-attr :u0 :type :ent)
-             (lat/add-attr :u0 :index 0)
-             (lat/add-attr :u0 :ent-type :user)
-             (lat/add-attr :u0 :query-term nil)
-             (lat/add-attr :project :type :ent-type)
-             (lat/add-attr :p0 :type :ent)
-             (lat/add-attr :p0 :index 0)
-             (lat/add-attr :p0 :ent-type :project)
-             (lat/add-attr :p0 :query-term nil)
-             (lat/add-attr :supporter :type :ent-type)
-             (lat/add-attr :s0 :type :ent)
-             (lat/add-attr :s0 :index 0)
-             (lat/add-attr :s0 :ent-type :supporter)
-             (lat/add-attr :s0 :query-term nil)
-             ;; creates second supporter because that's uniq
-             (lat/add-attr :supporter :type :ent-type)
-             (lat/add-attr :s1 :type :ent)
-             (lat/add-attr :s1 :index 1)
-             (lat/add-attr :s1 :ent-type :supporter)
-             (lat/add-attr :s1 :query-term nil)
-             (lat/add-attr :project-supporter :type :ent-type)
+(deftest test-build-ent-db-uniq-constraint
+  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list-watch [2]}))
+             (-> (lg/digraph [:user :u0]
+                             [:todo-list :tl0]
+                             [:tl0 :u0]
+                             [:todo-list :tl1]
+                             [:tl1 :u0]
+                             [:todo-list-watch :tlw0]
+                             [:tlw0 :tl0]
+                             [:tlw0 :u0]
+                             [:todo-list-watch :tlw1]
+                             [:tlw1 :tl1]
+                             [:tlw1 :u0])
+                 (lat/add-attr :user :type :ent-type)
+                 (lat/add-attr :u0 :type :ent)
+                 (lat/add-attr :u0 :index 0)
+                 (lat/add-attr :u0 :ent-type :user)
+                 (lat/add-attr :u0 :query-term nil)
+                 
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl0 :type :ent)
+                 (lat/add-attr :tl0 :index 0)
+                 (lat/add-attr :tl0 :ent-type :todo-list)
+                 (lat/add-attr :tl0 :query-term nil)
 
-             (lat/add-attr :ps0 :type :ent)
-             (lat/add-attr :ps0 :index 0)
-             (lat/add-attr :ps0 :ent-type :project-supporter)
-             (lat/add-attr :ps0 :query-term nil)
-             (lat/add-attr :ps0 :u0 :relation-attrs #{:owner-id})
-             (lat/add-attr :ps0 :p0 :relation-attrs #{:project-id})
-             (lat/add-attr :ps0 :s0 :relation-attrs #{:supporter-id})
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl1 :type :ent)
+                 (lat/add-attr :tl1 :index 1)
+                 (lat/add-attr :tl1 :ent-type :todo-list)
+                 (lat/add-attr :tl1 :query-term nil)
+                 
+                 (lat/add-attr :todo-list-watch :type :ent-type)
+                 (lat/add-attr :tlw0 :type :ent)
+                 (lat/add-attr :tlw0 :index 0)
+                 (lat/add-attr :tlw0 :ent-type :todo-list-watch)
+                 (lat/add-attr :tlw0 :query-term nil)
 
-             (lat/add-attr :ps1 :type :ent)
-             (lat/add-attr :ps1 :index 1)
-             (lat/add-attr :ps1 :ent-type :project-supporter)
-             (lat/add-attr :ps1 :query-term nil)
-             (lat/add-attr :ps1 :u0 :relation-attrs #{:owner-id})
-             (lat/add-attr :ps1 :p0 :relation-attrs #{:project-id})
-             (lat/add-attr :ps1 :s1 :relation-attrs #{:supporter-id})
-             
-             (lat/add-attr :s0 :u0 :relation-attrs #{:updated-by-id :owner-id})
-             (lat/add-attr :s1 :u0 :relation-attrs #{:updated-by-id :owner-id})
-             (lat/add-attr :p0 :u0 :relation-attrs #{:updated-by-id :owner-id})))))
+                 (lat/add-attr :todo-list-watch :type :ent-type)
+                 (lat/add-attr :tlw1 :type :ent)
+                 (lat/add-attr :tlw1 :index 1)
+                 (lat/add-attr :tlw1 :ent-type :todo-list-watch)
+                 (lat/add-attr :tlw1 :query-term nil)
+                 
+                 (lat/add-attr :tl0 :u0 :relation-attrs #{:updated-by-id :created-by-id})
+                 (lat/add-attr :tl1 :u0 :relation-attrs #{:updated-by-id :created-by-id})
 
-#_(deftest test-bound-descendants?
-  (is (sm/bound-descendants? (sm/init-db {:schema td/schema}) {:user :bibbity} :ps-list))
-  (is (sm/bound-descendants? (sm/init-db {:schema td/schema}) {:user :bibbity} :project-supporter))
+                 (lat/add-attr :tlw0 :tl0 :relation-attrs #{:todo-list-id})
+                 (lat/add-attr :tlw0 :u0 :relation-attrs #{:watcher-id})
+                 (lat/add-attr :tlw1 :tl1 :relation-attrs #{:todo-list-id})
+                 (lat/add-attr :tlw1 :u0 :relation-attrs #{:watcher-id}))))
+
+(deftest test-bound-descendants?
+  (is (sm/bound-descendants? (sm/init-db {:schema td/schema}) {:user :bibbity} :attachment))
   (is (not (sm/bound-descendants? (sm/init-db {:schema td/schema}) {:user :bibbity} :user)))
-  (is (not (sm/bound-descendants? (sm/init-db {:schema td/schema}) {:project :bibbity} :user))))
+  (is (not (sm/bound-descendants? (sm/init-db {:schema td/schema}) {:attachment :bibbity} :user))))
 
-#_(deftest queries-can-have-anon-names
+(deftest queries-can-have-anon-names
   (let [db (strip-db (sm/build-ent-db {:schema td/schema} {:user [[:_] [:_]]}))]
     (is (= (:schema db) td/schema))
     (is (= (:data db)
@@ -389,7 +379,7 @@
                (lat/add-attr :u1 :query-term [:_])
                (lat/add-attr :u1 :ent-type :user))))))
 
-#_(deftest test-build-ent-db-throws-exception-on-invalid-db
+(deftest test-build-ent-db-throws-exception-on-invalid-db
   (is (thrown-with-msg? clojure.lang.ExceptionInfo
                         #"db is invalid"
                         (sm/build-ent-db {:schema []} {})))
@@ -397,36 +387,36 @@
                         #"query is invalid"
                         (sm/build-ent-db {:schema td/schema} {:user [[]]}))))
 
-#_(deftest updates-node-attrs
+(deftest updates-node-attrs
   (let [db (-> (sm/build-ent-db {:schema td/schema} {:user [[:_]]})
                (sm/traverse-ents-add-attr :custom-attr-key (constantly "yaaaaay a key")))]
     (is (= (lat/attr (:data db) :u0 :custom-attr-key)
            "yaaaaay a key"))))
 
-#_(deftest does-not-override-node-attr
+(deftest does-not-override-node-attr
   (let [db (-> (sm/build-ent-db {:schema td/schema} {:user [[:_]]})
                (sm/traverse-ents-add-attr :custom-attr-key (constantly nil))
                (sm/traverse-ents-add-attr :custom-attr-key (constantly "yaaaaay a key")))]
     (is (nil? (lat/attr (:data db) :u0 :custom-attr-key)))))
 
-#_(deftest assert-schema-refs-must-exist
+(deftest assert-schema-refs-must-exist
   (is (thrown-with-msg? java.lang.AssertionError
                         #"Your schema relations reference nonexistent types: "
                         (sm/build-ent-db {:schema {:user {:relations {:u1 [:circle :circle-id]}}}} {}))))
 
-#_(deftest assert-no-dupe-prefixes
+(deftest assert-no-dupe-prefixes
   (is (thrown-with-msg? java.lang.AssertionError
                         #"You have used the same prefix for multiple entity types: "
                         (sm/build-ent-db {:schema {:user  {:prefix :u}
                                                    :user2 {:prefix :u}}} {}))))
 
-#_(deftest enforces-has-many-schema-constraints
+(deftest enforces-has-many-schema-constraints
   (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                        #"Query-relations for has-many attrs must be a number or vector"
-                        (sm/build-ent-db {:schema td/schema} {:ps-list [[:_ {:ps-ids :ps1}]]}))))
+                        #"Query-relations for coll attrs must be a number or vector"
+                        (sm/build-ent-db {:schema td/schema} {:project [[:_ {:todo-list-ids :tl0}]]}))))
 
-#_(deftest enforces-has-one-schema-constraints
+(deftest enforces-has-one-schema-constraints
   (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                        #"Query-relations for has-one attrs must be a keyword"
-                        (sm/build-ent-db {:schema td/schema} {:project [[:_ {:owner-id [:u1 :u2]}]]}))))
+                        #"Query-relations for unary attrs must be a keyword"
+                        (sm/build-ent-db {:schema td/schema} {:attachment [[:_ {:todo-id [:t0 :t1]}]]}))))
 

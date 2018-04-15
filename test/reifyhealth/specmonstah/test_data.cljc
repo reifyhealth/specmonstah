@@ -47,30 +47,30 @@
 (s/def ::project (s/keys :req-un [::id ::todo-list-ids ::created-by-id ::updated-by-id]))
 
 (def schema
-  {:user              {:spec   ::user
-                       :prefix :u}
-   :attachment        {:spec      ::attachment
-                       :relations {:created-by-id [:user :id]
+  {:user            {:spec   ::user
+                     :prefix :u}
+   :attachment      {:spec      ::attachment
+                     :relations {:created-by-id [:user :id]
+                                 :updated-by-id [:user :id]
+                                 :todo-id       [:todo :id]}
+                     :prefix    :a}
+   :todo            {:spec      ::todo
+                     :relations {:created-by-id [:user :id]
+                                 :updated-by-id [:user :id]
+                                 :todo-list-id  [:todo-list :id]}
+                     :prefix    :t}
+   :todo-list       {:spec      ::todo-list
+                     :relations {:created-by-id [:user :id]
+                                 :updated-by-id [:user :id]}
+                     :prefix    :tl}
+   :todo-list-watch {:spec        ::todo-list-watch
+                     :relations   {:todo-list-id [:todo-list :id]
+                                   :watcher-id   [:user :id]}
+                     :constraints {:todo-list-id :uniq}
+                     :prefix      :tlw}
+   :project         {:spec        ::project
+                     :relations   {:created-by-id [:user :id]
                                    :updated-by-id [:user :id]
-                                   :todo-id [:todo :id]}
-                       :prefix    :a}
-   :todo              {:spec      ::todo
-                       :relations {:created-by-id [:user :id]
-                                   :updated-by-id [:user :id]
-                                   :todo-list-id  [:todo-list :id]}
-                       :prefix    :t}
-   :todo-list         {:spec      ::todo-list
-                       :relations {:created-by-id [:user :id]
-                                   :updated-by-id [:user :id]}
-                       :prefix    :tl}
-   :todo-list-watcher {:spec        ::todo-list-watcher
-                       :relations   {:todo-list-id [:todo-list :id]
-                                     :watcher-id   [:user :id]}
-                       :constraints {:todo-list-id :uniq}
-                       :prefix      :tlw}
-   :project           {:spec        ::project
-                       :relations   {:created-by-id [:user :id]
-                                     :updated-by-id [:user :id]
-                                     :todo-list-ids [:todo-list :id]}
-                       :constraints {:todo-list-ids :coll}
-                       :prefix      :p}})
+                                   :todo-list-ids [:todo-list :id]}
+                     :constraints {:todo-list-ids :coll}
+                     :prefix      :p}})
