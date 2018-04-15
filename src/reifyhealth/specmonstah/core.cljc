@@ -162,7 +162,8 @@
   (-> ent-name
       name
       (str/replace #"-\d+$" "")
-      (str/replace #".*-bound-" "")))
+      (str/replace #".*-bound-" "")
+      (str/replace #"\d+$" "")))
 
 (defn bound-relation-attr-name
   "Template for when a binding necessitates you add a new entity"
