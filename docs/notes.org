@@ -63,8 +63,6 @@ graph. And maybe not event then?
 *** DONE something better than falsey for attr update checking
 equivalent of has-key for node attrs
 *** DONE make n anonymous with attrs, relations, query term etc
-*** TODO handle non-insertion in query-arg
-(this is specific to a node traversal, not to core)
 *** TODO better error handling
 **** DONE check refs and ent types
 **** DONE raise exception for s/conform errors
@@ -102,6 +100,10 @@ todos
 *** TODO rename 'has-many' and 'has-one' to 'coll' and 'unary'
 *** TODO investigate why we need nil as first arg in query term
 has to do with bound names
+*** TODO  handle query better
+(lio/view (:data (sm/build-ent-db {:schema td/schema} {:todo [[3 nil {:user :bloop}]]})))
+*** TODO handle non-insertion in query-arg
+(this is specific to a node traversal, not to core)
 * glossary
 ** entity type
 Roughly corresponds to a relation in an RDBMS

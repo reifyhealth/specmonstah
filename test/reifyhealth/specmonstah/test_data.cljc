@@ -28,8 +28,7 @@
 (s/def ::todo-id ::id)
 (s/def ::attachment (s/keys :req-un [::id ::todo-id ::created-by-id ::updated-by-id]))
 
-(s/def ::todo-ids (s/coll-of ::id))
-(s/def ::todo-list (s/keys :req-un [::id ::todo-ids ::created-by-id ::updated-by-id]))
+(s/def ::todo-list (s/keys :req-un [::id ::created-by-id ::updated-by-id]))
 
 (s/def ::todo-list-id ::id)
 (s/def ::watcher-id ::id)

@@ -287,12 +287,22 @@
        (medley/filter-vals #(> (count %) 1))))
 
 (defn invalid-schema-relations
+  "Relations that reference nonexistent types"
   [schema]
   (set/difference (->> schema
                        vals
                        (mapcat (comp #(map first %) vals :relations))
                        set)
                   (set (keys schema))))
+
+(defn invalid-constraints
+  "Constraints that reference nonexistent relation attrs"
+  [schema]
+  (->> schema
+       (medley/map-vals (fn [ent-schema]
+                          (set/difference (set (keys (:constraints ent-schema)))
+                                          (set (keys (:relations ent-schema))))))
+       (medley/filter-vals not-empty)))
 
 (defn build-ent-db
   "Produce a new db that contains all ents specified by query"
@@ -301,6 +311,8 @@
     (assert (empty? isr) (str "Your schema relations reference nonexistent types: " isr)))
   (let [prefix-dupes (identical-prefixes schema)]
     (assert (empty? prefix-dupes) (str "You have used the same prefix for multiple entity types: " prefix-dupes)))
+  (let [ic (invalid-constraints schema)]
+    (assert (empty? ic) (str "Schema constraints reference nonexistent relation attrs: " ic)))
   (throw-invalid-spec "db" ::db db)
   (throw-invalid-spec "query" ::query query)
   

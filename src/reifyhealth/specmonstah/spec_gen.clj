@@ -13,25 +13,25 @@
 
 (defn assoc-relation
   "Look up related ent's attr value and assoc with parent ent
-  attr. `:has-many` relations will add value to a vector."
+  attr. `:coll` relations will add value to a vector."
   [gen-data relation-attr relation-val constraints]
-  (if (= :has-many (relation-attr constraints))
+  (if (= :coll (relation-attr constraints))
     (update gen-data relation-attr #(conj % relation-val))
     (assoc gen-data relation-attr relation-val)))
 
-(defn reset-has-many-relations
-  "For ents that have have a `:has-many` relation, the associated spec
+(defn reset-coll-relations
+  "For ents that have have a `:coll` relation, the associated spec
   might generate a bunch of dummy IDs. This replaces those with an empty
   vector."
   [ent-data constraints]
   (reduce (fn [ent-data hm-key] (assoc ent-data hm-key []))
           ent-data
-          (keys (medley/filter-vals (fn [v] (= v :has-many)) constraints))))
+          (keys (medley/filter-vals (fn [v] (= v :coll)) constraints))))
 
 (defn gen-ent-data
   [{:keys [spec constraints]}]
   (-> (gen/generate (s/gen spec))
-      (reset-has-many-relations constraints)))
+      (reset-coll-relations constraints)))
 
 (defn spec-gen
   "A traversal function that uses spec to generate data for each ent,

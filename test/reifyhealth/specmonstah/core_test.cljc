@@ -394,10 +394,11 @@
            "yaaaaay a key"))))
 
 (deftest does-not-override-node-attr
-  (let [db (-> (sm/build-ent-db {:schema td/schema} {:user [[:_]]})
-               (sm/traverse-ents-add-attr :custom-attr-key (constantly nil))
-               (sm/traverse-ents-add-attr :custom-attr-key (constantly "yaaaaay a key")))]
-    (is (nil? (lat/attr (:data db) :u0 :custom-attr-key)))))
+  (testing "If node already has attr, subsequent invocations of traverse-ents-add-attr will not overwrite it"
+    (let [db (-> (sm/build-ent-db {:schema td/schema} {:user [[:_]]})
+                 (sm/traverse-ents-add-attr :custom-attr-key (constantly nil))
+                 (sm/traverse-ents-add-attr :custom-attr-key (constantly "yaaaaay a key")))]
+      (is (nil? (lat/attr (:data db) :u0 :custom-attr-key))))))
 
 (deftest assert-schema-refs-must-exist
   (is (thrown-with-msg? java.lang.AssertionError
@@ -410,12 +411,18 @@
                         (sm/build-ent-db {:schema {:user  {:prefix :u}
                                                    :user2 {:prefix :u}}} {}))))
 
-(deftest enforces-has-many-schema-constraints
+(deftest assert-constraints-must-ref-existing-relations
+  (is (thrown-with-msg? java.lang.AssertionError
+                        #"Schema constraints reference nonexistent relation attrs: "
+                        (sm/build-ent-db {:schema {:user  {:prefix :u
+                                                           :constraints {:blarb :coll}}}} {}))))
+
+(deftest enforces-coll-schema-constraints
   (is (thrown-with-msg? clojure.lang.ExceptionInfo
                         #"Query-relations for coll attrs must be a number or vector"
                         (sm/build-ent-db {:schema td/schema} {:project [[:_ {:todo-list-ids :tl0}]]}))))
 
-(deftest enforces-has-one-schema-constraints
+(deftest enforces-unary-schema-constraints
   (is (thrown-with-msg? clojure.lang.ExceptionInfo
                         #"Query-relations for unary attrs must be a keyword"
                         (sm/build-ent-db {:schema td/schema} {:attachment [[:_ {:todo-id [:t0 :t1]}]]}))))

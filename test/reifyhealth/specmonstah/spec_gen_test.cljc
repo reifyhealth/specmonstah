@@ -19,38 +19,34 @@
 (use-fixtures :each td/test-fixture reset-gen-data-db)
 
 (deftest test-spec-gen
-  (is (= (sg/ent-db-spec-gen-data {:schema td/schema} {:project [1]})
-         {:u0 {:id 1
-               :user-name "Luigi"}
-          :p0 {:id 2
-               :project-name "Carrots"
-               :owner-id 1
-               :updated-by-id 1}})))
+  (is (= (sg/ent-db-spec-gen-data {:schema td/schema} {:todo-list [1]})
+         {:u0  {:id        1
+                :user-name "Luigi"}
+          :tl0 {:id            2
+                :created-by-id 1
+                :updated-by-id 1}})))
 
 (deftest test-spec-gen-nested
-  (is (= (sg/ent-db-spec-gen-data {:schema td/schema} {:ps-list [[:psl0 {:ps-ids 3}]]})
-         {:u0   {:id 1 :user-name "Luigi"}
-          :s0   {:id 2 :supporter-name "Mario" :owner-id 1 :updated-by-id 1}
-          :s1   {:id 5 :supporter-name "Mario" :owner-id 1 :updated-by-id 1}
-          :s2   {:id 8 :supporter-name "Mario" :owner-id 1 :updated-by-id 1}
-          :p0   {:id 11 :project-name "Carrots" :owner-id 1 :updated-by-id 1}
-          :ps0  {:id 14 :supporter-id 2 :project-id 11 :owner-id 1}
-          :ps1  {:id 18 :supporter-id 5 :project-id 11 :owner-id 1}
-          :ps2  {:id 22 :supporter-id 8 :project-id 11 :owner-id 1}
-          :psl0 {:ps-ids [14 18 22]}})))
+  (is (= (sg/ent-db-spec-gen-data {:schema td/schema} {:project [[:_ {:todo-list-ids 3}]]})
+         {:u0  {:id 1 :user-name "Luigi"}
+          :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}
+          :tl1 {:id 5 :created-by-id 1 :updated-by-id 1}
+          :tl2 {:id 8 :created-by-id 1 :updated-by-id 1}
+          :p0  {:id 11 :todo-list-ids [2 5 8] :created-by-id 1 :updated-by-id 1}})))
 
 (deftest test-spec-gen-manual-attr
-  (is (= (sg/ent-db-spec-gen-data {:schema td/schema} {:project [[:p0 nil nil {:project-name "Peas"}]]})
-         {:u0 {:id 1
-               :user-name "Luigi"}
-          :p0 {:id 2
-               :project-name "Peas"
-               :owner-id 1
-               :updated-by-id 1}})))
+  (is (= (sg/ent-db-spec-gen-data {:schema td/schema} {:todo [[:_ nil nil {:todo-title "pet the dog"}]]})
+         {:u0  {:id 1 :user-name "Luigi"}
+          :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}
+          :t0  {:id            5
+                :todo-title    "pet the dog"
+                :created-by-id 1
+                :updated-by-id 1
+                :todo-list-id  2}})))
 
 (deftest test-idempotency
   (testing "Gen traversal won't replace already generated data with newly generated data"
-    (let [gen-fn     #(sg/ent-db-spec-gen % {:project [[:p0 nil nil {:project-name "Peas"}]]})
+    (let [gen-fn     #(sg/ent-db-spec-gen % {:todo [[:t0 nil nil {:todo-title "pet the dog"}]]})
           first-pass (gen-fn {:schema td/schema})]
       (is (= first-pass (gen-fn first-pass))))))
 
@@ -59,18 +55,34 @@
                 (swap! gen-data-db conj [ent-type ent-name ent-data]))))
 
 (deftest test-insert-gen-data
-  (-> (sg/ent-db-spec-gen {:schema td/schema} {:project [1]})
+  (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [1]})
       (sm/traverse-ents-add-attr :inserted-data insert))
   (is (= @gen-data-db
          [[:user :u0 {:id 1 :user-name "Luigi"}]
-          [:project :p0 {:id 2 :project-name "Carrots" :owner-id 1 :updated-by-id 1}]])))
+          [:todo-list :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}]
+          [:todo :t0 {:id            5
+                      :todo-title    "write unit tests"
+                      :created-by-id 1
+                      :updated-by-id 1
+                      :todo-list-id  2}]])))
 
 (deftest inserts-novel-data
-  (let [db1 (-> (sg/ent-db-spec-gen {:schema td/schema} {:project [1]})
-                (sm/traverse-ents-add-attr :inserted-data insert))]
-    (-> (sg/ent-db-spec-gen db1 {:user [[:u1]]})
-        (sm/traverse-ents-add-attr :inserted-data insert))
-    (is (= @gen-data-db
-           [[:user :u0 {:id 1 :user-name "Luigi"}]
-            [:project :p0 {:id 2 :project-name "Carrots" :owner-id 1 :updated-by-id 1}]
-            [:user :u1 {:id 5 :user-name "Luigi"}]]))))
+  (testing "Given a db with a todo already added, next call adds a new
+  todo that references the same todo list and user"
+    (let [db1 (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [1]})
+                  (sm/traverse-ents-add-attr :inserted-data insert))]
+      (-> (sg/ent-db-spec-gen db1 {:todo [1]})
+          (sm/traverse-ents-add-attr :inserted-data insert))
+      (is (= @gen-data-db
+             [[:user :u0 {:id 1 :user-name "Luigi"}]
+              [:todo-list :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}]
+              [:todo :t0 {:id            5
+                          :todo-title    "write unit tests"
+                          :created-by-id 1
+                          :updated-by-id 1
+                          :todo-list-id  2}]
+              [:todo :t1 {:id            8
+                          :todo-title    "write unit tests"
+                          :created-by-id 1
+                          :updated-by-id 1
+                          :todo-list-id  2}]])))))
