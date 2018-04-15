@@ -42,25 +42,25 @@
   (s/nilable (s/map-of ::ent-type ::ent-name)))
 
 
-(s/def ::has-many-query-relations
+(s/def ::coll-query-relations
   (s/or :ent-names (s/coll-of ::ent-name)
         :ent-count ::ent-count))
 
-(s/def ::has-one-query-relations
+(s/def ::unary-query-relations
   (s/or :ent-name ::ent-name))
 
 (s/def ::query-relations
-  (s/nilable (s/map-of ::ent-attr (s/or :has-many ::has-many-query-relations
-                                        :has-one  ::has-one-query-relations))))
+  (s/nilable (s/map-of ::ent-attr (s/or :coll ::coll-query-relations
+                                        :unary  ::unary-query-relations))))
 
 (s/def ::extended-query-term
-  (s/or :n-1 (s/cat :ent-name ::ent-name)
-        :n-2 (s/cat :ent-name ::ent-name
+  (s/or :n-1 (s/cat :ent-name (s/nilable ::ent-name))
+        :n-2 (s/cat :ent-name (s/nilable ::ent-name)
                     :query-relations ::query-relations)
-        :n-3 (s/cat :ent-name ::ent-name
+        :n-3 (s/cat :ent-name (s/nilable ::ent-name)
                     :query-relations ::query-relations
                     :query-bindings ::query-bindings)
-        :n-* (s/cat :ent-name ::ent-name
+        :n-* (s/cat :ent-name (s/nilable ::ent-name)
                     :query-relations ::query-relations
                     :query-bindings ::query-bindings
                     :query-args (s/* ::any))))
@@ -181,13 +181,13 @@
 
     (cond (nil? qr-constraint) nil
           
-          (and (= constraint :has-many) (not= qr-constraint :has-many))
-          (throw (ex-info "Query-relations for has-many attrs must be a number or vector"
-                          {:spec-data (s/explain-data ::has-many-query-relations qr-term)}))
+          (and (= constraint :coll) (not= qr-constraint :coll))
+          (throw (ex-info "Query-relations for coll attrs must be a number or vector"
+                          {:spec-data (s/explain-data ::coll-query-relations qr-term)}))
 
-          (and (not= constraint :has-many) (not= qr-constraint :has-one))
-          (throw (ex-info "Query-relations for has-one attrs must be a keyword"
-                          {:spec-data (s/explain-data ::has-one-query-relations qr-term)})))
+          (and (not= constraint :coll) (not= qr-constraint :unary))
+          (throw (ex-info "Query-relations for unary attrs must be a keyword"
+                          {:spec-data (s/explain-data ::unary-query-relations qr-term)})))
     
     (b/cond (= qr-type :ent-count) (mapv (partial numeric-node-name schema related-ent-type) (range qr-term))
             (= qr-type :ent-names) qr-term

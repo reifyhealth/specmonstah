@@ -25,6 +25,9 @@
 (s/def ::todo-title #{"write unit tests"})
 (s/def ::todo (s/keys :req-un [::id ::todo-title ::created-by-id ::updated-by-id]))
 
+(s/def ::todo-id ::id)
+(s/def ::attachment (s/keys :req-un [::id ::todo-id ::created-by-id ::updated-by-id]))
+
 (s/def ::todo-ids (s/coll-of ::id))
 (s/def ::todo-list (s/keys :req-un [::id ::todo-ids ::created-by-id ::updated-by-id]))
 
@@ -33,7 +36,7 @@
 (s/def ::todo-list-watcher (s/keys :req-un [::id ::todo-list-id ::watcher-id]))
 
 ;; It's probably unrealistic to have groups of watchers, but we need
-;; to be able to test the combination of a parent that :has-many
+;; to be able to test the combination of a parent that :coll
 ;; children, where the children have a :uniq constraint
 (s/def ::todo-list-watcher-ids ::id)
 (s/def ::watcher-group (s/keys :req-un [::id ::todo-list-watcher-ids]))
@@ -46,6 +49,11 @@
 (def schema
   {:user              {:spec   ::user
                        :prefix :u}
+   :attachment        {:spec      ::attachment
+                       :relations {:created-by-id [:user :id]
+                                   :updated-by-id [:user :id]
+                                   :todo-id [:todo :id]}
+                       :prefix    :a}
    :todo              {:spec      ::todo
                        :relations {:created-by-id [:user :id]
                                    :updated-by-id [:user :id]
@@ -64,5 +72,5 @@
                        :relations   {:created-by-id [:user :id]
                                      :updated-by-id [:user :id]
                                      :todo-list-ids [:todo-list :id]}
-                       :constraints {:todo-list-ids :has-many}
+                       :constraints {:todo-list-ids :coll}
                        :prefix      :p}})

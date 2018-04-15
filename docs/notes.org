@@ -62,6 +62,7 @@ graph. And maybe not event then?
 *** DONE allow :_ for auto name
 *** DONE something better than falsey for attr update checking
 equivalent of has-key for node attrs
+*** DONE make n anonymous with attrs, relations, query term etc
 *** TODO handle non-insertion in query-arg
 (this is specific to a node traversal, not to core)
 *** TODO better error handling
@@ -96,10 +97,11 @@ entity DAG without it
 **** a project has many todo lists...
 but if you create a project with many todo lists, there won't be any
 todos
-*** TODO make n anonymous with attrs, relations, query term etc
 *** TODO define constraints with relations as metadata
 *** TODO test watcher group
 *** TODO rename 'has-many' and 'has-one' to 'coll' and 'unary'
+*** TODO investigate why we need nil as first arg in query term
+has to do with bound names
 * glossary
 ** entity type
 Roughly corresponds to a relation in an RDBMS
