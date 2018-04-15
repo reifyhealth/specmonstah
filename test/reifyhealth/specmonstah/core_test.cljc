@@ -264,6 +264,117 @@
 
                  (lat/add-attr :tl-bound-t-0 :bloop :relation-attrs #{:created-by-id :updated-by-id}))))
 
+(deftest test-build-ent-db-multiple-two-level-relation-binding
+  (testing "only one bound todo list is created for the three todos"
+    (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo [[3 nil {:user :bloop}]]}))
+               (-> (lg/digraph [:user :bloop]
+                               [:todo-list :tl-bound-t-0]
+                               [:todo :t0]
+                               [:t0 :bloop]
+                               [:t0 :tl-bound-t-0]
+                               [:todo :t1]
+                               [:t1 :bloop]
+                               [:t1 :tl-bound-t-0]
+                               [:todo :t2]
+                               [:t2 :bloop]
+                               [:t2 :tl-bound-t-0]
+                               [:tl-bound-t-0 :bloop])
+                   
+                   (lat/add-attr :user :type :ent-type)
+                   (lat/add-attr :bloop :type :ent)
+                   (lat/add-attr :bloop :index 0)
+                   (lat/add-attr :bloop :ent-type :user)
+                   (lat/add-attr :bloop :query-term [nil nil {:user :bloop}])
+
+                   (lat/add-attr :todo :type :ent-type)
+                   (lat/add-attr :t0 :type :ent)
+                   (lat/add-attr :t0 :index 0)
+                   (lat/add-attr :t0 :ent-type :todo)
+                   (lat/add-attr :t0 :query-term [3 nil {:user :bloop}])
+
+                   (lat/add-attr :todo :type :ent-type)
+                   (lat/add-attr :t1 :type :ent)
+                   (lat/add-attr :t1 :index 1)
+                   (lat/add-attr :t1 :ent-type :todo)
+                   (lat/add-attr :t1 :query-term [3 nil {:user :bloop}])
+
+                   (lat/add-attr :todo :type :ent-type)
+                   (lat/add-attr :t2 :type :ent)
+                   (lat/add-attr :t2 :index 2)
+                   (lat/add-attr :t2 :ent-type :todo)
+                   (lat/add-attr :t2 :query-term [3 nil {:user :bloop}])
+
+                   (lat/add-attr :todo-list :type :ent-type)
+                   (lat/add-attr :tl-bound-t-0 :type :ent)
+                   (lat/add-attr :tl-bound-t-0 :index 0)
+                   (lat/add-attr :tl-bound-t-0 :ent-type :todo-list)
+                   (lat/add-attr :tl-bound-t-0 :query-term [nil nil {:user :bloop}])
+
+                   (lat/add-attr :t0 :bloop :relation-attrs #{:created-by-id :updated-by-id})
+                   (lat/add-attr :t0 :tl-bound-t-0 :relation-attrs #{:todo-list-id})
+
+                   (lat/add-attr :t1 :bloop :relation-attrs #{:created-by-id :updated-by-id})
+                   (lat/add-attr :t1 :tl-bound-t-0 :relation-attrs #{:todo-list-id})
+
+                   (lat/add-attr :t2 :bloop :relation-attrs #{:created-by-id :updated-by-id})
+                   (lat/add-attr :t2 :tl-bound-t-0 :relation-attrs #{:todo-list-id})
+
+                   (lat/add-attr :tl-bound-t-0 :bloop :relation-attrs #{:created-by-id :updated-by-id})))))
+
+(deftest test-build-ent-db-bound-and-uniq
+  (testing "create uniq bound todo lists per todo-list-watch uniq constraint"
+    (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list-watch [[2 nil {:user :bloop}]]}))
+               (-> (lg/digraph [:user :bloop]
+                               [:todo-list :tl-bound-tlw-0]
+                               [:tl-bound-tlw-0 :bloop]
+                               [:todo-list :tl-bound-tlw-1]
+                               [:tl-bound-tlw-1 :bloop]
+                               [:todo-list-watch :tlw0]
+                               [:tlw0 :bloop]
+                               [:tlw0 :tl-bound-tlw-0]
+                               [:todo-list-watch :tlw1]
+                               [:tlw1 :bloop]
+                               [:tlw1 :tl-bound-tlw-1])
+                   
+                   (lat/add-attr :user :type :ent-type)
+                   (lat/add-attr :bloop :type :ent)
+                   (lat/add-attr :bloop :index 0)
+                   (lat/add-attr :bloop :ent-type :user)
+                   (lat/add-attr :bloop :query-term [nil nil {:user :bloop}])
+
+                   (lat/add-attr :todo-list-watch :type :ent-type)
+                   (lat/add-attr :tlw0 :type :ent)
+                   (lat/add-attr :tlw0 :index 0)
+                   (lat/add-attr :tlw0 :ent-type :todo-list-watch)
+                   (lat/add-attr :tlw0 :query-term [2 nil {:user :bloop}])
+
+                   (lat/add-attr :todo-list-watch :type :ent-type)
+                   (lat/add-attr :tlw1 :type :ent)
+                   (lat/add-attr :tlw1 :index 1)
+                   (lat/add-attr :tlw1 :ent-type :todo-list-watch)
+                   (lat/add-attr :tlw1 :query-term [2 nil {:user :bloop}])
+
+                   (lat/add-attr :todo-list :type :ent-type)
+                   (lat/add-attr :tl-bound-tlw-0 :type :ent)
+                   (lat/add-attr :tl-bound-tlw-0 :index 0)
+                   (lat/add-attr :tl-bound-tlw-0 :ent-type :todo-list)
+                   (lat/add-attr :tl-bound-tlw-0 :query-term [nil nil {:user :bloop}])
+
+                   (lat/add-attr :todo-list :type :ent-type)
+                   (lat/add-attr :tl-bound-tlw-1 :type :ent)
+                   (lat/add-attr :tl-bound-tlw-1 :index 1)
+                   (lat/add-attr :tl-bound-tlw-1 :ent-type :todo-list)
+                   (lat/add-attr :tl-bound-tlw-1 :query-term [nil nil {:user :bloop}])
+
+                   (lat/add-attr :tlw0 :bloop :relation-attrs #{:watcher-id})
+                   (lat/add-attr :tlw0 :tl-bound-tlw-0 :relation-attrs #{:todo-list-id})
+
+                   (lat/add-attr :tlw1 :bloop :relation-attrs #{:watcher-id})
+                   (lat/add-attr :tlw1 :tl-bound-tlw-1 :relation-attrs #{:todo-list-id})
+
+                   (lat/add-attr :tl-bound-tlw-0 :bloop :relation-attrs #{:created-by-id :updated-by-id})
+                   (lat/add-attr :tl-bound-tlw-1 :bloop :relation-attrs #{:created-by-id :updated-by-id})))))
+
 (deftest test-build-ent-db-three-level-relation-binding
   (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:attachment [[:_ nil {:user :bloop}]]}))
              (-> (lg/digraph [:user :bloop]
