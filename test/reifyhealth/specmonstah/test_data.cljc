@@ -34,12 +34,6 @@
 (s/def ::watcher-id ::id)
 (s/def ::todo-list-watcher (s/keys :req-un [::id ::todo-list-id ::watcher-id]))
 
-;; It's probably unrealistic to have groups of watchers, but we need
-;; to be able to test the combination of a parent that :coll
-;; children, where the children have a :uniq constraint
-(s/def ::todo-list-watcher-ids ::id)
-(s/def ::watcher-group (s/keys :req-un [::id ::todo-list-watcher-ids]))
-
 ;; In THE REAL WORLD todo-list would probably have a project-id,
 ;; rather than project having some coll of :todo-list-ids
 (s/def ::todo-list-ids (s/coll-of ::todo-list-id))

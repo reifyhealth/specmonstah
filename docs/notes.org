@@ -73,13 +73,13 @@ equivalent of has-key for node attrs
 **** DONE raise exception for s/conform errors
 **** DONE exception when multiple types have the same prefix
 **** DONE exception when constraints reference relations that don't exist
-*** TODO  handle query better
+*** DONE handle query better
 (lio/view (:data (sm/build-ent-db {:schema td/schema} {:todo [[3 nil {:user :bloop}]]})))
+*** DONE test watcher group
 *** TODO some way to compose specs
 traversal functions can expect different query terms, schema
 *** TODO do something about ::any
 bad hack! bad! can't gen!
-*** TODO test watcher group
 *** TODO investigate why we need nil as first arg in query term
 has to do with bound names
 *** TODO insertion order for A->A refs

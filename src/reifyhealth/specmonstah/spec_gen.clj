@@ -7,7 +7,7 @@
             [medley.core :as medley]
             [reifyhealth.specmonstah.core :as sm]))
 
-(def spec-gen-ent-attr-key :spec-gen-data)
+(def spec-gen-ent-attr-key :spec-gen)
 
 (s/def ::ent-attrs (s/map-of ::sm/ent-attr ::sm/any))
 
