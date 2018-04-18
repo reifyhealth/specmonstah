@@ -334,19 +334,26 @@
                      (lg/successors data ent-type)))
           type-order))
 
-(defn traverse-ents-add-attr
-  "Traverse ents (no ent type nodes), adding val returned by `ent-fn`
-  as an attr named `ent-attr-key`. Does not replace existing value of
-  `ent-attr-key` for node."
-  [db ent-attr-key attr-fn]
+(defn map-ents-attr
+  "Pass each ent to an `attr-fn`, assign return val to `attr-key`
+  attribute"
+  [db attr-key attr-fn]
   (reduce (fn [{:keys [data] :as db} ent-node]
-            (if (contains? (get-in data [:attrs ent-node]) ent-attr-key)
-              db
-              (update db :data lat/add-attr ent-node ent-attr-key (attr-fn db ent-node ent-attr-key))))
+            (update db :data lat/add-attr ent-node attr-key (attr-fn db ent-node attr-key)))
           db
           (ordered-ents db)))
 
-(defn map-attr
+(defn map-ents-attr-once
+  "Like `map-ents-attr` but doesn't call `attr-fn` if the ent already
+  has an `attr-key` attribute"
+  [db attr-key attr-fn]
+  (map-ents-attr db attr-key (fn [db ent-node attr-key]
+                               (let [ent-attrs (get-in db [:data :attrs ent-node])]
+                                 (if (contains? ent-attrs attr-key)
+                                   (ent-attrs attr-key)
+                                   (attr-fn db ent-node attr-key))))))
+
+(defn attr-map
   "Produce a map where each key is a node and its value is a graph
   attr on that node"
   [{:keys [data] :as db} attr]

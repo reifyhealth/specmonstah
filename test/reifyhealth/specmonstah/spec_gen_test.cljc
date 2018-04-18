@@ -56,7 +56,7 @@
 
 (deftest test-insert-gen-data
   (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [1]})
-      (sm/traverse-ents-add-attr :inserted-data insert))
+      (sm/map-ents-attr-once :inserted-data insert))
   (is (= @gen-data-db
          [[:user :u0 {:id 1 :user-name "Luigi"}]
           [:todo-list :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}]
@@ -70,9 +70,9 @@
   (testing "Given a db with a todo already added, next call adds a new
   todo that references the same todo list and user"
     (let [db1 (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [1]})
-                  (sm/traverse-ents-add-attr :inserted-data insert))]
+                  (sm/map-ents-attr-once :inserted-data insert))]
       (-> (sg/ent-db-spec-gen db1 {:todo [1]})
-          (sm/traverse-ents-add-attr :inserted-data insert))
+          (sm/map-ents-attr-once :inserted-data insert))
       (is (= @gen-data-db
              [[:user :u0 {:id 1 :user-name "Luigi"}]
               [:todo-list :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}]

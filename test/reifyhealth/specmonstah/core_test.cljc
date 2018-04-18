@@ -500,15 +500,15 @@
 
 (deftest updates-node-attrs
   (let [db (-> (sm/build-ent-db {:schema td/schema} {:user [[:_]]})
-               (sm/traverse-ents-add-attr :custom-attr-key (constantly "yaaaaay a key")))]
+               (sm/map-ents-attr-once :custom-attr-key (constantly "yaaaaay a key")))]
     (is (= (lat/attr (:data db) :u0 :custom-attr-key)
            "yaaaaay a key"))))
 
 (deftest does-not-override-node-attr
-  (testing "If node already has attr, subsequent invocations of traverse-ents-add-attr will not overwrite it"
+  (testing "If node already has attr, subsequent invocations of map-ents-attr-once will not overwrite it"
     (let [db (-> (sm/build-ent-db {:schema td/schema} {:user [[:_]]})
-                 (sm/traverse-ents-add-attr :custom-attr-key (constantly nil))
-                 (sm/traverse-ents-add-attr :custom-attr-key (constantly "yaaaaay a key")))]
+                 (sm/map-ents-attr-once :custom-attr-key (constantly nil))
+                 (sm/map-ents-attr-once :custom-attr-key (constantly "yaaaaay a key")))]
       (is (nil? (lat/attr (:data db) :u0 :custom-attr-key))))))
 
 (deftest assert-schema-refs-must-exist

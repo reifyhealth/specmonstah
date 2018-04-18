@@ -76,6 +76,14 @@ equivalent of has-key for node attrs
 *** DONE handle query better
 (lio/view (:data (sm/build-ent-db {:schema td/schema} {:todo [[3 nil {:user :bloop}]]})))
 *** DONE test watcher group
+*** TODO change traverse update to not check
+leave that up to traversal function
+or else have a separate function that only does the work once
+*** TODO spec attr-fn
+*** TODO views
+**** by type, ordered
+**** by type, node name map
+**** by type, attr
 *** TODO some way to compose specs
 traversal functions can expect different query terms, schema
 *** TODO do something about ::any
