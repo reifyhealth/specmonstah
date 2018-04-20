@@ -19,7 +19,7 @@
 (use-fixtures :each td/test-fixture reset-gen-data-db)
 
 (deftest test-spec-gen
-  (is (= (sg/ent-db-spec-gen-data {:schema td/schema} {:todo-list [1]})
+  (is (= (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [1]})
          {:u0  {:id        1
                 :user-name "Luigi"}
           :tl0 {:id            2
@@ -27,7 +27,7 @@
                 :updated-by-id 1}})))
 
 (deftest test-spec-gen-nested
-  (is (= (sg/ent-db-spec-gen-data {:schema td/schema} {:project [[:_ {:todo-list-ids 3}]]})
+  (is (= (sg/ent-db-spec-gen-attr {:schema td/schema} {:project [[:_ {:todo-list-ids 3}]]})
          {:u0  {:id 1 :user-name "Luigi"}
           :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}
           :tl1 {:id 5 :created-by-id 1 :updated-by-id 1}
@@ -35,7 +35,7 @@
           :p0  {:id 11 :todo-list-ids [2 5 8] :created-by-id 1 :updated-by-id 1}})))
 
 (deftest test-spec-gen-manual-attr
-  (is (= (sg/ent-db-spec-gen-data {:schema td/schema} {:todo [[:_ nil nil {:spec-gen {:todo-title "pet the dog"}}]]})
+  (is (= (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo [[:_ nil nil {:spec-gen {:todo-title "pet the dog"}}]]})
          {:u0  {:id 1 :user-name "Luigi"}
           :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}
           :t0  {:id            5

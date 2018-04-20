@@ -54,23 +54,12 @@
                       ent-data
                       (lat/attr data ent-name referenced-ent :relation-attrs)))
             (merge (gen-ent-data ent-type-schema)
-                   (get-in (lat/attr data ent-name :query-term) [3 spec-gen-ent-attr-key]))
+                   (get-in (lat/attr data ent-name :query-term) [3 ent-attr-key]))
             (sort-by #(lat/attr data % :index)
                      (lg/successors data ent-name)))))
 
-(defn traverse-spec-gen-data-fn
-  "Makes it slightly easier to create a traversal function that
-  accesses the `spec-gen-attr-key` key on the nodes of a db that have
-  been traversed with `spec-gen`"
-  [spec-gen-data-fn]
-  (fn [{:keys [data] :as db} ent-name ent-attr-key]
-    (spec-gen-data-fn db
-                      (lat/attr data ent-name spec-gen-ent-attr-key)
-                      (lat/attr data ent-name :ent-type)
-                      ent-name)))
-
 (defn ent-db-spec-gen
-  "Convenience function to build a new db using the spec-gen traverser
+  "Convenience function to build a new db using the spec-gen mapper
   and the default attr-key"
   [db query]
   (-> (sm/build-ent-db db query)
