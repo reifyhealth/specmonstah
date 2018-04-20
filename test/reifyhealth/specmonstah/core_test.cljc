@@ -52,7 +52,7 @@
          :t-bound-p-1)))
 
 (deftest test-build-ent-db-relationless-ent
-  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:user [[:u1]]}))
+  (is-graph= (:data )
              (-> (lg/digraph [:user :u1])
                  (lat/add-attr :user :type :ent-type)
                  (lat/add-attr :u1 :type :ent)
@@ -94,6 +94,8 @@
                  (lat/add-attr :tl0 :query-term nil)
                  
                  (lat/add-attr :tl0 :u0 :relation-attrs #{:created-by-id :updated-by-id}))))
+
+(sm/build-ent-db {:schema td/schema} {:todo-list [[2 {:created-by-id :bloop :updated-by-id :bloop}]]})
 
 (deftest test-build-ent-db-mult-ents-w-extended-query
   (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list [[2 {:created-by-id :bloop :updated-by-id :bloop}]]}))

@@ -34,8 +34,13 @@
       (reset-coll-relations constraints)))
 
 (defn spec-gen
-  "A traversal function that uses spec to generate data for each ent,
-  and uses the ent's edges to set values for relation attrs"
+  "A mapping function that uses spec to generate data for each ent,
+  and uses the ent's edges to set values for relation attrs.
+
+  You can specify a map to merge into your spec-generated map under
+  the `:spec-gen` key of the fourth arg in a query term, e.g.
+
+  `[:todo0 nil nil {:spec-gen {:attr-1 val-1}}]`"
   [{:keys [schema data]} ent-name ent-attr-key]
   (let [ent-type-schema                 (get schema (lat/attr data ent-name :ent-type))
         {:keys [relations constraints]} ent-type-schema]
@@ -49,7 +54,7 @@
                       ent-data
                       (lat/attr data ent-name referenced-ent :relation-attrs)))
             (merge (gen-ent-data ent-type-schema)
-                   (get (lat/attr data ent-name :query-term) 3))
+                   (get-in (lat/attr data ent-name :query-term) [3 spec-gen-ent-attr-key]))
             (sort-by #(lat/attr data % :index)
                      (lg/successors data ent-name)))))
 

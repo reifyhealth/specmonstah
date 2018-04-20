@@ -35,7 +35,7 @@
           :p0  {:id 11 :todo-list-ids [2 5 8] :created-by-id 1 :updated-by-id 1}})))
 
 (deftest test-spec-gen-manual-attr
-  (is (= (sg/ent-db-spec-gen-data {:schema td/schema} {:todo [[:_ nil nil {:todo-title "pet the dog"}]]})
+  (is (= (sg/ent-db-spec-gen-data {:schema td/schema} {:todo [[:_ nil nil {:spec-gen {:todo-title "pet the dog"}}]]})
          {:u0  {:id 1 :user-name "Luigi"}
           :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}
           :t0  {:id            5
@@ -50,9 +50,11 @@
           first-pass (gen-fn {:schema td/schema})]
       (is (= first-pass (gen-fn first-pass))))))
 
-(def insert (sg/traverse-spec-gen-data-fn
-              (fn [db ent-data ent-type ent-name]
-                (swap! gen-data-db conj [ent-type ent-name ent-data]))))
+(defn insert
+  [{:keys [data] :as db} ent-name ent-attr-key]
+  (swap! gen-data-db conj [(lat/attr data ent-name :ent-type)
+                           ent-name
+                           (lat/attr data ent-name sg/spec-gen-ent-attr-key)]))
 
 (deftest test-insert-gen-data
   (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [1]})

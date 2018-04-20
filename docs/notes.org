@@ -30,80 +30,6 @@ over the abstract relation topo except to set up the initial
 graph. And maybe not event then?
 *** add query terms to nodes?
 *** ensure that existing query term is used
-** next steps
-*** DONE generate data
-**** DONE traverse nodes
-- skip type nodes
-- use type sort to traverse in order to preserve order
-  - sort by topsort, then by index attr on nodes
-- function should return a key/value pair that gets added to node;
-  another possibility is to update attr map
-- post-traverse
-- use schema as input
-- some gen fn?
-*** DONE decide whether to pass in traverse attr or not
-*** DONE add back has-many constraint to indicate autogen should be in vector
-**** also update spec-gen to handle has-many
-**** re-write spec-gen to iterate over relation attrs first, not edges
-*** DONE allow overwriting of gen data
-**** look up query term
-*** DONE transact the data
-**** a traversal function that relies on some other attrs of node
-**** test that gen / traverse only happen once
-*** DONE spec the schema
-*** DONE in has-many relation, specify names of ents
-*** DONE find some other way to indicate bindings that can't conflict with fk attrs
-*** DONE use conform for dsl parsing
-**** handle s/? regex case - arg is optional, but position should always mean binding
-**** DONE update query term spec to handle vector of names
-*** DONE only allow vector or int on has-many relationships
-- has many has vector or int
-- non has-many only allowed to have keyword
-*** DONE allow :_ for auto name
-*** DONE something better than falsey for attr update checking
-equivalent of has-key for node attrs
-*** DONE make n anonymous with attrs, relations, query term etc
-*** DONE rename 'has-many' and 'has-one' to 'coll' and 'unary'
-*** DONE binding naming for nested bound names
-:tl-bound-p0-0
-:t-bound-tl-bound-p0-0-0
-*** DONE re-work examples to something more familiar
-*** DONE better error handling
-**** DONE check refs and ent types
-**** DONE raise exception for s/conform errors
-**** DONE exception when multiple types have the same prefix
-**** DONE exception when constraints reference relations that don't exist
-*** DONE handle query better
-(lio/view (:data (sm/build-ent-db {:schema td/schema} {:todo [[3 nil {:user :bloop}]]})))
-*** DONE test watcher group
-*** TODO change traverse update to not check
-leave that up to traversal function
-or else have a separate function that only does the work once
-*** TODO spec attr-fn
-*** TODO views
-**** by type, ordered
-**** by type, node name map
-**** by type, attr
-*** TODO some way to compose specs
-traversal functions can expect different query terms, schema
-*** TODO do something about ::any
-bad hack! bad! can't gen!
-*** TODO investigate why we need nil as first arg in query term
-has to do with bound names
-*** TODO insertion order for A->A refs
-for example if a user has `created-by`, the `created-by` needs to be inserted first
-
-Update: this is possible but we wouldn't be able to use :type-order
-hack because it relies on topsort, and topsort does not abide
-cycles. :type-order makes it much easier to create the entity DAG
-without confusing recursion , but it should be possible to build the
-entity DAG without it
-*** TODO clear vocabulary / documentation for aspects of system
-**** graph
-**** node
-**** ent
-**** ent type
-**** update
 * glossary
 ** entity type
 Roughly corresponds to a relation in an RDBMS
@@ -120,3 +46,79 @@ entities of another type
 - how the type relates to other types
 - how to generate the type
 - how to name the generated ents
+* next steps
+** DONE generate data
+*** DONE traverse nodes
+- skip type nodes
+- use type sort to traverse in order to preserve order
+  - sort by topsort, then by index attr on nodes
+- function should return a key/value pair that gets added to node;
+  another possibility is to update attr map
+- post-traverse
+- use schema as input
+- some gen fn?
+** DONE decide whether to pass in traverse attr or not
+** DONE add back has-many constraint to indicate autogen should be in vector
+*** also update spec-gen to handle has-many
+*** re-write spec-gen to iterate over relation attrs first, not edges
+** DONE allow overwriting of gen data
+*** look up query term
+** DONE transact the data
+*** a traversal function that relies on some other attrs of node
+*** test that gen / traverse only happen once
+** DONE spec the schema
+** DONE in has-many relation, specify names of ents
+** DONE find some other way to indicate bindings that can't conflict with fk attrs
+** DONE use conform for dsl parsing
+*** handle s/? regex case - arg is optional, but position should always mean binding
+*** DONE update query term spec to handle vector of names
+** DONE only allow vector or int on has-many relationships
+- has many has vector or int
+- non has-many only allowed to have keyword
+** DONE allow :_ for auto name
+** DONE something better than falsey for attr update checking
+equivalent of has-key for node attrs
+** DONE make n anonymous with attrs, relations, query term etc
+** DONE rename 'has-many' and 'has-one' to 'coll' and 'unary'
+** DONE binding naming for nested bound names
+:tl-bound-p0-0
+:t-bound-tl-bound-p0-0-0
+** DONE re-work examples to something more familiar
+** DONE better error handling
+*** DONE check refs and ent types
+*** DONE raise exception for s/conform errors
+*** DONE exception when multiple types have the same prefix
+*** DONE exception when constraints reference relations that don't exist
+** DONE handle query better
+(lio/view (:data (sm/build-ent-db {:schema td/schema} {:todo [[3 nil {:user :bloop}]]})))
+** DONE test watcher group
+** DONE change traverse update to not check
+leave that up to traversal function
+or else have a separate function that only does the work once
+** TODO spec attr-fn
+** TODO views
+*** by type, ordered
+*** by type, node name map
+*** by type, attr
+** TODO some way to compose specs
+traversal functions can expect different query terms, schema
+** TODO do something about ::any
+bad hack! bad! can't gen!
+** TODO investigate why we need nil as first arg in query term
+has to do with bound names
+** TODO create an ent db from an existing source
+** TODO insertion order for A->A refs
+for example if a user has `created-by`, the `created-by` needs to be inserted first
+
+Update: this is possible but we wouldn't be able to use :type-order
+hack because it relies on topsort, and topsort does not abide
+cycles. :type-order makes it much easier to create the entity DAG
+without confusing recursion , but it should be possible to build the
+entity DAG without it
+** TODO clear vocabulary / documentation for aspects of system
+*** graph
+*** node
+*** ent
+*** ent type
+*** update
+** TODO preference for making fourth arg a map, keyed by updater
