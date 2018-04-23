@@ -8,9 +8,9 @@
 ## Purpose
 
 Specmonstah lets you generate and manipulate deeply-nested,
-hierarchical graphs of your business data using a concise DSL. It's
-great for dramatically reducing the amount of boilerplate code you
-have to write for tests.
+hierarchical graphs of your business data (the kind you'd store in a
+relational database) using a concise DSL. It's great for dramatically
+reducing the amount of boilerplate code you have to write for tests.
 
 ![Specmonstah purpose](docs/diagram.png)
 
@@ -67,7 +67,8 @@ guide's Tutorial will show you how to use Specmonstah specifically for
 this use case. Along the way you'll learn how to make the most of
 Specmonstah by understanding how it's not implemented to support
 writing unit tests per se, but to support the more fundamental
-operations of generating and manipulating entity graphs.
+operations of generating and manipulating entity graphs. You'll also
+explore 
 
 ## Tutorial
 

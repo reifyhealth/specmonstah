@@ -90,9 +90,7 @@ or else have a separate function that only does the work once
 
 [:todo sc//* sc/by-index]
 **** by type, attr
-** TODO spec attr-fn
-** TODO some way to compose specs
-traversal functions can expect different query terms, schema
+** DONE spec attr-fn
 ** TODO do something about ::any
 bad hack! bad! can't gen!
 ** TODO investigate why we need nil as first arg in query term
@@ -113,7 +111,17 @@ entity DAG without it
 *** ent
 *** ent type
 *** update
+** TODO some way to compose specs
+traversal functions can expect different query terms, schema
 ** TODO preference for making fourth arg a map, keyed by updater
+** TODO team steps
+*** convert more bengal
+*** explore converting salk demo db
+*** QA
+**** is anything broken?
+**** does it make sense?
+**** is anything surprising?
+*** break out todos into stories/issues
 * docs
 ** bottom-up examples
 *** focus on query

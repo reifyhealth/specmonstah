@@ -51,8 +51,8 @@
   (s/or :ent-name ::ent-name))
 
 (s/def ::query-relations
-  (s/nilable (s/map-of ::ent-attr (s/or :coll ::coll-query-relations
-                                        :unary  ::unary-query-relations))))
+  (s/nilable (s/map-of ::ent-attr (s/or :coll  ::coll-query-relations
+                                        :unary ::unary-query-relations))))
 
 (s/def ::extended-query-term
   (s/or :n-1 (s/cat :ent-name (s/nilable ::ent-name))
@@ -344,6 +344,14 @@
             (update db :data lat/add-attr ent-node attr-key (attr-fn db ent-node attr-key)))
           db
           (ordered-ents db)))
+
+(s/fdef map-ents-attr
+  :args (s/cat :db ::db
+               :attr-key keyword?
+               :attr-fn (s/fspec :args (s/cat :db ::db
+                                              :ent-node ::ent-name
+                                              :attr-key keyword?)))
+  :ret ::db)
 
 (defn map-ents-attr-once
   "Like `map-ents-attr` but doesn't call `attr-fn` if the ent already
