@@ -8,7 +8,8 @@
             [clojure.test.check.generators :as gen :include-macros true]
             [clojure.string :as str]
             [clojure.set :as set]
-            [clojure.spec.alpha :as s]))
+            [clojure.spec.alpha :as s])
+  (:refer-clojure :exclude [>]))
 
 (s/def ::any (constantly true))
 (s/def ::ent-type keyword?)
@@ -266,10 +267,11 @@
           ent-type-query))
 
 (defn init-db
-  [{:keys [schema] :as db}]
+  [{:keys [schema] :as db} query]
   (let [rg (relation-graph schema)]
     (-> db
         (update :data #(or % (lg/digraph)))
+        (update :queries conj query)
         (assoc :relation-graph rg
                :types (set (keys schema))
                :type-order (reverse (la/topsort rg))))))
@@ -285,7 +287,7 @@
        (reduce-kv (fn [grouping ent-type prefix]
                     (update grouping prefix (fn [x] (conj (or x #{}) ent-type))))
                   {})
-       (medley/filter-vals #(> (count %) 1))))
+       (medley/filter-vals #(clojure.core/> (count %) 1))))
 
 (defn invalid-schema-relations
   "Relations that reference nonexistent types"
@@ -317,7 +319,7 @@
   (throw-invalid-spec "db" ::db db)
   (throw-invalid-spec "query" ::query query)
   
-  (let [db (init-db db)]
+  (let [db (init-db db query)]
     (reduce (fn [db ent-type]
               (if-let [ent-type-query (ent-type query)]
                 (add-ent-type-query db ent-type-query ent-type)
@@ -360,3 +362,20 @@
   (reduce (fn [m ent] (assoc m ent (lat/attr data ent attr)))
           {}
           (ordered-ents db)))
+
+
+;; Viewing attributes
+(defn >
+  "Get attrs of node's children. Can be used to get all ents of a
+  type."
+  [{:keys [data]} node]
+  (->> (lg/successors data node)
+       (map (:attrs data))))
+
+(defn q>
+  "Get seq of nodes that have a type referenced in the query"
+  [{:keys [data queries] :as db}]
+  (let [query-types (->> queries first keys set)]
+    (->> (ordered-ents db)
+         (map (:attrs data))
+         (filter #(query-types (:ent-type %))))))

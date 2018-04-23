@@ -471,24 +471,42 @@
                  (lat/add-attr :tlw1 :u0 :relation-attrs #{:watcher-id}))))
 
 (deftest test-bound-descendants?
-  (is (sm/bound-descendants? (sm/init-db {:schema td/schema}) {:user :bibbity} :attachment))
-  (is (not (sm/bound-descendants? (sm/init-db {:schema td/schema}) {:user :bibbity} :user)))
-  (is (not (sm/bound-descendants? (sm/init-db {:schema td/schema}) {:attachment :bibbity} :user))))
+  (is (sm/bound-descendants? (sm/init-db {:schema td/schema} {}) {:user :bibbity} :attachment))
+  (is (not (sm/bound-descendants? (sm/init-db {:schema td/schema} {}) {:user :bibbity} :user)))
+  (is (not (sm/bound-descendants? (sm/init-db {:schema td/schema} {}) {:attachment :bibbity} :user))))
 
 (deftest queries-can-have-anon-names
-  (let [db (strip-db (sm/build-ent-db {:schema td/schema} {:user [[:_] [:_]]}))]
-    (is (= (:schema db) td/schema))
-    (is (= (:data db)
-           (-> (lg/digraph [:user :u0] [:user :u1] )
-               (lat/add-attr :user :type :ent-type)
-               (lat/add-attr :u0 :type :ent)
-               (lat/add-attr :u0 :index 0)
-               (lat/add-attr :u0 :query-term [:_])
-               (lat/add-attr :u0 :ent-type :user)
-               (lat/add-attr :u1 :type :ent)
-               (lat/add-attr :u1 :index 1)
-               (lat/add-attr :u1 :query-term [:_])
-               (lat/add-attr :u1 :ent-type :user))))))
+  (is (= (:data (sm/build-ent-db {:schema td/schema} {:user [[:_] [:_]]}))
+         (-> (lg/digraph [:user :u0] [:user :u1] )
+             (lat/add-attr :user :type :ent-type)
+             (lat/add-attr :u0 :type :ent)
+             (lat/add-attr :u0 :index 0)
+             (lat/add-attr :u0 :query-term [:_])
+             (lat/add-attr :u0 :ent-type :user)
+             (lat/add-attr :u1 :type :ent)
+             (lat/add-attr :u1 :index 1)
+             (lat/add-attr :u1 :query-term [:_])
+             (lat/add-attr :u1 :ent-type :user)))))
+
+(deftest test->
+  (is (= (sm/> (sm/build-ent-db {:schema td/schema} {:user [[:_] [:_]]}) :user)
+         [{:type :ent :index 1 :ent-type :user :query-term [:_]}
+          {:type :ent :index 0 :ent-type :user :query-term [:_]}])))
+
+(deftest test-q>
+  (is (= (sm/q> (sm/build-ent-db {:schema td/schema} {:user [[:_] [:_]]}))
+         [{:type :ent :index 0 :ent-type :user :query-term [:_]}
+          {:type :ent :index 1 :ent-type :user :query-term [:_]}])))
+
+(deftest test-q>
+  (is (= (sm/q> (sm/build-ent-db {:schema td/schema} {:todo [1]}))
+         [{:type       :ent
+           :index      0
+           :ent-type   :todo
+           :query-term nil
+           :loom.attr/edge-attrs
+           {:u0  {:relation-attrs #{:created-by-id :updated-by-id}}
+            :tl0 {:relation-attrs #{:todo-list-id}}}}])))
 
 (deftest test-build-ent-db-throws-exception-on-invalid-db
   (is (thrown-with-msg? clojure.lang.ExceptionInfo
@@ -537,4 +555,3 @@
   (is (thrown-with-msg? clojure.lang.ExceptionInfo
                         #"Query-relations for unary attrs must be a keyword"
                         (sm/build-ent-db {:schema td/schema} {:attachment [[:_ {:todo-id [:t0 :t1]}]]}))))
-

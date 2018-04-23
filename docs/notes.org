@@ -30,22 +30,6 @@ over the abstract relation topo except to set up the initial
 graph. And maybe not event then?
 *** add query terms to nodes?
 *** ensure that existing query term is used
-* glossary
-** entity type
-Roughly corresponds to a relation in an RDBMS
-** entity
-an instance of an entity type
-** schema
-A schema is used to generate a dataase
-
-A schema describes entity types, and how entities of a type relate to
-other entities. A schema also specifies has-many and uniq constraints.
-
-entities of another type
-*** the metadata describing: 
-- how the type relates to other types
-- how to generate the type
-- how to name the generated ents
 * next steps
 ** DONE generate data
 *** DONE traverse nodes
@@ -95,18 +79,26 @@ equivalent of has-key for node attrs
 ** DONE change traverse update to not check
 leave that up to traversal function
 or else have a separate function that only does the work once
+** DONE views
+*** view strategies
+**** attr-map, attr-vec with optional type arg
+***** or optional filter, e.g. :ent-type = :todo
+*** view types
+**** by type, ordered
+**** by type, node name map
+{:todo [{:name :x} {:name :y}]}
+
+[:todo sc//* sc/by-index]
+**** by type, attr
 ** TODO spec attr-fn
-** TODO views
-*** by type, ordered
-*** by type, node name map
-*** by type, attr
 ** TODO some way to compose specs
 traversal functions can expect different query terms, schema
 ** TODO do something about ::any
 bad hack! bad! can't gen!
 ** TODO investigate why we need nil as first arg in query term
 has to do with bound names
-** TODO create an ent db from an existing source
+** TODO create a specmonstah db from an existing source
+for example, populate the :data key with a graph derived from postgres
 ** TODO insertion order for A->A refs
 for example if a user has `created-by`, the `created-by` needs to be inserted first
 
@@ -122,3 +114,56 @@ entity DAG without it
 *** ent type
 *** update
 ** TODO preference for making fourth arg a map, keyed by updater
+* docs
+** bottom-up examples
+*** focus on query
+*** focus on schema
+** top-down
+*** 
+** purpose
+*** concisely create network of dependent data
+*** fixtures
+** the interface
+*** queries
+*** mappers
+*** views
+** the underparts
+*** graph
+*** store mappers as attrs
+*** relations as edge attrs
+** transparently uses loom
+*** you can extend by using loom fns
+*** it pays to know how loom structures data (attrs key)
+** features
+*** progressive build up
+return value of one call can be used as input to another
+*** loom graph
+- can use graph lib to interact
+- lio/view
+*** well-spec'd / arg checking / guard rails
+** concepts
+*** entity type
+Roughly corresponds to a relation in an RDBMS
+*** entity
+an instance of an entity type
+*** schema
+A schema is used to generate a dataase
+
+A schema describes entity types, and how entities of a type relate to
+other entities. A schema also specifies has-many and uniq constraints.
+
+entities of another type
+**** the metadata describing: 
+- how the type relates to other types
+- how to generate the type
+- how to name the generated ents
+*** db
+**** 
+*** query
+*** binding
+*** relation
+*** mappers
+*** views
+** README
+*** generate and interact with graphs
+**** application types
