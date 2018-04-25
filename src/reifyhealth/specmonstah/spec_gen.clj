@@ -65,7 +65,7 @@
   (-> (sm/build-ent-db db query)
       (sm/map-ents-attr-once spec-gen-ent-attr-key spec-gen)))
 
-(defn ent-db-spec-gen-data
+(defn ent-db-spec-gen-attr
   "Convenience function to return a map of `{ent-name gen-data}` using
   the db returned by `ent-db-spec-gen`"
   [db query]
