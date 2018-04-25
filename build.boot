@@ -13,7 +13,7 @@
                     [crisptrutski/boot-cljs-test "0.3.0"         :scope "test"]
                     [doo                         "0.1.7"         :scope "test"]
                     [org.clojure/spec.alpha      "0.1.123"       :scope "test"]
-                    [better-cond "1.0.1"]
+                    [better-cond "2.0.1"]
                     [aysylu/loom "1.0.0"]
                     [medley "0.8.3"]])
 

@@ -71,8 +71,31 @@ operations of generating and manipulating entity graphs.
 
 ## Tutorial
 
-
-
 ## Usage
 
 ## Glossary
+
+## Contributing
+
+I'm looking to exercise Specmonstah 2 against the following use cases:
+
+* Generating data for unit tests. What to look for:
+  * Are there surprises?
+  * Can it handle deeply nested combinations of `:coll` and `:uniq`
+    relationships?
+  * Does binding work as expected?
+  * Is it easy to retrieve the views of the specmonstah db needed for
+    a test? For example, if you want to generate 2 Todos for
+    insertion, but a TodoList and a User also get generated, can you
+    access just the Todos with minimal code?
+* Generating seed data.
+  * Can you easily and clearly specify an entire database? For
+    example, can you express "I want to create a db with 3 todo lists
+    belonging to 2 users, where one list has 5 items, one has 1, and
+    one has 0".
+  * Can you easily tweak the above? For example if you want to create
+    an additional todo list but leave everything else the same, or
+    generate only empty todo lists.
+* Progressively generating and mapping a database.
+  * Does anything unexpected happen if you create an entity database
+    and map over it to perform inserts over multiple calls?
