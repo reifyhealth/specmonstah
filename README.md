@@ -1,14 +1,14 @@
 # Specmonstah
 
-* Purpose
-* Tutorial
-* Usage
-* Glossary
+* [Purpose](#purpose)
+* [Tutorial](#tutorial)
+* [Usage](#usage)
+* [Glossary](#glossary)
 
 ## Purpose
 
 Specmonstah lets you generate and manipulate deeply-nested,
-hierarchical graphs of your business data (the kind you'd store in a
+hierarchical graphs of business data (what you typically store in a
 relational database) using a concise DSL. It's great for dramatically
 reducing the amount of boilerplate code you have to write for tests.
 
@@ -28,14 +28,14 @@ generate the graph:
 ;; The schema is similar to a db schema. It's used to establish
 ;; entity types and relationships among instances of those entities.
 (def schema
-  {:user            {:prefix :u}
-   :todo            {:relations {:created-by-id [:user :id]
-                                 :updated-by-id [:user :id]
-                                 :todo-list-id  [:todo-list :id]}
-                     :prefix    :t}
-   :todo-list       {:relations {:created-by-id [:user :id]
-                                 :updated-by-id [:user :id]}
-                     :prefix    :tl}})
+  {:user      {:prefix :u}
+   :todo      {:relations {:created-by-id [:user :id]
+                           :updated-by-id [:user :id]
+                           :todo-list-id  [:todo-list :id]}
+               :prefix    :t}
+   :todo-list {:relations {:created-by-id [:user :id]
+                           :updated-by-id [:user :id]}
+               :prefix    :tl}})
 
 ;; The graph is under `:data`, and `lio/view` produces an image
 ;; of the graph.
@@ -54,23 +54,24 @@ you're using the _query_ `{:todo [3]}` to tell the function
 `schema` to generate `User` and `TodoList` entities without your
 having to specify them in your query.
 
-The graph only contains entity instances and their relationships; it
-doesn't include fields for the entities like the user's name or the
-todo list's name. Once you've generated the graph, it's
-straightforward to visit each node in the graph to a) use clojure.spec
-to generate that data and b) insert the generated data into a
-database.
+The graph only contains entity types, and entity instances and their
+relationships; it doesn't include fields for the entities like the
+user's name or the todo list's name. Once you've generated the graph,
+it's straightforward to visit each node in the graph to a) use
+clojure spec to generate that data and b) insert the generated data
+into a database.
 
 Specmonstah was born out of a need to replace brittle, repetitive code
 for creating deeply-nested hierarchies of data in unit tests. This
-guide's Tutorial will show you how to use Specmonstah specifically for
+guide's tutorial will show you how to use Specmonstah specifically for
 this use case. Along the way you'll learn how to make the most of
 Specmonstah by understanding how it's not implemented to support
 writing unit tests per se, but to support the more fundamental
-operations of generating and manipulating entity graphs. You'll also
-explore 
+operations of generating and manipulating entity graphs.
 
 ## Tutorial
+
+
 
 ## Usage
 

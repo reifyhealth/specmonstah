@@ -95,6 +95,10 @@ or else have a separate function that only does the work once
 bad hack! bad! can't gen!
 ** TODO investigate why we need nil as first arg in query term
 has to do with bound names
+** TODO store `query` instead of `queries` in init-db
+If we don't also store every schema, it doesn't make sense to store
+every query. No reason not to make it the client's responsibility to
+keep track of schema and query over time.
 ** TODO create a specmonstah db from an existing source
 for example, populate the :data key with a graph derived from postgres
 ** TODO insertion order for A->A refs
@@ -122,8 +126,12 @@ traversal functions can expect different query terms, schema
 **** does it make sense?
 **** is anything surprising?
 *** break out todos into stories/issues
+** TODO find better home for docs
+*** need TOC, better navigability for tutorial
+*** API docs
 * docs
 ** bottom-up examples
+try focusing on only one aspec of the tool at a time
 *** focus on query
 *** focus on schema
 ** top-down
@@ -172,6 +180,8 @@ entities of another type
 *** relation
 *** mappers
 *** views
+*** deterministic naming
 ** README
 *** generate and interact with graphs
 **** application types
+** tutorial
