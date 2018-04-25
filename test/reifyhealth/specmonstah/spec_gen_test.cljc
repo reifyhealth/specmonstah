@@ -1,6 +1,6 @@
 (ns reifyhealth.specmonstah.spec-gen-test
   (:require #?(:clj [clojure.test :refer [deftest is are use-fixtures testing]]
-               :cljs [cljs.test :include-macros true])
+               :cljs [cljs.test :include-macros true :refer [deftest is are use-fixtures testing]])
             [clojure.spec.alpha :as s]
             [clojure.test.check.generators :as gen :include-macros true]
             [reifyhealth.specmonstah.test-data :as td]
