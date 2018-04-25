@@ -93,6 +93,8 @@ or else have a separate function that only does the work once
 ** DONE spec attr-fn
 ** TODO do something about ::any
 bad hack! bad! can't gen!
+** TODO get rid of ent-count query term?
+it's really not a huge win and it makes the code more complicated
 ** TODO investigate why we need nil as first arg in query term
 has to do with bound names
 ** TODO store `query` instead of `queries` in init-db
