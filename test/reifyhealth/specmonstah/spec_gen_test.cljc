@@ -48,7 +48,8 @@
   (testing "Gen traversal won't replace already generated data with newly generated data"
     (let [gen-fn     #(sg/ent-db-spec-gen % {:todo [[:t0 nil nil {:todo-title "pet the dog"}]]})
           first-pass (gen-fn {:schema td/schema})]
-      (is (= first-pass (gen-fn first-pass))))))
+      (is (= (:data first-pass)
+             (:data (gen-fn first-pass)))))))
 
 (defn insert
   [{:keys [data] :as db} ent-name ent-attr-key]
