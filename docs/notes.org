@@ -91,8 +91,22 @@ or else have a separate function that only does the work once
 [:todo sc//* sc/by-index]
 **** by type, attr
 ** DONE spec attr-fn
+** TODO polymorphic references
+cover datomic instance when e.g. a "watch" can be watching a topic, a
+topic category, etc
 ** TODO do something about ::any
 bad hack! bad! can't gen!
+** TODO in schema, specify mapper defaults
+e.g. {:spec-gen x} that applies to all ents of that type
+** TODO make it easier to assoc relations
+as spec-gen does- make it easy for any other mapper to do the same
+** TODO just use ent-name map for query terms
+[:_ {:refs {} :bind {} :x1 :y1}]
+** TODO more elegant way to build up a query
+** TODO re-explore flat format
+- what were the reasons for not using it?
+- is it possible to infer type from a prefix?
+** TODO change 'prefix' to 'ent-name-prefix'?
 ** TODO get rid of ent-count query term?
 it's really not a huge win and it makes the code more complicated
 ** TODO investigate why we need nil as first arg in query term
@@ -111,6 +125,10 @@ hack because it relies on topsort, and topsort does not abide
 cycles. :type-order makes it much easier to create the entity DAG
 without confusing recursion , but it should be possible to build the
 entity DAG without it
+*** cycles to DAG
+*** instead of simple traversal, make traversal result in seq of jobs
+possible for an ent to add more than one job? or to specify that jobs get appended?
+a layer of abstraction between entity and job
 ** TODO clear vocabulary / documentation for aspects of system
 *** graph
 *** node
@@ -131,6 +149,7 @@ traversal functions can expect different query terms, schema
 ** TODO find better home for docs
 *** need TOC, better navigability for tutorial
 *** API docs
+** TODO seq abstraction - map, filter, etc
 * docs
 ** bottom-up examples
 try focusing on only one aspec of the tool at a time

@@ -39,10 +39,6 @@
   (s/map-of ::ent-type ::ent-type-schema))
 
 ;; query specs
-(s/def ::query-bindings
-  (s/nilable (s/map-of ::ent-type ::ent-name)))
-
-
 (s/def ::coll-query-relations
   (s/or :ent-names (s/coll-of ::ent-name)
         :ent-count ::ent-count))
@@ -50,39 +46,24 @@
 (s/def ::unary-query-relations
   (s/or :ent-name ::ent-name))
 
-(s/def ::query-relations
+(s/def ::refs
   (s/nilable (s/map-of ::ent-attr (s/or :coll  ::coll-query-relations
                                         :unary ::unary-query-relations))))
 
-(s/def ::extended-query-term
-  (s/or :n-1 (s/cat :ent-name (s/nilable ::ent-name))
-        :n-2 (s/cat :ent-name (s/nilable ::ent-name)
-                    :query-relations ::query-relations)
-        :n-3 (s/cat :ent-name (s/nilable ::ent-name)
-                    :query-relations ::query-relations
-                    :query-bindings ::query-bindings)
-        :n-* (s/cat :ent-name (s/nilable ::ent-name)
-                    :query-relations ::query-relations
-                    :query-bindings ::query-bindings
-                    :query-args (s/* ::any))))
+(s/def ::bind
+  (s/map-of ::ent-type ::ent-name))
 
-(s/def ::extended-ent-count
-  (s/or :n-1 (s/cat :ent-count ::ent-count)
-        :n-2 (s/cat :ent-count ::ent-count
-                    :query-relations ::query-relations)
-        :n-3 (s/cat :ent-count ::ent-count
-                    :query-relations ::query-relations
-                    :query-bindings ::query-bindings)
-        :n-* (s/cat :ent-count ::ent-count
-                    :query-relations ::query-relations
-                    :query-bindings ::query-bindings
-                    :query-args (s/* ::any))))
+(s/def ::query-opts
+  (s/keys :opt-un [::refs ::bind]))
+
+(s/def ::ent-id
+  (s/or :ent-count ::ent-count
+        :ent-name  ::ent-name))
 
 (s/def ::query-term
-  (s/nilable
-    (s/or :ent-count           ::ent-count
-          :extended-ent-count  ::extended-ent-count
-          :extended-query-term ::extended-query-term)))
+  (s/or :n-1 (s/cat :ent-id ::ent-id)
+        :n-2 (s/cat :ent-id ::ent-id
+                    :query-opts ::query-opts)))
 
 (s/def ::query
   (s/map-of ::ent-type (s/coll-of ::query-term)))
@@ -175,11 +156,14 @@
 (defn related-ents
   "Returns all related ents for an ent's relation-attr"
   [{:keys [schema data] :as db} ent-name ent-type relation-attr query-term]
-  (let [{:keys [relations constraints]}          (ent-type schema)
-        constraint                               (relation-attr constraints)
-        {:keys [query-relations query-bindings]} (-> (s/conform ::query-term query-term) second second)
-        [qr-constraint [qr-type qr-term]]        (relation-attr query-relations)
-        related-ent-type                         (-> relations relation-attr first)]
+  (let [{:keys [relations constraints]}   (ent-type schema)
+        constraint                        (relation-attr constraints)
+        {:keys [refs bind]}               (and query-term
+                                               (-> (s/conform ::query-term query-term)
+                                                   second
+                                                   :query-opts))
+        [qr-constraint [qr-type qr-term]] (relation-attr refs)
+        related-ent-type                  (-> relations relation-attr first)]
 
     (cond (nil? qr-constraint) nil
           
@@ -194,10 +178,10 @@
     (b/cond (= qr-type :ent-count) (mapv (partial numeric-node-name schema related-ent-type) (range qr-term))
             (= qr-type :ent-names) qr-term
             (= qr-type :ent-name)  [qr-term]
-            :let [bn (bound-name schema query-bindings ent-type relation-attr)]
+            :let [bn (bound-name schema bind ent-type relation-attr)]
             bn   [bn]
             
-            :let [has-bound-descendants? (bound-descendants? db query-bindings related-ent-type)
+            :let [has-bound-descendants? (bound-descendants? db bind related-ent-type)
                   uniq?                  (= constraint :uniq)
                   ent-index              (lat/attr data ent-name :index)]
             (and has-bound-descendants? uniq?) [(bound-relation-attr-name db ent-name related-ent-type ent-index)]
@@ -213,9 +197,9 @@
               (let [[relation-type] (get-in db [:schema ent-type :relations relation-attr])]
                 (reduce (fn [db related-ent]
                           (-> db
-                              (add-ent related-ent relation-type (if-let [query-bindings (get query-term 2)]
-                                                                   [nil nil query-bindings]
-                                                                   nil))
+                              (add-ent related-ent relation-type (if-let [query-bindings (get-in query-term [1 :bind])]
+                                                                   [:_ {:bind query-bindings}]
+                                                                   [:_]))
                               (update :data add-edge-with-id ent-name related-ent relation-attr)))
                         db
                         (related-ents db ent-name ent-type relation-attr query-term))))
@@ -252,17 +236,10 @@
 (defn add-ent-type-query
   [db ent-type-query ent-type]
   (reduce (fn [db query-term]
-            (let [[query-term-type conformed-query-term] (s/conform ::query-term query-term)]
+            (let [[query-term-type ent-id] (:ent-id (second (s/conform ::query-term query-term)))]
               (case query-term-type
-                :ent-count           (add-anonymous-ents db ent-type query-term nil)
-                :extended-ent-count  (add-anonymous-ents db
-                                                         ent-type
-                                                         (:ent-count (second conformed-query-term))
-                                                         query-term)
-                :extended-query-term (add-ent db
-                                              (:ent-name (second conformed-query-term))
-                                              ent-type
-                                              query-term))))
+                :ent-count (add-anonymous-ents db ent-type ent-id query-term)
+                :ent-name  (add-ent db ent-id ent-type query-term))))
           db
           ent-type-query))
 
