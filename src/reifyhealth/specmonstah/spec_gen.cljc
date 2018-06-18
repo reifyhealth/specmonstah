@@ -42,8 +42,8 @@
 
   `[:todo0 nil nil {:spec-gen {:attr-1 val-1}}]`"
   [{:keys [schema data]} ent-name ent-attr-key]
-  (let [ent-type-schema                 (get schema (lat/attr data ent-name :ent-type))
-        {:keys [relations constraints]} ent-type-schema]
+  (let [ent-type-schema                          (get schema (lat/attr data ent-name :ent-type))
+        {:keys [relations constraints spec-gen]} ent-type-schema]
     (reduce (fn [ent-data referenced-ent]
               (reduce (fn [ent-data relation-attr]
                         (assoc-relation ent-data
@@ -54,6 +54,7 @@
                       ent-data
                       (lat/attr data ent-name referenced-ent :relation-attrs)))
             (merge (gen-ent-data ent-type-schema)
+                   spec-gen
                    (get-in (lat/attr data ent-name :query-term) [1 ent-attr-key]))
             (sort-by #(lat/attr data % :index)
                      (lg/successors data ent-name)))))

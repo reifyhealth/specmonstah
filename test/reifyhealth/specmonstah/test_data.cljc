@@ -22,7 +22,7 @@
 (s/def ::created-by-id ::id)
 (s/def ::updated-by-id ::id)
 
-(s/def ::todo-title #{"write unit tests"})
+(s/def ::todo-title string?)
 (s/def ::todo (s/keys :req-un [::id ::todo-title ::created-by-id ::updated-by-id]))
 
 (s/def ::todo-id ::id)
@@ -51,6 +51,7 @@
                      :relations {:created-by-id [:user :id]
                                  :updated-by-id [:user :id]
                                  :todo-list-id  [:todo-list :id]}
+                     :spec-gen  {:todo-title "write unit tests"}
                      :prefix    :t}
    :todo-list       {:spec      ::todo-list
                      :relations {:created-by-id [:user :id]
