@@ -197,9 +197,9 @@
               (let [[relation-type] (get-in db [:schema ent-type :relations relation-attr])]
                 (reduce (fn [db related-ent]
                           (-> db
-                              (add-ent related-ent relation-type (if-let [query-bindings (get-in query-term [1 :bind])]
-                                                                   [:_ {:bind query-bindings}]
-                                                                   [:_]))
+                              (update :ref-ents conj [related-ent relation-type (if-let [query-bindings (get-in query-term [1 :bind])]
+                                                                                  [:_ {:bind query-bindings}]
+                                                                                  [:_])])
                               (update :data add-edge-with-id ent-name related-ent relation-attr)))
                         db
                         (related-ents db ent-name ent-type relation-attr query-term))))
@@ -210,8 +210,13 @@
   "Add an ent, and its related ents, to the ent-db"
   [{:keys [data] :as db} ent-name ent-type query-term]
   ;; don't try to add an ent if it's already been added
-  (let [ent-name (if (= ent-name :_) (incrementing-node-name db ent-type) ent-name)]
-    (if ((lg/nodes data) ent-name)
+  (let [ent-name  (if (= ent-name :_) (incrementing-node-name db ent-type) ent-name)]
+    ;; check both that the node exists and that it has the type
+    ;; attribute: it's possible for the node to be added as an edge in
+    ;; `add-related-ents`, without all the additional attributes below
+    ;; to be added
+    (if (and ((lg/nodes data) ent-name)
+             (lat/attr data ent-name :type))
       db
       (-> db
           (update :data (fn [data]
@@ -224,7 +229,8 @@
                               (lat/add-attr ent-name :query-term query-term))))
           (add-related-ents ent-name ent-type query-term)))))
 
-(defn add-anonymous-ents
+(defn add-n-ents
+  "Used when a query is something like [3]"
   [db ent-type num-ents query-term]
   (loop [db db
          n  num-ents]
@@ -238,10 +244,20 @@
   (reduce (fn [db query-term]
             (let [[query-term-type ent-id] (:ent-id (second (s/conform ::query-term query-term)))]
               (case query-term-type
-                :ent-count (add-anonymous-ents db ent-type ent-id query-term)
+                :ent-count (add-n-ents db ent-type ent-id query-term)
                 :ent-name  (add-ent db ent-id ent-type query-term))))
           db
           ent-type-query))
+
+(defn add-ref-ents
+  [db]
+  (loop [{:keys [ref-ents] :as db} db]
+    (if (empty? ref-ents)
+      db
+      (recur (reduce (fn [db [ent-name ent-type query-term]]
+                       (add-ent db ent-name ent-type query-term))
+                     (assoc db :ref-ents [])
+                     ref-ents)))))
 
 (defn init-db
   [{:keys [schema] :as db} query]
@@ -251,7 +267,9 @@
         (update :queries conj query)
         (assoc :relation-graph rg
                :types (set (keys schema))
-               :type-order (reverse (la/topsort rg))))))
+               :ref-ents []
+               ;; :type-order (reverse (la/topsort rg))
+               ))))
 
 (defn throw-invalid-spec
   [arg-name spec data]
@@ -297,12 +315,17 @@
   (throw-invalid-spec "query" ::query query)
   
   (let [db (init-db db query)]
-    (reduce (fn [db ent-type]
-              (if-let [ent-type-query (ent-type query)]
-                (add-ent-type-query db ent-type-query ent-type)
-                db))
-            db
-            (:type-order db))))
+    (->> (reduce (fn [db ent-type]
+                   (if-let [ent-type-query (ent-type query)]
+                     (add-ent-type-query db ent-type-query ent-type)
+                     db))
+                 db
+                 (:types db))
+         (add-ref-ents))))
+
+(defn ents
+  [{:keys [data]}]
+  (lg/nodes (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data)))
 
 (defn ordered-ents
   "Given a db, returns all ents ordered first by type order, then by
@@ -361,6 +384,6 @@
   "Get seq of nodes that have a type referenced in the query"
   [{:keys [data queries] :as db}]
   (let [query-types (->> queries first keys set)]
-    (->> (ordered-ents db)
+    (->> (ents db)
          (map (:attrs data))
          (filter #(query-types (:ent-type %))))))

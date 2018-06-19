@@ -68,3 +68,16 @@
                                    :todo-list-ids [:todo-list :id]}
                      :constraints {:todo-list-ids :coll}
                      :prefix      :p}})
+
+
+(def cycle-schema
+  {:user      {:spec      ::user
+               :prefix    :u
+               :relations {:updated-by-id [:user :id]}}
+   :todo      {:spec      ::todo
+               :relations {:todo-list-id  [:todo-list :id]}
+               :spec-gen  {:todo-title "write unit tests"}
+               :prefix    :t}
+   :todo-list {:spec      ::todo-list
+               :relations {:first-todo-id [:todo :id]}
+               :prefix    :tl}})

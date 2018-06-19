@@ -490,6 +490,45 @@
              (lat/add-attr :u1 :query-term [:_])
              (lat/add-attr :u1 :ent-type :user)))))
 
+(deftest handles-A->A-cycles
+  (testing "Handle cycles where two entities of the same type reference each other"
+    (is-graph= (:data (sm/build-ent-db {:schema td/cycle-schema} {:user [[:u0 {:refs {:updated-by-id :u1}}]
+                                                                         [:u1 {:refs {:updated-by-id :u0}}]]}))
+               (-> (lg/digraph [:user :u0] [:user :u1] [:u0 :u1] [:u1 :u0])
+                   (lat/add-attr :user :type :ent-type)
+                   (lat/add-attr :u0 :type :ent)
+                   (lat/add-attr :u0 :index 0)
+                   (lat/add-attr :u0 :query-term [:u0 {:refs {:updated-by-id :u1}}])
+                   (lat/add-attr :u0 :ent-type :user)
+                   (lat/add-attr :u0 :u1 :relation-attrs #{:updated-by-id})
+
+                   (lat/add-attr :u1 :type :ent)
+                   (lat/add-attr :u1 :index 1)
+                   (lat/add-attr :u1 :query-term [:u1 {:refs {:updated-by-id :u0}}])
+                   (lat/add-attr :u1 :ent-type :user)
+                   (lat/add-attr :u1 :u0 :relation-attrs #{:updated-by-id})))))
+
+(deftest handles-A->B-cycles
+  (testing "Handle cycles where two entities of the different types reference each other"
+    (is-graph= (:data (sm/build-ent-db {:schema td/cycle-schema} {:todo      [[:t0 {:refs {:todo-list-id :tl0}}]]
+                                                                  :todo-list [[:tl0 {:refs {:first-todo-id :t0}}]]}))
+               (-> (lg/digraph [:todo :t0] [:todo-list :tl0] [:tl0 :t0] [:t0 :tl0])
+                   (lat/add-attr :todo :type :ent-type)
+                   (lat/add-attr :t0 :type :ent)
+                   (lat/add-attr :t0 :index 0)
+                   (lat/add-attr :t0 :query-term [:t0 {:refs {:todo-list-id :tl0}}])
+                   (lat/add-attr :t0 :ent-type :todo)
+                   (lat/add-attr :t0 :tl0 :relation-attrs #{:todo-list-id})
+                   
+                   (lat/add-attr :todo-list :type :ent-type)
+                   (lat/add-attr :tl0 :type :ent)
+                   (lat/add-attr :tl0 :index 0)
+                   (lat/add-attr :tl0 :query-term [:tl0 {:refs {:first-todo-id :t0}}])
+                   (lat/add-attr :tl0 :ent-type :todo-list)
+                   (lat/add-attr :tl0 :t0 :relation-attrs #{:first-todo-id})))))
+
+;; view tests
+
 (deftest test->
   (is (= (sm/> (sm/build-ent-db {:schema td/schema} {:user [[:_] [:_]]}) :user)
          [{:type :ent :index 1 :ent-type :user :query-term [:_]}
@@ -513,7 +552,7 @@
                         #"query is invalid"
                         (sm/build-ent-db {:schema td/schema} {:user [[]]}))))
 
-(deftest updates-node-attrs
+#_(deftest updates-node-attrs
   (let [db (-> (sm/build-ent-db {:schema td/schema} {:user [[:_]]})
                (sm/map-ents-attr-once :custom-attr-key (constantly "yaaaaay a key")))]
     (is (= (lat/attr (:data db) :u0 :custom-attr-key)
