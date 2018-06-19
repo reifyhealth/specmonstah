@@ -552,7 +552,7 @@
                         #"query is invalid"
                         (sm/build-ent-db {:schema td/schema} {:user [[]]}))))
 
-#_(deftest updates-node-attrs
+(deftest updates-node-attrs
   (let [db (-> (sm/build-ent-db {:schema td/schema} {:user [[:_]]})
                (sm/map-ents-attr-once :custom-attr-key (constantly "yaaaaay a key")))]
     (is (= (lat/attr (:data db) :u0 :custom-attr-key)

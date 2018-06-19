@@ -38,26 +38,30 @@
   and uses the ent's edges to set values for relation attrs.
 
   You can specify a map to merge into your spec-generated map under
-  the `:spec-gen` key of the fourth arg in a query term, e.g.
+  the `:spec-gen` key of the second arg in a query term, e.g.
 
-  `[:todo0 nil nil {:spec-gen {:attr-1 val-1}}]`"
-  [{:keys [schema data]} ent-name ent-attr-key]
+  `[:todo0 {:spec-gen {:attr-1 val-1}}]`"
+  [{:keys [schema]} ent-name ent-attr-key]
   (let [ent-type-schema                          (get schema (lat/attr data ent-name :ent-type))
         {:keys [relations constraints spec-gen]} ent-type-schema]
-    (reduce (fn [ent-data referenced-ent]
-              (reduce (fn [ent-data relation-attr]
-                        (assoc-relation ent-data
-                                        relation-attr
-                                        (get (lat/attr data referenced-ent ent-attr-key)
-                                             (get-in relations [relation-attr 1]))
-                                        constraints))
-                      ent-data
-                      (lat/attr data ent-name referenced-ent :relation-attrs)))
-            (merge (gen-ent-data ent-type-schema)
-                   spec-gen
-                   (get-in (lat/attr data ent-name :query-term) [1 ent-attr-key]))
-            (sort-by #(lat/attr data % :index)
-                     (lg/successors data ent-name)))))
+    [(fn [{:keys [data]}]
+       (merge (gen-ent-data ent-type-schema)
+              spec-gen
+              (get-in (lat/attr data ent-name :query-term) [1 ent-attr-key])))
+     (fn [{:keys [data]}]
+       (let [attr (lat/attr data ent-name ent-attr-key)]
+         (reduce (fn [ent-data referenced-ent]
+                   (reduce (fn [ent-data relation-attr]
+                             (assoc-relation ent-data
+                                             relation-attr
+                                             (get (lat/attr data referenced-ent ent-attr-key)
+                                                  (get-in relations [relation-attr 1]))
+                                             constraints))
+                           ent-data
+                           (lat/attr data ent-name referenced-ent :relation-attrs)))
+                 attr
+                 (sort-by #(lat/attr data % :index)
+                          (lg/successors data ent-name)))))]))
 
 (defn ent-db-spec-gen
   "Convenience function to build a new db using the spec-gen mapper

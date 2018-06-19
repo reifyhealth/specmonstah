@@ -267,9 +267,7 @@
         (update :queries conj query)
         (assoc :relation-graph rg
                :types (set (keys schema))
-               :ref-ents []
-               ;; :type-order (reverse (la/topsort rg))
-               ))))
+               :ref-ents []))))
 
 (defn throw-invalid-spec
   [arg-name spec data]
@@ -327,15 +325,6 @@
   [{:keys [data]}]
   (lg/nodes (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data)))
 
-(defn ordered-ents
-  "Given a db, returns all ents ordered first by type order, then by
-  index."
-  [{:keys [type-order data]}]
-  (mapcat (fn [ent-type]
-            (sort-by #(lat/attr data % :index)
-                     (lg/successors data ent-type)))
-          type-order))
-
 (defn map-ents-attr
   "Pass each ent to an `attr-fn`, assign return val to `attr-key`
   attribute"
@@ -343,15 +332,15 @@
   (reduce (fn [{:keys [data] :as db} ent-node]
             (update db :data lat/add-attr ent-node attr-key (attr-fn db ent-node attr-key)))
           db
-          (ordered-ents db)))
+          (ents db)))
 
 (s/fdef map-ents-attr
-  :args (s/cat :db ::db
-               :attr-key keyword?
-               :attr-fn (s/fspec :args (s/cat :db ::db
-                                              :ent-node ::ent-name
-                                              :attr-key keyword?)))
-  :ret ::db)
+        :args (s/cat :db ::db
+                     :attr-key keyword?
+                     :attr-fn (s/fspec :args (s/cat :db ::db
+                                                    :ent-node ::ent-name
+                                                    :attr-key keyword?)))
+        :ret ::db)
 
 (defn map-ents-attr-once
   "Like `map-ents-attr` but doesn't call `attr-fn` if the ent already
@@ -369,7 +358,7 @@
   [{:keys [data] :as db} attr]
   (reduce (fn [m ent] (assoc m ent (lat/attr data ent attr)))
           {}
-          (ordered-ents db)))
+          (ents db)))
 
 
 ;; Viewing attributes
