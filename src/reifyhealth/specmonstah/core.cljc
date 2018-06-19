@@ -328,19 +328,23 @@
 (defn map-ents-attr
   "Pass each ent to an `attr-fn`, assign return val to `attr-key`
   attribute"
-  [db attr-key attr-fn]
-  (reduce (fn [{:keys [data] :as db} ent-node]
-            (update db :data lat/add-attr ent-node attr-key (attr-fn db ent-node attr-key)))
-          db
-          (ents db)))
+  [db attr-key attr-fns]
+  (let [attr-fns (if (vector? attr-fns) attr-fns [attr-fns])]
+    (reduce (fn [db attr-fn]
+              (reduce (fn [{:keys [data] :as db} ent-node]
+                        (update db :data lat/add-attr ent-node attr-key (attr-fn db ent-node attr-key)))
+                      db
+                      (ents db)))
+            db
+            attr-fns)))
 
-(s/fdef map-ents-attr
-        :args (s/cat :db ::db
-                     :attr-key keyword?
-                     :attr-fn (s/fspec :args (s/cat :db ::db
-                                                    :ent-node ::ent-name
-                                                    :attr-key keyword?)))
-        :ret ::db)
+#_(s/fdef map-ents-attr
+          :args (s/cat :db ::db
+                       :attr-key keyword?
+                       :attr-fn (s/fspec :args (s/cat :db ::db
+                                                      :ent-node ::ent-name
+                                                      :attr-key keyword?)))
+          :ret ::db)
 
 (defn map-ents-attr-once
   "Like `map-ents-attr` but doesn't call `attr-fn` if the ent already
@@ -351,6 +355,15 @@
                                  (if (contains? ent-attrs attr-key)
                                    (ent-attrs attr-key)
                                    (attr-fn db ent-node attr-key))))))
+
+(defn map-ents-attr-pipeline
+  "pipeline is a vector of functions to apply to each ent. Functions
+  are applied such that the first function is applied to each entity,
+  then the second function is applied to each entity, etc"
+  [db attr-key pipeline]
+  (reduce (fn [db pipeline-fn] (map-ents-attr db attr-key pipeline-fn))
+          db
+          pipeline))
 
 (defn attr-map
   "Produce a map where each key is a node and its value is a graph
