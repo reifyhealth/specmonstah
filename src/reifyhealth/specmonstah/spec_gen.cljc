@@ -33,36 +33,6 @@
   (-> (gen/generate (s/gen spec))
       (reset-coll-relations constraints)))
 
-#_(defn spec-gen
-    "A mapping function that uses spec to generate data for each ent,
-  and uses the ent's edges to set values for relation attrs.
-
-  You can specify a map to merge into your spec-generated map under
-  the `:spec-gen` key of the second arg in a query term, e.g.
-
-  `[:todo0 {:spec-gen {:attr-1 val-1}}]`"
-    [{:keys [schema]} ent-name ent-attr-key]
-    (let [ent-type-schema                          (get schema (lat/attr data ent-name :ent-type))
-          {:keys [relations constraints spec-gen]} ent-type-schema]
-      [(fn [{:keys [data]}]
-         (merge (gen-ent-data ent-type-schema)
-                spec-gen
-                (get-in (lat/attr data ent-name :query-term) [1 ent-attr-key])))
-       (fn [{:keys [data]}]
-         (let [attr (lat/attr data ent-name ent-attr-key)]
-           (reduce (fn [ent-data referenced-ent]
-                     (reduce (fn [ent-data relation-attr]
-                               (assoc-relation ent-data
-                                               relation-attr
-                                               (get (lat/attr data referenced-ent ent-attr-key)
-                                                    (get-in relations [relation-attr 1]))
-                                               constraints))
-                             ent-data
-                             (lat/attr data ent-name referenced-ent :relation-attrs)))
-                   attr
-                   (sort-by #(lat/attr data % :index)
-                            (lg/successors data ent-name)))))]))
-
 (def spec-gen
   [(fn [{:keys [schema data]} ent-name ent-attr-key]
      (let [ent-type-schema                          (get schema (lat/attr data ent-name :ent-type))
@@ -92,7 +62,7 @@
   and the default attr-key"
   [db query]
   (-> (sm/build-ent-db db query)
-      (sm/map-ents-attr spec-gen-ent-attr-key spec-gen)))
+      (sm/map-ents-attr-once spec-gen-ent-attr-key spec-gen)))
 
 (defn ent-db-spec-gen-attr
   "Convenience function to return a map of `{ent-name gen-data}` using

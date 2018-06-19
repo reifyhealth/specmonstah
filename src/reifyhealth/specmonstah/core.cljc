@@ -349,12 +349,19 @@
 (defn map-ents-attr-once
   "Like `map-ents-attr` but doesn't call `attr-fn` if the ent already
   has an `attr-key` attribute"
-  [db attr-key attr-fn]
-  (map-ents-attr db attr-key (fn [db ent-node attr-key]
-                               (let [ent-attrs (get-in db [:data :attrs ent-node])]
-                                 (if (contains? ent-attrs attr-key)
-                                   (ent-attrs attr-key)
-                                   (attr-fn db ent-node attr-key))))))
+  [db attr-key attr-fns]
+  (let [skip-ents (->> (ents db)
+                       (filter (fn [ent]
+                                 (let [ent-attrs (get-in db [:data :attrs ent])]
+                                   (contains? ent-attrs attr-key))))
+                       (set))
+        attr-fns (if (vector? attr-fns) attr-fns [attr-fns])]
+    (map-ents-attr db attr-key (mapv (fn [attr-fn]
+                                       (fn [db ent-node attr-key]
+                                         (if (skip-ents ent-node)
+                                           (lat/attr (:data db) ent-node attr-key)
+                                           (attr-fn db ent-node attr-key))))
+                                     attr-fns))))
 
 (defn map-ents-attr-pipeline
   "pipeline is a vector of functions to apply to each ent. Functions
