@@ -375,24 +375,6 @@
         relation-attr  (relation-attrs db ent-name referenced-ent)]
     [referenced-ent relation-attr]))
 
-(defn required-referenced-vals-exist?
-  "Assumes that an instance of ent should be assigned graph attr under `ent-attr-key`
-  
-  Checks that every value the entity references exists. If a `todo`
-  requires a `todo-list-id`, this checks that the referenced
-  `todo-list`'s `id` exists. Helps to correctly order entities when
-  mapping."
-  [{:keys [data] :as db} ent-name ent-attr-key]
-  (let [{:keys [constraints relations]} (ent-schema db ent-name)]
-    (every? (fn [required-attr]
-              (let [ent-ref (related-ents-by-attr db ent-name required-attr)]
-                (get-in (lat/attr data ent-ref ent-attr-key)
-                        (rest (get relations required-attr)))))
-            (->> constraints
-                 (medley/filter-vals (fn [val] (contains? val :required)))
-                 keys
-                 vec))))
-
 (defn required-ents
   [db ent-name]
   (let [{:keys [constraints]} (ent-schema db ent-name)]

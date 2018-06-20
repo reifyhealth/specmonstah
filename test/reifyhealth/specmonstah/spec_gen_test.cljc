@@ -169,10 +169,8 @@
 
 (defn insert-cycle
   [{:keys [data] :as db} ent-name ent-attr-key]
-  (if (sm/required-referenced-vals-exist? db ent-name ent-attr-key)
-    (do (swap! gen-data-cycle-db conj ent-name)
-        (lat/attr data ent-name sg/spec-gen-ent-attr-key))
-    ::sm/map-ent-move-to-end))
+  (do (swap! gen-data-cycle-db conj ent-name)
+      (lat/attr data ent-name sg/spec-gen-ent-attr-key)))
 
 (deftest handle-cycles-with-constraints-and-reordering
   (testing "todo-list is inserted before todo because todo requires todo-list"
