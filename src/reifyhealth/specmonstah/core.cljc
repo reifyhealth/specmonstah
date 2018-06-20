@@ -329,63 +329,6 @@
   [{:keys [data]}]
   (lg/nodes (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data)))
 
-(defn map-ents-attr
-  "Pass each ent to an `attr-fn`, assign return val to `attr-key`
-  attribute"
-  [db attr-key attr-fns]
-  (let [attr-fns (if (vector? attr-fns) attr-fns [attr-fns])]
-    (reduce (fn [db attr-fn]
-              ;; allow applications of attr-fn to indicate that the
-              ;; ent should be moved to the end of the queue, to
-              ;; handle dependency order
-              (loop [db                     db
-                     [ent-node & remaining] (ents db)
-                     tried                  #{}]
-                (if (nil? ent-node)
-                  db
-                  (let [new-attr (attr-fn db ent-node attr-key)]
-                    (cond (not= new-attr ::map-ent-move-to-end)
-                          (recur (update db :data lat/add-attr ent-node attr-key new-attr)
-                                 remaining
-                                 (conj tried ent-node))
-                          
-                          (and (= new-attr ::map-ent-move-to-end)
-                               (not (contains? tried ent-node)))
-                          (recur db
-                                 (concat remaining [ent-node])
-                                 (conj tried ent-node))
-
-                          :else
-                          (throw (ex-info "Could not apply attr-fn after 2 tries" {:ent-node  ent-node
-                                                                                   :remaining remaining})))))))
-            db
-            attr-fns)))
-
-#_(s/fdef map-ents-attr
-          :args (s/cat :db ::db
-                       :attr-key keyword?
-                       :attr-fn (s/fspec :args (s/cat :db ::db
-                                                      :ent-node ::ent-name
-                                                      :attr-key keyword?)))
-          :ret ::db)
-
-(defn map-ents-attr-once
-  "Like `map-ents-attr` but doesn't call `attr-fn` if the ent already
-  has an `attr-key` attribute"
-  [db attr-key attr-fns]
-  (let [skip-ents (->> (ents db)
-                       (filter (fn [ent]
-                                 (let [ent-attrs (get-in db [:data :attrs ent])]
-                                   (contains? ent-attrs attr-key))))
-                       (set))
-        attr-fns (if (vector? attr-fns) attr-fns [attr-fns])]
-    (map-ents-attr db attr-key (mapv (fn [attr-fn]
-                                       (fn [db ent-node attr-key]
-                                         (if (skip-ents ent-node)
-                                           (lat/attr (:data db) ent-node attr-key)
-                                           (attr-fn db ent-node attr-key))))
-                                     attr-fns))))
-
 (defn attr-map
   "Produce a map where each key is a node and its value is a graph
   attr on that node"
@@ -428,11 +371,9 @@
 (defn referenced-ent-attrs
   "seq of [referenced-ent relation-attr]"
   [{:keys [data] :as db} ent-name]
-  (mapcat (fn [referenced-ent]
-            (map (fn [relation-attr] [referenced-ent relation-attr])
-                 (relation-attrs db ent-name referenced-ent)))
-          (sort-by #(lat/attr data % :index)
-                   (lg/successors data ent-name))))
+  (for [referenced-ent (sort-by #(lat/attr data % :index) (lg/successors data ent-name))
+        relation-attr  (relation-attrs db ent-name referenced-ent)]
+    [referenced-ent relation-attr]))
 
 (defn required-referenced-vals-exist?
   "Assumes that an instance of ent should be assigned graph attr under `ent-attr-key`
@@ -451,6 +392,66 @@
                  (medley/filter-vals (fn [val] (contains? val :required)))
                  keys
                  vec))))
+
+(defn required-ents
+  [db ent-name]
+  (let [{:keys [constraints]} (ent-schema db ent-name)]
+    (->> (medley/filter-vals :required constraints)
+         keys
+         (map #(related-ents-by-attr db ent-name %))
+         set)))
+
+(defn sort-by-required
+  "If :a0 depends on :b0, returns the vector [:b0 :a0]"
+  [{:keys [schema data] :as db} ents]
+  (loop [ordered           []
+         tried             #{}
+         [ent & remaining] ents]
+    (cond (nil? ent)  ordered
+
+          (empty? (set/difference (required-ents db ent) (set ordered)))
+          (recur (conj ordered ent) (conj tried ent) remaining)
+
+          (contains? tried ent)
+          (throw (ex-info "Can't order ents: check for a :required cycle"
+                          {:ent ent :tried tried :remaining remaining}))
+          
+          :else
+          (recur ordered (conj tried ent) (concat remaining [ent])))))
+
+(defn visit-ents
+  ([db visit-key visit-fns]
+   (visit-ents db visit-key visit-fns (sort-by-required db (ents db))))
+  ([db visit-key visit-fns ents]
+   (let [visit-fns (if (sequential? visit-fns) visit-fns [visit-fns])]
+     (reduce (fn [db [visit-fn ent]]
+               (update db :data lat/add-attr ent visit-key (visit-fn db ent visit-key)))
+             db
+             (for [visit-fn visit-fns
+                   ent ents]
+               [visit-fn ent])))))
+
+(defn visit-ents-once
+  "Like `visit-ents` but doesn't call `visit-fn` if the ent already
+  has a `visit-key` attribute"
+  ([db visit-key visit-fns]
+   (visit-ents-once db visit-key visit-fns (sort-by-required db (ents db))))
+  ([db visit-key visit-fns ents]
+   (let [skip-ents (->> ents
+                        (filter (fn [ent]
+                                  (let [ent-attrs (get-in db [:data :attrs ent])]
+                                    (contains? ent-attrs visit-key))))
+                        (set))
+         visit-fns (if (vector? visit-fns) visit-fns [visit-fns])]
+     (visit-ents db
+                 visit-key
+                 (mapv (fn [visit-fn]
+                         (fn [db ent visit-key]
+                           (if (skip-ents ent)
+                             (lat/attr (:data db) ent visit-key)
+                             (visit-fn db ent visit-key))))
+                       visit-fns)
+                 ents))))
 
 ;; Viewing attributes
 (defn >

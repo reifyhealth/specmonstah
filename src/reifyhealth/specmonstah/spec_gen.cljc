@@ -58,7 +58,7 @@
   and the default attr-key"
   [db query]
   (-> (sm/build-ent-db db query)
-      (sm/map-ents-attr-once spec-gen-ent-attr-key spec-gen)))
+      (sm/visit-ents-once spec-gen-ent-attr-key spec-gen)))
 
 (defn ent-db-spec-gen-attr
   "Convenience function to return a map of `{ent-name gen-data}` using

@@ -107,7 +107,7 @@
 
 (deftest test-insert-gen-data
   (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [[1]]})
-      (sm/map-ents-attr-once :inserted-data insert))
+      (sm/visit-ents-once :inserted-data insert))
 
   ;; gen data is something like:
   ;; [[:user :u0 {:id 1 :user-name "Luigi"}]
@@ -140,9 +140,9 @@
   (testing "Given a db with a todo already added, next call adds a new
   todo that references the same todo list and user"
     (let [db1 (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [[1]]})
-                  (sm/map-ents-attr-once :inserted-data insert))]
+                  (sm/visit-ents-once :inserted-data insert))]
       (-> (sg/ent-db-spec-gen db1 {:todo [[1]]})
-          (sm/map-ents-attr-once :inserted-data insert))
+          (sm/visit-ents-once :inserted-data insert))
 
       (let [gen-data @gen-data-db]
         (is (= (set (map #(take 2 %) gen-data))
@@ -177,13 +177,21 @@
 (deftest handle-cycles-with-constraints-and-reordering
   (testing "todo-list is inserted before todo because todo requires todo-list"
     (-> (sg/ent-db-spec-gen {:schema td/cycle-schema} {:todo [[1]]})
-        (sm/map-ents-attr :insert-cycle insert-cycle))
+        (sm/visit-ents :insert-cycle insert-cycle))
     (is (= @gen-data-cycle-db
            [:tl0 :t0]))))
 
 (deftest throws-exception-on-2nd-map-ent-attr-try
-  (testing "insert-cycle fails because it tries to find the inserted value for :tl0 and can't"
+  (testing "insert-cycle fails because the schema contains a :required cycle"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"Could not apply attr-fn after 2 tries"
-                          (-> (sm/build-ent-db {:schema td/cycle-schema} {:todo [[1]]})
-                              (sm/map-ents-attr :insert-cycle insert-cycle))))))
+                          #"Can't order ents: check for a :required cycle"
+                          (-> (sm/build-ent-db {:schema {:todo      {:spec        ::todo
+                                                                     :relations   {:todo-list-id [:todo-list :id]}
+                                                                     :constraints {:todo-list-id #{:required}}
+                                                                     :prefix      :t}
+                                                         :todo-list {:spec        ::todo-list
+                                                                     :relations   {:first-todo-id [:todo :id]}
+                                                                     :constraints {:first-todo-id #{:required}}
+                                                                     :prefix      :tl}}}
+                                               {:todo [[1]]})
+                              (sm/visit-ents :insert-cycle insert-cycle))))))
