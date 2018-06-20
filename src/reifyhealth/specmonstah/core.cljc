@@ -352,7 +352,8 @@
                                  (conj tried ent-node))
 
                           :else
-                          (throw (ex-info "Could not apply attr-fn after 2 tries" {:ent-node ent-node})))))))
+                          (throw (ex-info "Could not apply attr-fn after 2 tries" {:ent-node  ent-node
+                                                                                   :remaining remaining})))))))
             db
             attr-fns)))
 

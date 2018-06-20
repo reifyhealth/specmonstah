@@ -206,4 +206,8 @@
          [:tl0 :t0])))
 
 (deftest throws-exception-on-2nd-map-ent-attr-try
-  ())
+  (testing "insert-cycle fails because it tries to find the inserted value for :tl0 and can't"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"Could not apply attr-fn after 2 tries"
+                          (-> (sm/build-ent-db {:schema td/cycle-schema} {:todo [[1]]})
+                              (sm/map-ents-attr :insert-cycle insert-cycle))))))
