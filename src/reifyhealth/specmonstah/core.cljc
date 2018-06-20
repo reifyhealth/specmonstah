@@ -411,6 +411,14 @@
       (some #(ent-related-by-attr? data ent-name % relation-attr)
             related-ents))))
 
+(defn query-opts
+  [{:keys [data]} ent-name]
+  (second (lat/attr data ent-name :query-term)))
+
+(defn relation-attrs
+  [{:keys [data]} ent-name referenced-ent]
+  (lat/attr data ent-name referenced-ent :relation-attrs))
+
 ;; Viewing attributes
 (defn >
   "Get attrs of node's children. Can be used to get all ents of a

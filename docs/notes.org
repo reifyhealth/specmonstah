@@ -96,6 +96,11 @@ or else have a separate function that only does the work once
 ** TODO use related ents to find if `:required` is satisfied in spec gen test
 and if not, return keyword
 ** TODO helper fns for navigating to related ents
+** TODO better abstractions
+*** TODO testing
+**** "db insertion"
+**** checking that only ents specified are there
+*** TODO map ent attr
 ** TODO polymorphic references
 cover datomic instance when e.g. a "watch" can be watching a topic, a
 topic category, etc

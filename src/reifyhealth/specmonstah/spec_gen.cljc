@@ -35,14 +35,16 @@
       (reset-coll-relations constraints)))
 
 (def spec-gen
-  [(fn [{:keys [data] :as db} ent-name ent-attr-key]
-     (let [ent-type-schema                          (sm/ent-schema db ent-name)
-           {:keys [relations constraints spec-gen]} ent-type-schema]
-       (merge (gen-ent-data ent-type-schema)
-              spec-gen
-              (get-in (lat/attr data ent-name :query-term) [1 ent-attr-key]))))
+  [;; the first pass uses spec to generate every entity
    (fn [{:keys [data] :as db} ent-name ent-attr-key]
-     (let [spec-gen-attr                            (lat/attr data ent-name ent-attr-key)
+     (let [ent-schema                               (sm/ent-schema db ent-name)
+           {:keys [relations constraints spec-gen]} ent-schema]
+       (merge (gen-ent-data ent-schema)
+              spec-gen
+              (ent-attr-key (sm/query-opts db ent-name)))))
+   ;; the second pass looks up referenced attributes and assigns them
+   (fn [{:keys [data] :as db} ent-name ent-attr-key]
+     (let [ent-spec-gen-val                         (lat/attr data ent-name ent-attr-key)
            {:keys [relations constraints spec-gen]} (sm/ent-schema db ent-name)]
        (reduce (fn [ent-data referenced-ent]
                  (reduce (fn [ent-data relation-attr]
@@ -52,8 +54,8 @@
                                                 (get-in relations [relation-attr 1]))
                                            constraints))
                          ent-data
-                         (lat/attr data ent-name referenced-ent :relation-attrs)))
-               spec-gen-attr
+                         (sm/relation-attrs db ent-name referenced-ent)))
+               ent-spec-gen-val
                (sort-by #(lat/attr data % :index)
                         (lg/successors data ent-name)))))])
 
