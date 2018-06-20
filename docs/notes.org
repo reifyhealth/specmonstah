@@ -91,6 +91,11 @@ or else have a separate function that only does the work once
 [:todo sc//* sc/by-index]
 **** by type, attr
 ** DONE spec attr-fn
+** DONE make constraints a set
+*** allow :uniq and :required
+** TODO use related ents to find if `:required` is satisfied in spec gen test
+and if not, return keyword
+** TODO helper fns for navigating to related ents
 ** TODO polymorphic references
 cover datomic instance when e.g. a "watch" can be watching a topic, a
 topic category, etc

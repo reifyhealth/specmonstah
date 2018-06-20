@@ -29,7 +29,7 @@
   (s/map-of ::ent-attr ::relation-path))
 
 (s/def ::constraints
-  (s/map-of ::ent-attr ::constraint))
+  (s/map-of ::ent-attr (s/coll-of ::constraint)))
 
 (s/def ::ent-type-schema
   (s/keys :req-un [::prefix]
@@ -157,7 +157,7 @@
   "Returns all related ents for an ent's relation-attr"
   [{:keys [schema data] :as db} ent-name ent-type relation-attr query-term]
   (let [{:keys [relations constraints]}   (ent-type schema)
-        constraint                        (relation-attr constraints)
+        attr-constraints                  (relation-attr constraints)
         {:keys [refs bind]}               (and query-term
                                                (-> (s/conform ::query-term query-term)
                                                    second
@@ -167,11 +167,11 @@
 
     (cond (nil? qr-constraint) nil
           
-          (and (= constraint :coll) (not= qr-constraint :coll))
+          (and (contains? attr-constraints :coll) (not= qr-constraint :coll))
           (throw (ex-info "Query-relations for coll attrs must be a number or vector"
                           {:spec-data (s/explain-data ::coll-query-relations qr-term)}))
 
-          (and (not= constraint :coll) (not= qr-constraint :unary))
+          (and (not (contains? attr-constraints :coll)) (not= qr-constraint :unary))
           (throw (ex-info "Query-relations for unary attrs must be a keyword"
                           {:spec-data (s/explain-data ::unary-query-relations qr-term)})))
     
@@ -182,7 +182,7 @@
             bn   [bn]
             
             :let [has-bound-descendants? (bound-descendants? db bind related-ent-type)
-                  uniq?                  (= constraint :uniq)
+                  uniq?                  (contains? attr-constraints :uniq)
                   ent-index              (lat/attr data ent-name :index)]
             (and has-bound-descendants? uniq?) [(bound-relation-attr-name db ent-name related-ent-type ent-index)]
             has-bound-descendants?             [(bound-relation-attr-name db ent-name related-ent-type 0)]
@@ -331,10 +331,28 @@
   [db attr-key attr-fns]
   (let [attr-fns (if (vector? attr-fns) attr-fns [attr-fns])]
     (reduce (fn [db attr-fn]
-              (reduce (fn [{:keys [data] :as db} ent-node]
-                        (update db :data lat/add-attr ent-node attr-key (attr-fn db ent-node attr-key)))
-                      db
-                      (ents db)))
+              ;; allow applications of attr-fn to indicate that the
+              ;; ent should be moved to the end of the queue, to
+              ;; handle dependency order
+              (loop [db                     db
+                     [ent-node & remaining] (ents db)
+                     tried                  #{}]
+                (if (nil? ent-node)
+                  db
+                  (let [new-attr (attr-fn db ent-node attr-key)]
+                    (cond (not= new-attr ::map-ent-move-to-end)
+                          (recur (update db :data lat/add-attr ent-node attr-key new-attr)
+                                 remaining
+                                 (conj tried ent-node))
+                          
+                          (and (= new-attr ::map-ent-move-to-end)
+                               (not (contains? tried ent-node)))
+                          (recur db
+                                 (concat remaining [ent-node])
+                                 (conj tried ent-node))
+
+                          :else
+                          (throw (ex-info "Could not apply attr-fn after 2 tries" {:ent-node ent-node})))))))
             db
             attr-fns)))
 
@@ -363,15 +381,6 @@
                                            (attr-fn db ent-node attr-key))))
                                      attr-fns))))
 
-(defn map-ents-attr-pipeline
-  "pipeline is a vector of functions to apply to each ent. Functions
-  are applied such that the first function is applied to each entity,
-  then the second function is applied to each entity, etc"
-  [db attr-key pipeline]
-  (reduce (fn [db pipeline-fn] (map-ents-attr db attr-key pipeline-fn))
-          db
-          pipeline))
-
 (defn attr-map
   "Produce a map where each key is a node and its value is a graph
   attr on that node"
@@ -380,6 +389,27 @@
           {}
           (ents db)))
 
+
+(defn ent-schema
+  "Given an ent node, return the schema of its corresponding type"
+  [{:keys [schema data]} ent-name]
+  (get schema (lat/attr data ent-name :ent-type)))
+
+(defn ent-related-by-attr?
+  [data ent-name related-ent relation-attr]
+  (and (contains? (lat/attr data ent-name related-ent :relation-attrs) relation-attr)
+       related-ent))
+
+(defn related-ents-by-attr
+  [{:keys [data] :as db} ent-name relation-attr]
+  (let [{:keys [constraints]} (ent-schema db ent-name)
+        related-ents          (lg/successors data ent-name)]
+    (if (contains? (relation-attr constraints) :coll)
+      (->> related-ents
+           (map #(ent-related-by-attr? data ent-name % relation-attr))
+           (filter identity))
+      (some #(ent-related-by-attr? data ent-name % relation-attr)
+            related-ents))))
 
 ;; Viewing attributes
 (defn >

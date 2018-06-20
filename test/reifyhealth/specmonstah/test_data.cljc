@@ -60,13 +60,13 @@
    :todo-list-watch {:spec        ::todo-list-watch
                      :relations   {:todo-list-id [:todo-list :id]
                                    :watcher-id   [:user :id]}
-                     :constraints {:todo-list-id :uniq}
+                     :constraints {:todo-list-id #{:uniq}}
                      :prefix      :tlw}
    :project         {:spec        ::project
                      :relations   {:created-by-id [:user :id]
                                    :updated-by-id [:user :id]
                                    :todo-list-ids [:todo-list :id]}
-                     :constraints {:todo-list-ids :coll}
+                     :constraints {:todo-list-ids #{:coll}}
                      :prefix      :p}})
 
 
@@ -74,10 +74,11 @@
   {:user      {:spec      ::user
                :prefix    :u
                :relations {:updated-by-id [:user :id]}}
-   :todo      {:spec      ::todo
-               :relations {:todo-list-id  [:todo-list :id]}
-               :spec-gen  {:todo-title "write unit tests"}
-               :prefix    :t}
+   :todo      {:spec        ::todo
+               :relations   {:todo-list-id [:todo-list :id]}
+               :constraints {:todo-list-id #{:required}}
+               :spec-gen    {:todo-title "write unit tests"}
+               :prefix      :t}
    :todo-list {:spec      ::todo-list
                :relations {:first-todo-id [:todo :id]}
                :prefix    :tl}})

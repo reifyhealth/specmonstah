@@ -15,7 +15,7 @@
   "Look up related ent's attr value and assoc with parent ent
   attr. `:coll` relations will add value to a vector."
   [gen-data relation-attr relation-val constraints]
-  (if (= :coll (relation-attr constraints))
+  (if (contains? (relation-attr constraints) :coll)
     (update gen-data relation-attr #(conj % relation-val))
     (assoc gen-data relation-attr relation-val)))
 
@@ -26,7 +26,8 @@
   [ent-data constraints]
   (reduce (fn [ent-data hm-key] (assoc ent-data hm-key []))
           ent-data
-          (keys (medley/filter-vals (fn [v] (= v :coll)) constraints))))
+          (keys (medley/filter-vals (fn [attr-constraints] (contains? attr-constraints :coll))
+                                    constraints))))
 
 (defn gen-ent-data
   [{:keys [spec constraints]}]
@@ -34,16 +35,15 @@
       (reset-coll-relations constraints)))
 
 (def spec-gen
-  [(fn [{:keys [schema data]} ent-name ent-attr-key]
-     (let [ent-type-schema                          (get schema (lat/attr data ent-name :ent-type))
+  [(fn [{:keys [data] :as db} ent-name ent-attr-key]
+     (let [ent-type-schema                          (sm/ent-schema db ent-name)
            {:keys [relations constraints spec-gen]} ent-type-schema]
        (merge (gen-ent-data ent-type-schema)
               spec-gen
               (get-in (lat/attr data ent-name :query-term) [1 ent-attr-key]))))
-   (fn [{:keys [schema data]} ent-name ent-attr-key]
+   (fn [{:keys [data] :as db} ent-name ent-attr-key]
      (let [spec-gen-attr                            (lat/attr data ent-name ent-attr-key)
-           ent-type-schema                          (get schema (lat/attr data ent-name :ent-type))
-           {:keys [relations constraints spec-gen]} ent-type-schema]
+           {:keys [relations constraints spec-gen]} (sm/ent-schema db ent-name)]
        (reduce (fn [ent-data referenced-ent]
                  (reduce (fn [ent-data relation-attr]
                            (assoc-relation ent-data

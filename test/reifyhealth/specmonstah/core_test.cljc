@@ -565,6 +565,16 @@
                  (sm/map-ents-attr-once :custom-attr-key (constantly "yaaaaay a key")))]
       (is (nil? (lat/attr (:data db) :u0 :custom-attr-key))))))
 
+(deftest related-ents-by-attr
+  (let [db (sm/build-ent-db {:schema td/schema} {:todo [[1]]
+                                                 :project [[1 {:refs {:todo-list-ids [:tl0 :tl1]}}]]})]
+    (is (= (sm/related-ents-by-attr db :t0 :todo-list-id)
+           :tl0))
+    (is (= (sm/related-ents-by-attr db :t0 :created-by-id)
+           :u0))
+    (is (= (sm/related-ents-by-attr db :p0 :todo-list-ids)
+           [:tl0 :tl1]))))
+
 (deftest assert-schema-refs-must-exist
   (is (thrown-with-msg? java.lang.AssertionError
                         #"Your schema relations reference nonexistent types: "

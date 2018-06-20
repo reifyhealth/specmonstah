@@ -6,14 +6,17 @@
             [reifyhealth.specmonstah.test-data :as td]
             [reifyhealth.specmonstah.core :as sm]
             [reifyhealth.specmonstah.spec-gen :as sg]
+            [medley.core :as medley]
             [loom.graph :as lg]
             [loom.alg :as la]
             [loom.attr :as lat]))
 
 (def gen-data-db (atom []))
+(def gen-data-cycle-db (atom []))
 
 (defn reset-gen-data-db [f]
   (reset! gen-data-db [])
+  (reset! gen-data-cycle-db [])
   (f))
 
 (use-fixtures :each td/test-fixture reset-gen-data-db)
@@ -110,35 +113,59 @@
                            ent-name
                            (lat/attr data ent-name sg/spec-gen-ent-attr-key)]))
 
-(deftest test-insert-gen-data
-  (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [[1]]})
-      (sm/map-ents-attr-once :inserted-data insert))
-  (is (= @gen-data-db
-         [[:user :u0 {:id 1 :user-name "Luigi"}]
-          [:todo-list :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}]
-          [:todo :t0 {:id            5
-                      :todo-title    "write unit tests"
-                      :created-by-id 1
-                      :updated-by-id 1
-                      :todo-list-id  2}]])))
+#_(deftest test-insert-gen-data
+    (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [[1]]})
+        (sm/map-ents-attr-once :inserted-data insert))
+    (is (= @gen-data-db
+           [[:user :u0 {:id 1 :user-name "Luigi"}]
+            [:todo-list :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}]
+            [:todo :t0 {:id            5
+                        :todo-title    "write unit tests"
+                        :created-by-id 1
+                        :updated-by-id 1
+                        :todo-list-id  2}]])))
 
-(deftest inserts-novel-data
-  (testing "Given a db with a todo already added, next call adds a new
+#_(deftest inserts-novel-data
+    (testing "Given a db with a todo already added, next call adds a new
   todo that references the same todo list and user"
-    (let [db1 (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [[1]]})
-                  (sm/map-ents-attr-once :inserted-data insert))]
-      (-> (sg/ent-db-spec-gen db1 {:todo [[1]]})
-          (sm/map-ents-attr-once :inserted-data insert))
-      (is (= @gen-data-db
-             [[:user :u0 {:id 1 :user-name "Luigi"}]
-              [:todo-list :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}]
-              [:todo :t0 {:id            5
-                          :todo-title    "write unit tests"
-                          :created-by-id 1
-                          :updated-by-id 1
-                          :todo-list-id  2}]
-              [:todo :t1 {:id            8
-                          :todo-title    "write unit tests"
-                          :created-by-id 1
-                          :updated-by-id 1
-                          :todo-list-id  2}]])))))
+      (let [db1 (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [[1]]})
+                    (sm/map-ents-attr-once :inserted-data insert))]
+        (-> (sg/ent-db-spec-gen db1 {:todo [[1]]})
+            (sm/map-ents-attr-once :inserted-data insert))
+        (is (= @gen-data-db
+               [[:user :u0 {:id 1 :user-name "Luigi"}]
+                [:todo-list :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}]
+                [:todo :t0 {:id            5
+                            :todo-title    "write unit tests"
+                            :created-by-id 1
+                            :updated-by-id 1
+                            :todo-list-id  2}]
+                [:todo :t1 {:id            8
+                            :todo-title    "write unit tests"
+                            :created-by-id 1
+                            :updated-by-id 1
+                            :todo-list-id  2}]])))))
+
+(defn insert-cycle
+  [{:keys [data] :as db} ent-name ent-attr-key]
+  (let [{:keys [constraints relations]} (sm/ent-schema db ent-name)
+        required-attrs                  (or (keys (medley/filter-vals (fn [val] (contains? val :required))
+                                                                      constraints))
+                                            [])]
+    (if (every? (fn [required-attr]
+                  (let [ent-ref (sm/related-ents-by-attr db ent-name required-attr)]
+                    (get-in (lat/attr data ent-ref ent-attr-key)
+                            (rest (get relations required-attr)))))
+                required-attrs)
+      (do (swap! gen-data-cycle-db conj ent-name)
+          (lat/attr data ent-name sg/spec-gen-ent-attr-key))
+      ::sm/map-ent-move-to-end)))
+
+(deftest handle-cycles-with-constraints-and-reordering
+  (-> (sg/ent-db-spec-gen {:schema td/cycle-schema} {:todo [[1]]})
+      (sm/map-ents-attr :insert-cycle insert-cycle))
+  (is (= @gen-data-cycle-db
+         [:tl0 :t0])))
+
+(deftest throws-exception-on-2nd-map-ent-attr-try
+  ())
