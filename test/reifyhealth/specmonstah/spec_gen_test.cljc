@@ -2,6 +2,7 @@
   (:require #?(:clj [clojure.test :refer [deftest is are use-fixtures testing]]
                :cljs [cljs.test :include-macros true :refer [deftest is are use-fixtures testing]])
             [clojure.spec.alpha :as s]
+            [clojure.data :as data]
             [clojure.test.check.generators :as gen :include-macros true]
             [reifyhealth.specmonstah.test-data :as td]
             [reifyhealth.specmonstah.core :as sm]
@@ -14,29 +15,29 @@
 (def gen-data-db (atom []))
 (def gen-data-cycle-db (atom []))
 
-(defn reset-gen-data-db [f]
+(defn reset-dbs [f]
   (reset! gen-data-db [])
   (reset! gen-data-cycle-db [])
   (f))
 
-(use-fixtures :each td/test-fixture reset-gen-data-db)
+(use-fixtures :each td/test-fixture reset-dbs)
 
-(defn selected-keys=
+(defn map-subset=
+  "All vals in m2 are present in m1"
   [m1 m2]
-  (every? (fn [k]
-            (let [m2-inner (k m2)]
-              (= (select-keys (k m1) (keys m2-inner))
-                 m2-inner)))
-          (keys m2)))
+  (nil? (second (data/diff m1 m2))))
 
 (defn ids-present?
-  [generated ids-map]
-  (every? (fn [[ent ids]]
-            (every? (fn [id] (pos-int? (get-in generated [ent id])))
-                    ids))
-          ids-map))
+  [generated]
+  (every? pos-int? (map :id (vals generated))))
+
+(defn only-has-ents?
+  [generated ent-names]
+  (= (set (keys generated))
+     (set ent-names)))
 
 (defn ids-match?
+  "Reference attr vals equal their referent"
   [generated matches]
   (every? (fn [[ent id-path-map]]
             (every? (fn [[attr id-path-or-paths]]
@@ -50,27 +51,17 @@
 
 (deftest test-spec-gen
   (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[1]]})]
-    (is (selected-keys= gen
-                        {:u0  {:user-name "Luigi"}}))
-    (is (ids-present? gen
-                      {:u0  [:id]
-                       :tl0 [:id]}))
-
+    (is (map-subset= gen {:u0 {:user-name "Luigi"}}))
+    (is (ids-present? gen))
     (is (ids-match? gen
                     {:tl0 {:created-by-id [:u0 :id]
-                           :updated-by-id [:u0 :id]}}))))
+                           :updated-by-id [:u0 :id]}}))
+    (is (only-has-ents? gen #{:tl0 :u0}))))
 
 (deftest test-spec-gen-nested
   (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:project [[:_ {:refs {:todo-list-ids 3}}]]})]
-    (is (selected-keys= gen
-                        {:u0  {:user-name "Luigi"}}))
-
-    (is (ids-present? gen
-                      {:u0  [:id]
-                       :tl0 [:id]
-                       :tl1 [:id]
-                       :tl2 [:id]
-                       :p0  [:id]}))
+    (is (map-subset= gen {:u0  {:user-name "Luigi"}}))
+    (is (ids-present? gen))
     (is (ids-match? gen
                     {:tl0 {:created-by-id [:u0 :id]
                            :updated-by-id [:u0 :id]}
@@ -82,23 +73,22 @@
                            :updated-by-id [:u0 :id]
                            :todo-list-ids [[:tl0 :id]
                                            [:tl1 :id]
-                                           [:tl2 :id]]}}))))
+                                           [:tl2 :id]]}}))
+    (is (only-has-ents? gen #{:tl0 :tl1 :tl2 :u0 :p0}))))
 
 (deftest test-spec-gen-manual-attr
   (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo [[:_ {:spec-gen {:todo-title "pet the dog"}}]]})]
-    (is (selected-keys= gen
-                        {:u0 {:user-name "Luigi"}
-                         :t0 {:todo-title "pet the dog"}}))
-    (is (ids-present? gen
-                      {:u0  [:id]
-                       :tl0 [:id]
-                       :t0  [:id]}))
+    (is (map-subset= gen
+                     {:u0 {:user-name "Luigi"}
+                      :t0 {:todo-title "pet the dog"}}))
+    (is (ids-present? gen))
     (is (ids-match? gen
                     {:tl0 {:created-by-id [:u0 :id]
                            :updated-by-id [:u0 :id]}
                      :t0 {:created-by-id [:u0 :id]
                           :updated-by-id [:u0 :id]
-                          :todo-list-id [:tl0 :id]}}))))
+                          :todo-list-id [:tl0 :id]}}))
+    (is (only-has-ents? gen #{:tl0 :t0 :u0}))))
 
 (deftest test-idempotency
   (testing "Gen traversal won't replace already generated data with newly generated data"
@@ -135,13 +125,10 @@
              [:todo :t0]}))
 
     (let [ent-map (into {} (map #(vec (drop 1 %)) gen-data))]
-      (is (selected-keys= ent-map
-                          {:u0 {:user-name "Luigi"}
-                           :t0 {:todo-title "write unit tests"}}))
-      (is (ids-present? ent-map
-                        {:u0  [:id]
-                         :tl0 [:id]
-                         :t0  [:id]}))
+      (is (map-subset= ent-map
+                       {:u0 {:user-name "Luigi"}
+                        :t0 {:todo-title "write unit tests"}}))
+      (is (ids-present? ent-map))
       (is (ids-match? ent-map
                       {:tl0 {:created-by-id [:u0 :id]
                              :updated-by-id [:u0 :id]}
@@ -165,15 +152,11 @@
                  [:todo :t1]}))
 
         (let [ent-map (into {} (map #(vec (drop 1 %)) gen-data))]
-          (is (selected-keys= ent-map
-                              {:u0 {:user-name "Luigi"}
-                               :t0 {:todo-title "write unit tests"}
-                               :t1 {:todo-title "write unit tests"}}))
-          (is (ids-present? ent-map
-                            {:u0  [:id]
-                             :tl0 [:id]
-                             :t0  [:id]
-                             :t1  [:id]}))
+          (is (map-subset= ent-map
+                           {:u0 {:user-name "Luigi"}
+                            :t0 {:todo-title "write unit tests"}
+                            :t1 {:todo-title "write unit tests"}}))
+          (is (ids-present? ent-map))
           (is (ids-match? ent-map
                           {:tl0 {:created-by-id [:u0 :id]
                                  :updated-by-id [:u0 :id]}
@@ -192,10 +175,11 @@
     ::sm/map-ent-move-to-end))
 
 (deftest handle-cycles-with-constraints-and-reordering
-  (-> (sg/ent-db-spec-gen {:schema td/cycle-schema} {:todo [[1]]})
-      (sm/map-ents-attr :insert-cycle insert-cycle))
-  (is (= @gen-data-cycle-db
-         [:tl0 :t0])))
+  (testing "todo-list is inserted before todo because todo requires todo-list"
+    (-> (sg/ent-db-spec-gen {:schema td/cycle-schema} {:todo [[1]]})
+        (sm/map-ents-attr :insert-cycle insert-cycle))
+    (is (= @gen-data-cycle-db
+           [:tl0 :t0]))))
 
 (deftest throws-exception-on-2nd-map-ent-attr-try
   (testing "insert-cycle fails because it tries to find the inserted value for :tl0 and can't"

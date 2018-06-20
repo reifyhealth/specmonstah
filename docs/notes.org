@@ -93,9 +93,12 @@ or else have a separate function that only does the work once
 ** DONE spec attr-fn
 ** DONE make constraints a set
 *** allow :uniq and :required
+** DONE helper fns for navigating to related ents
 ** TODO use related ents to find if `:required` is satisfied in spec gen test
 and if not, return keyword
-** TODO helper fns for navigating to related ents
+** TODO possibly create new ns for map-ent-attr fns
+- rename "visit"? like, visit each node?
+- keep a record of each visit
 ** TODO better abstractions
 *** TODO testing
 **** "db insertion"
@@ -106,6 +109,8 @@ and if not, return keyword
   have to dissoc nil values
 - it's hard to imagine why you would have a required attribute that can be nil
 - maybe it's just some?
+** TODO ambiguity of "attr"
+used to refer to graph/node attrs, but also to refer to ent attrs
 ** TODO polymorphic references
 cover datomic instance when e.g. a "watch" can be watching a topic, a
 topic category, etc
@@ -221,3 +226,7 @@ entities of another type
 *** generate and interact with graphs
 **** application types
 ** tutorial
+* arch
+** building
+** adding attrs
+** viewing

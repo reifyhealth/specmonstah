@@ -561,9 +561,10 @@
 (deftest does-not-override-node-attr
   (testing "If node already has attr, subsequent invocations of map-ents-attr-once will not overwrite it"
     (let [db (-> (sm/build-ent-db {:schema td/schema} {:user [[:_]]})
-                 (sm/map-ents-attr-once :custom-attr-key (constantly nil))
-                 (sm/map-ents-attr-once :custom-attr-key (constantly "yaaaaay a key")))]
-      (is (nil? (lat/attr (:data db) :u0 :custom-attr-key))))))
+                 (sm/map-ents-attr-once :custom-attr-key (constantly "yaaaaay a key"))
+                 (sm/map-ents-attr-once :custom-attr-key (constantly "overwrite!")))]
+      (is (= (lat/attr (:data db) :u0 :custom-attr-key)
+             "yaaaaay a key")))))
 
 (deftest related-ents-by-attr
   (let [db (sm/build-ent-db {:schema td/schema} {:todo [[1]]

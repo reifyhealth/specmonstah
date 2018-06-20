@@ -28,6 +28,10 @@
 (s/def ::relations
   (s/map-of ::ent-attr ::relation-path))
 
+;; This isn't used for validation, just for documentation
+(s/def ::core-constraints
+  #{:coll :uniq :required})
+
 (s/def ::constraints
   (s/map-of ::ent-attr (s/coll-of ::constraint)))
 
@@ -390,7 +394,6 @@
           {}
           (ents db)))
 
-
 (defn ent-schema
   "Given an ent node, return the schema of its corresponding type"
   [{:keys [schema data]} ent-name]
@@ -417,6 +420,8 @@
   (second (lat/attr data ent-name :query-term)))
 
 (defn relation-attrs
+  "Given an ent A and an ent it references B, return the set of attrs
+  by which A references B"
   [{:keys [data]} ent-name referenced-ent]
   (lat/attr data ent-name referenced-ent :relation-attrs))
 
