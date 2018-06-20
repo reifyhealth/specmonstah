@@ -99,6 +99,10 @@ and if not, return keyword
 ** TODO possibly create new ns for map-ent-attr fns
 - rename "visit"? like, visit each node?
 - keep a record of each visit
+** TODO spec gen cycle test, ensure that it would fail
+testing that :tl0 is inserted before :t0, but not sure that the order
+would be reversed without reordering
+** TODO get CI passing
 ** TODO better abstractions
 *** TODO testing
 **** "db insertion"

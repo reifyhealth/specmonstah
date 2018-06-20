@@ -29,35 +29,29 @@
           (keys (medley/filter-vals (fn [attr-constraints] (contains? attr-constraints :coll))
                                     constraints))))
 
-(defn gen-ent-data
-  [{:keys [spec constraints]}]
-  (-> (gen/generate (s/gen spec))
-      (reset-coll-relations constraints)))
+(defn spec-gen-generate-ent-val
+  "First pass function, uses spec to generate a val for every entity"
+  [db ent-name ent-attr-key]
+  (let [{:keys [relations constraints spec spec-gen]} (sm/ent-schema db ent-name)]
+    (merge (-> (gen/generate (s/gen spec))
+               (reset-coll-relations constraints))
+           spec-gen
+           (ent-attr-key (sm/query-opts db ent-name)))))
 
-(def spec-gen
-  [;; the first pass uses spec to generate every entity
-   (fn [{:keys [data] :as db} ent-name ent-attr-key]
-     (let [ent-schema                               (sm/ent-schema db ent-name)
-           {:keys [relations constraints spec-gen]} ent-schema]
-       (merge (gen-ent-data ent-schema)
-              spec-gen
-              (ent-attr-key (sm/query-opts db ent-name)))))
-   ;; the second pass looks up referenced attributes and assigns them
-   (fn [{:keys [data] :as db} ent-name ent-attr-key]
-     (let [ent-spec-gen-val                         (lat/attr data ent-name ent-attr-key)
-           {:keys [relations constraints spec-gen]} (sm/ent-schema db ent-name)]
-       (reduce (fn [ent-data referenced-ent]
-                 (reduce (fn [ent-data relation-attr]
-                           (assoc-relation ent-data
-                                           relation-attr
-                                           (get (lat/attr data referenced-ent ent-attr-key)
-                                                (get-in relations [relation-attr 1]))
-                                           constraints))
-                         ent-data
-                         (sm/relation-attrs db ent-name referenced-ent)))
-               ent-spec-gen-val
-               (sort-by #(lat/attr data % :index)
-                        (lg/successors data ent-name)))))])
+(defn spec-gen-assoc-relations
+  "Look up referenced attributes and assign them"
+  [{:keys [data] :as db} ent-name ent-attr-key]
+  (let [{:keys [relations constraints spec-gen]} (sm/ent-schema db ent-name)]
+    (reduce (fn [ent-data [referenced-ent relation-attr]]
+              (assoc-relation ent-data
+                              relation-attr
+                              (get (lat/attr data referenced-ent ent-attr-key)
+                                   (get-in relations [relation-attr 1]))
+                              constraints))
+            (lat/attr data ent-name ent-attr-key)
+            (sm/referenced-ent-attrs db ent-name))))
+
+(def spec-gen [spec-gen-generate-ent-val spec-gen-assoc-relations])
 
 (defn ent-db-spec-gen
   "Convenience function to build a new db using the spec-gen mapper

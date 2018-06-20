@@ -169,7 +169,7 @@
         [qr-constraint [qr-type qr-term]] (relation-attr refs)
         related-ent-type                  (-> relations relation-attr first)]
 
-    (cond (nil? qr-constraint) nil
+    (cond (nil? qr-constraint) nil ;; noop
           
           (and (contains? attr-constraints :coll) (not= qr-constraint :coll))
           (throw (ex-info "Query-relations for coll attrs must be a number or vector"
@@ -424,6 +424,15 @@
   by which A references B"
   [{:keys [data]} ent-name referenced-ent]
   (lat/attr data ent-name referenced-ent :relation-attrs))
+
+(defn referenced-ent-attrs
+  "seq of [referenced-ent relation-attr]"
+  [{:keys [data] :as db} ent-name]
+  (mapcat (fn [referenced-ent]
+            (map (fn [relation-attr] [referenced-ent relation-attr])
+                 (relation-attrs db ent-name referenced-ent)))
+          (sort-by #(lat/attr data % :index)
+                   (lg/successors data ent-name))))
 
 (defn required-referenced-vals-exist?
   "Assumes that an instance of ent should be assigned graph attr under `ent-attr-key`
