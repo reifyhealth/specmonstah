@@ -402,6 +402,8 @@
           (recur ordered (conj tried ent) (concat remaining [ent])))))
 
 (defn visit-ents
+  "Perform `visit-fns` on ents, storing return value as a graph
+  attribute under `visit-key`"
   ([db visit-key visit-fns]
    (visit-ents db visit-key visit-fns (sort-by-required db (ents db))))
   ([db visit-key visit-fns ents]
@@ -409,9 +411,7 @@
      (reduce (fn [db [visit-fn ent]]
                (update db :data lat/add-attr ent visit-key (visit-fn db ent visit-key)))
              db
-             (for [visit-fn visit-fns
-                   ent ents]
-               [visit-fn ent])))))
+             (for [visit-fn visit-fns ent ents] [visit-fn ent])))))
 
 (defn visit-ents-once
   "Like `visit-ents` but doesn't call `visit-fn` if the ent already

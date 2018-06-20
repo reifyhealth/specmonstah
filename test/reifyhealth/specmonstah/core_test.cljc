@@ -530,9 +530,9 @@
 ;; view tests
 
 (deftest test->
-  (is (= (sm/> (sm/build-ent-db {:schema td/schema} {:user [[:_] [:_]]}) :user)
-         [{:type :ent :index 1 :ent-type :user :query-term [:_]}
-          {:type :ent :index 0 :ent-type :user :query-term [:_]}])))
+  (is (= (into #{} (sm/> (sm/build-ent-db {:schema td/schema} {:user [[:_] [:_]]}) :user))
+         #{{:type :ent :index 1 :ent-type :user :query-term [:_]}
+           {:type :ent :index 0 :ent-type :user :query-term [:_]}})))
 
 (deftest test-q>
   (is (= (sm/q> (sm/build-ent-db {:schema td/schema} {:todo [[1]]}))
@@ -545,10 +545,12 @@
             :tl0 {:relation-attrs #{:todo-list-id}}}}])))
 
 (deftest test-build-ent-db-throws-exception-on-invalid-db
-  (is (thrown-with-msg? clojure.lang.ExceptionInfo
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                           :cljs js/Object)
                         #"db is invalid"
                         (sm/build-ent-db {:schema []} {})))
-  (is (thrown-with-msg? clojure.lang.ExceptionInfo
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                           :cljs js/Object)
                         #"query is invalid"
                         (sm/build-ent-db {:schema td/schema} {:user [[]]}))))
 
@@ -577,28 +579,33 @@
            [:tl0 :tl1]))))
 
 (deftest assert-schema-refs-must-exist
-  (is (thrown-with-msg? java.lang.AssertionError
+  (is (thrown-with-msg? #?(:clj java.lang.AssertionError
+                           :cljs js/Error)
                         #"Your schema relations reference nonexistent types: "
                         (sm/build-ent-db {:schema {:user {:relations {:u1 [:circle :circle-id]}}}} {}))))
 
 (deftest assert-no-dupe-prefixes
-  (is (thrown-with-msg? java.lang.AssertionError
+  (is (thrown-with-msg? #?(:clj java.lang.AssertionError
+                           :cljs js/Error)
                         #"You have used the same prefix for multiple entity types: "
                         (sm/build-ent-db {:schema {:user  {:prefix :u}
                                                    :user2 {:prefix :u}}} {}))))
 
 (deftest assert-constraints-must-ref-existing-relations
-  (is (thrown-with-msg? java.lang.AssertionError
+  (is (thrown-with-msg? #?(:clj java.lang.AssertionError
+                           :cljs js/Error)
                         #"Schema constraints reference nonexistent relation attrs: "
                         (sm/build-ent-db {:schema {:user  {:prefix :u
                                                            :constraints {:blarb :coll}}}} {}))))
 
 (deftest enforces-coll-schema-constraints
-  (is (thrown-with-msg? clojure.lang.ExceptionInfo
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                           :cljs js/Object)
                         #"Query-relations for coll attrs must be a number or vector"
                         (sm/build-ent-db {:schema td/schema} {:project [[:_ {:refs {:todo-list-ids :tl0}}]]}))))
 
 (deftest enforces-unary-schema-constraints
-  (is (thrown-with-msg? clojure.lang.ExceptionInfo
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                           :cljs js/Object)
                         #"Query-relations for unary attrs must be a keyword"
                         (sm/build-ent-db {:schema td/schema} {:attachment [[:_ {:refs {:todo-id [:t0 :t1]}}]]}))))

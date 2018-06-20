@@ -181,7 +181,8 @@
 
 (deftest throws-exception-on-2nd-map-ent-attr-try
   (testing "insert-cycle fails because the schema contains a :required cycle"
-    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                             :cljs js/Object)
                           #"Can't order ents: check for a :required cycle"
                           (-> (sm/build-ent-db {:schema {:todo      {:spec        ::todo
                                                                      :relations   {:todo-list-id [:todo-list :id]}
