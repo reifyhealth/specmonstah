@@ -101,6 +101,11 @@ and if not, return keyword
 **** "db insertion"
 **** checking that only ents specified are there
 *** TODO map ent attr
+** TODO decide where `:required` means a non-nil value
+- that could make it easier to code down the line, as you wouldn't
+  have to dissoc nil values
+- it's hard to imagine why you would have a required attribute that can be nil
+- maybe it's just some?
 ** TODO polymorphic references
 cover datomic instance when e.g. a "watch" can be watching a topic, a
 topic category, etc

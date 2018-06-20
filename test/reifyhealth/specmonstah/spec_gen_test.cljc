@@ -186,18 +186,10 @@
 
 (defn insert-cycle
   [{:keys [data] :as db} ent-name ent-attr-key]
-  (let [{:keys [constraints relations]} (sm/ent-schema db ent-name)
-        required-attrs                  (or (keys (medley/filter-vals (fn [val] (contains? val :required))
-                                                                      constraints))
-                                            [])]
-    (if (every? (fn [required-attr]
-                  (let [ent-ref (sm/related-ents-by-attr db ent-name required-attr)]
-                    (get-in (lat/attr data ent-ref ent-attr-key)
-                            (rest (get relations required-attr)))))
-                required-attrs)
-      (do (swap! gen-data-cycle-db conj ent-name)
-          (lat/attr data ent-name sg/spec-gen-ent-attr-key))
-      ::sm/map-ent-move-to-end)))
+  (if (sm/required-referenced-vals-exist? db ent-name ent-attr-key)
+    (do (swap! gen-data-cycle-db conj ent-name)
+        (lat/attr data ent-name sg/spec-gen-ent-attr-key))
+    ::sm/map-ent-move-to-end))
 
 (deftest handle-cycles-with-constraints-and-reordering
   (-> (sg/ent-db-spec-gen {:schema td/cycle-schema} {:todo [[1]]})
