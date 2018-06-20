@@ -82,3 +82,22 @@
    :todo-list {:spec      ::todo-list
                :relations {:first-todo-id [:todo :id]}
                :prefix    :tl}})
+
+(s/def ::topic-category (s/keys :req-un [::id]))
+
+(s/def ::topic-category-id ::id)
+(s/def ::topic (s/keys :req-un [::id ::topic-category-id]))
+
+(s/def ::watched-id ::id)
+(s/def ::watch (s/keys :req-un [::id ::watched-id]))
+
+(def polymorphic-schema
+  {:topic-category {:spec ::topic-category
+                    :prefix :tc}
+   :topic          {:spec ::topic
+                    :relations {:topic-category-id [:topic-category :id]}
+                    :prefix :t}
+   :watch          {:spec ::watch
+                    :relations {:watched-id #{[:topic-category :id]
+                                              [:topic :id]}}
+                    :prefix :w}})

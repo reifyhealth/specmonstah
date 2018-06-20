@@ -15,15 +15,22 @@
 (s/def ::ent-type keyword?)
 (s/def ::ent-name keyword?)
 (s/def ::ent-attr keyword?)
-(s/def ::ent-count int?)
+(s/def ::ent-count pos-int?)
 (s/def ::prefix keyword?)
 (s/def ::constraint keyword?)
 (s/def ::spec (s/and keyword? namespace))
 
 ;; schema specs
-(s/def ::relation-path
+(s/def ::single-type-relation-path
   (s/cat :ent-type ::ent-type
          :path (s/+ ::any)))
+
+(s/def ::polymorphic-relation-path
+  (s/coll-of ::relation-path))
+
+(s/def ::relation-path
+  (s/or :single-type-relation-path ::single-type-relation-path
+        :polymorphic-relation-path ::polymorphic-relation-path))
 
 (s/def ::relations
   (s/map-of ::ent-attr ::relation-path))
@@ -51,14 +58,17 @@
   (s/or :ent-name ::ent-name))
 
 (s/def ::refs
-  (s/nilable (s/map-of ::ent-attr (s/or :coll  ::coll-query-relations
-                                        :unary ::unary-query-relations))))
+  (s/map-of ::ent-attr (s/or :coll  ::coll-query-relations
+                             :unary ::unary-query-relations)))
+
+(s/def ::ref-types
+  (s/map-of ::ent-attr ::ent-type))
 
 (s/def ::bind
   (s/map-of ::ent-type ::ent-name))
 
 (s/def ::query-opts
-  (s/keys :opt-un [::refs ::bind]))
+  (s/keys :opt-un [::refs ::ref-types ::bind]))
 
 (s/def ::ent-id
   (s/or :ent-count ::ent-count
@@ -194,19 +204,40 @@
             related-ent-type                   [(default-node-name db related-ent-type)]
             :else                              [])))
 
+(defn add-single-type-relation
+  [db ent-name ent-type relation-path relation-attr query-term]
+  (reduce (fn [db related-ent]
+            (-> db
+                (update :ref-ents conj [related-ent
+                                        (:ent-type relation-path)
+                                        (if-let [query-bindings (get-in query-term [1 :bind])]
+                                          [:_ {:bind query-bindings}]
+                                          [:_])])
+                (update :data add-edge-with-id ent-name related-ent relation-attr)))
+          db
+          (related-ents db ent-name ent-type relation-attr query-term)))
+
+(defn add-polymorphic-relation
+  [{:keys [schema] :as db} ent-name ent-type polymorphic-relation-paths relation-attr query-term]
+  (let [relation-type (or (get-in query-term [1 :ref-types relation-attr])
+                          (get-in schema [ent-type :ref-types relation-attr]))
+        relation-path (->> polymorphic-relation-paths
+                           (map second)
+                           (some #(and (= (:ent-type %) relation-type) %)))]
+    (when-not relation-path
+      (throw (ex-info "Could not determine type for polymorphic relation. Specify relation type under :ref-type key of query-opts, or specify default value in schema."
+                      {:relation-attr relation-attr
+                       :query-term query-term})))
+    (add-single-type-relation db ent-name ent-type relation-path relation-attr query-term)))
+
 (defn add-related-ents
   [{:keys [schema types data] :as db} ent-name ent-type query-term]
   (let [relation-schema (get-in schema [ent-type :relations])]
     (reduce (fn [db relation-attr]
-              (let [[relation-type] (get-in db [:schema ent-type :relations relation-attr])]
-                (reduce (fn [db related-ent]
-                          (-> db
-                              (update :ref-ents conj [related-ent relation-type (if-let [query-bindings (get-in query-term [1 :bind])]
-                                                                                  [:_ {:bind query-bindings}]
-                                                                                  [:_])])
-                              (update :data add-edge-with-id ent-name related-ent relation-attr)))
-                        db
-                        (related-ents db ent-name ent-type relation-attr query-term))))
+              (let [[relation-type relation-path] (s/conform ::relation-path (get-in db [:schema ent-type :relations relation-attr]))]
+                (case relation-type
+                  :single-type-relation-path (add-single-type-relation db ent-name ent-type relation-path relation-attr query-term)
+                  :polymorphic-relation-path (add-polymorphic-relation db ent-name ent-type relation-path relation-attr query-term))))
             db
             (keys relation-schema))))
 
@@ -291,7 +322,16 @@
   [schema]
   (set/difference (->> schema
                        vals
-                       (mapcat (comp #(map first %) vals :relations))
+                       ;; TODO clean this up
+                       (map (comp (fn [relation-paths]
+                                    (map (fn [relation-path]
+                                           (if (set? relation-path)
+                                             (map first relation-path)
+                                             (first relation-path)))
+                                         relation-paths))
+                                  vals
+                                  :relations))
+                       flatten
                        set)
                   (set (keys schema))))
 
@@ -324,6 +364,10 @@
                  db
                  (:types db))
          (add-ref-ents))))
+
+;; -----------------
+;; visiting
+;; -----------------
 
 (defn ents
   [{:keys [data]}]

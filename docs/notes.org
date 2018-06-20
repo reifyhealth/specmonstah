@@ -94,45 +94,45 @@ or else have a separate function that only does the work once
 ** DONE make constraints a set
 *** allow :uniq and :required
 ** DONE helper fns for navigating to related ents
-** TODO use related ents to find if `:required` is satisfied in spec gen test
+** DONE use related ents to find if `:required` is satisfied in spec gen test
 and if not, return keyword
-** TODO possibly create new ns for map-ent-attr fns
-- rename "visit"? like, visit each node?
-- keep a record of each visit
-** TODO spec gen cycle test, ensure that it would fail
-testing that :tl0 is inserted before :t0, but not sure that the order
-would be reversed without reordering
-** TODO get CI passing
-** TODO better abstractions
-*** TODO testing
-**** "db insertion"
-**** checking that only ents specified are there
-*** TODO map ent attr
-** TODO decide where `:required` means a non-nil value
-- that could make it easier to code down the line, as you wouldn't
-  have to dissoc nil values
-- it's hard to imagine why you would have a required attribute that can be nil
-- maybe it's just some?
-** TODO ambiguity of "attr"
+** DONE get CI passing
+** DONE ambiguity of "attr"
 used to refer to graph/node attrs, but also to refer to ent attrs
+** DONE in schema, specify mapper defaults
+e.g. {:spec-gen x} that applies to all ents of that type
+** DONE just use ent-name map for query terms
+[:_ {:refs {} :bind {} :x1 :y1}]
+** DONE get rid of ent-count query term?
+it's really not a huge win and it makes the code more complicated
 ** TODO polymorphic references
 cover datomic instance when e.g. a "watch" can be watching a topic, a
 topic category, etc
 ** TODO do something about ::any
 bad hack! bad! can't gen!
-** TODO in schema, specify mapper defaults
-e.g. {:spec-gen x} that applies to all ents of that type
 ** TODO make it easier to assoc relations
 as spec-gen does- make it easy for any other mapper to do the same
-** TODO just use ent-name map for query terms
-[:_ {:refs {} :bind {} :x1 :y1}]
 ** TODO more elegant way to build up a query
 ** TODO re-explore flat format
 - what were the reasons for not using it?
 - is it possible to infer type from a prefix?
+** TODO better abstractions
+*** TODO testing
+**** TODO "db insertion"
+**** checking that only ents specified are there
+*** DONE map ent attr
 ** TODO change 'prefix' to 'ent-name-prefix'?
-** TODO get rid of ent-count query term?
-it's really not a huge win and it makes the code more complicated
+** TODO decide where `:required` means a non-nil value
+- that could make it easier to code down the line, as you wouldn't
+  have to dissoc nil values
+- it's hard to imagine why you would have a required attribute that can be nil
+- maybe it's just some?
+** TODO spec gen cycle test, ensure that it would fail
+testing that :tl0 is inserted before :t0, but not sure that the order
+would be reversed without reordering
+** TODO possibly create new ns for map-ent-attr fns
+- rename "visit"? like, visit each node?
+- keep a record of each visit
 ** TODO investigate why we need nil as first arg in query term
 has to do with bound names
 ** TODO store `query` instead of `queries` in init-db
