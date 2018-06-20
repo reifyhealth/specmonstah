@@ -113,38 +113,76 @@
                            ent-name
                            (lat/attr data ent-name sg/spec-gen-ent-attr-key)]))
 
-#_(deftest test-insert-gen-data
-    (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [[1]]})
-        (sm/map-ents-attr-once :inserted-data insert))
-    (is (= @gen-data-db
-           [[:user :u0 {:id 1 :user-name "Luigi"}]
-            [:todo-list :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}]
-            [:todo :t0 {:id            5
-                        :todo-title    "write unit tests"
-                        :created-by-id 1
-                        :updated-by-id 1
-                        :todo-list-id  2}]])))
 
-#_(deftest inserts-novel-data
-    (testing "Given a db with a todo already added, next call adds a new
+
+(deftest test-insert-gen-data
+  (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [[1]]})
+      (sm/map-ents-attr-once :inserted-data insert))
+
+  ;; gen data is something like:
+  ;; [[:user :u0 {:id 1 :user-name "Luigi"}]
+  ;;  [:todo-list :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}]
+  ;;  [:todo :t0 {:id            5
+  ;;              :todo-title    "write unit tests"
+  ;;              :created-by-id 1
+  ;;              :updated-by-id 1
+  ;;              :todo-list-id  2}]]
+  
+  (let [gen-data @gen-data-db]
+    (is (= (set (map #(take 2 %) gen-data))
+           #{[:user :u0]
+             [:todo-list :tl0]
+             [:todo :t0]}))
+
+    (let [ent-map (into {} (map #(vec (drop 1 %)) gen-data))]
+      (is (selected-keys= ent-map
+                          {:u0 {:user-name "Luigi"}
+                           :t0 {:todo-title "write unit tests"}}))
+      (is (ids-present? ent-map
+                        {:u0  [:id]
+                         :tl0 [:id]
+                         :t0  [:id]}))
+      (is (ids-match? ent-map
+                      {:tl0 {:created-by-id [:u0 :id]
+                             :updated-by-id [:u0 :id]}
+                       :t0 {:created-by-id [:u0 :id]
+                            :updated-by-id [:u0 :id]
+                            :todo-list-id [:tl0 :id]}})))))
+
+(deftest inserts-novel-data
+  (testing "Given a db with a todo already added, next call adds a new
   todo that references the same todo list and user"
-      (let [db1 (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [[1]]})
-                    (sm/map-ents-attr-once :inserted-data insert))]
-        (-> (sg/ent-db-spec-gen db1 {:todo [[1]]})
-            (sm/map-ents-attr-once :inserted-data insert))
-        (is (= @gen-data-db
-               [[:user :u0 {:id 1 :user-name "Luigi"}]
-                [:todo-list :tl0 {:id 2 :created-by-id 1 :updated-by-id 1}]
-                [:todo :t0 {:id            5
-                            :todo-title    "write unit tests"
-                            :created-by-id 1
-                            :updated-by-id 1
-                            :todo-list-id  2}]
-                [:todo :t1 {:id            8
-                            :todo-title    "write unit tests"
-                            :created-by-id 1
-                            :updated-by-id 1
-                            :todo-list-id  2}]])))))
+    (let [db1 (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [[1]]})
+                  (sm/map-ents-attr-once :inserted-data insert))]
+      (-> (sg/ent-db-spec-gen db1 {:todo [[1]]})
+          (sm/map-ents-attr-once :inserted-data insert))
+
+      (let [gen-data @gen-data-db]
+        (is (= (set (map #(take 2 %) gen-data))
+               #{[:user :u0]
+                 [:todo-list :tl0]
+                 [:todo :t0]
+                 [:todo :t1]}))
+
+        (let [ent-map (into {} (map #(vec (drop 1 %)) gen-data))]
+          (is (selected-keys= ent-map
+                              {:u0 {:user-name "Luigi"}
+                               :t0 {:todo-title "write unit tests"}
+                               :t1 {:todo-title "write unit tests"}}))
+          (is (ids-present? ent-map
+                            {:u0  [:id]
+                             :tl0 [:id]
+                             :t0  [:id]
+                             :t1  [:id]}))
+          (is (ids-match? ent-map
+                          {:tl0 {:created-by-id [:u0 :id]
+                                 :updated-by-id [:u0 :id]}
+                           :t0  {:created-by-id [:u0 :id]
+                                 :updated-by-id [:u0 :id]
+                                 :todo-list-id  [:tl0 :id]}
+                           :t1  {:created-by-id [:u0 :id]
+                                 :updated-by-id [:u0 :id]
+                                 :todo-list-id  [:tl0 :id]}})))))))
 
 (defn insert-cycle
   [{:keys [data] :as db} ent-name ent-attr-key]
