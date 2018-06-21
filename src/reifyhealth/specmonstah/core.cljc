@@ -445,11 +445,16 @@
           :else
           (recur ordered (conj tried ent) (concat remaining [ent])))))
 
+(defn topsort-ents
+  [{:keys [data]}]
+  (la/topsort (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data)))
+
 (defn visit-ents
   "Perform `visit-fns` on ents, storing return value as a graph
   attribute under `visit-key`"
   ([db visit-key visit-fns]
-   (visit-ents db visit-key visit-fns (sort-by-required db (ents db))))
+   (visit-ents db visit-key visit-fns (or (seq (reverse (topsort-ents db)))
+                                          (sort-by-required db (ents db)))))
   ([db visit-key visit-fns ents]
    (let [visit-fns (if (sequential? visit-fns) visit-fns [visit-fns])]
      (reduce (fn [db [visit-fn ent]]
@@ -461,7 +466,8 @@
   "Like `visit-ents` but doesn't call `visit-fn` if the ent already
   has a `visit-key` attribute"
   ([db visit-key visit-fns]
-   (visit-ents-once db visit-key visit-fns (sort-by-required db (ents db))))
+   (visit-ents-once db visit-key visit-fns (or (seq (reverse (topsort-ents db)))
+                                               (sort-by-required db (ents db)))))
   ([db visit-key visit-fns ents]
    (let [skip-ents (->> ents
                         (filter (fn [ent]

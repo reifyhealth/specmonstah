@@ -105,6 +105,7 @@ e.g. {:spec-gen x} that applies to all ents of that type
 [:_ {:refs {} :bind {} :x1 :y1}]
 ** DONE get rid of ent-count query term?
 it's really not a huge win and it makes the code more complicated
+** TODO rename :data to :graph?
 ** TODO polymorphic references
 cover datomic instance when e.g. a "watch" can be watching a topic, a
 topic category, etc
