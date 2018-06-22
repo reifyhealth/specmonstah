@@ -45,8 +45,8 @@
     (reduce (fn [ent-data [referenced-ent relation-attr]]
               (assoc-relation ent-data
                               relation-attr
-                              (get (lat/attr data referenced-ent ent-attr-key)
-                                   (get-in relations [relation-attr 1]))
+                              (get-in (lat/attr data referenced-ent ent-attr-key)
+                                      (:path (sm/query-relation db ent-name relation-attr)))
                               constraints))
             (lat/attr data ent-name ent-attr-key)
             (sm/referenced-ent-attrs db ent-name))))
