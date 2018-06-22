@@ -21,19 +21,19 @@
 (s/def ::spec (s/and keyword? namespace))
 
 ;; schema specs
-(s/def ::single-type-relation-path
+(s/def ::monotype-relation
   (s/cat :ent-type ::ent-type
          :path (s/+ ::any)))
 
-(s/def ::polymorphic-relation-path
-  (s/coll-of ::relation-path))
+(s/def ::polymorphic-relation
+  (s/coll-of ::relation))
 
-(s/def ::relation-path
-  (s/or :single-type-relation-path ::single-type-relation-path
-        :polymorphic-relation-path ::polymorphic-relation-path))
+(s/def ::relation
+  (s/or :monotype-relation ::monotype-relation
+        :polymorphic-relation ::polymorphic-relation))
 
 (s/def ::relations
-  (s/map-of ::ent-attr ::relation-path))
+  (s/map-of ::ent-attr ::relation))
 
 ;; This isn't used for validation, just for documentation
 (s/def ::core-constraints
@@ -88,6 +88,15 @@
 
 (declare add-ent)
 
+(defn ent-schema
+  "Given an ent node, return the schema of its corresponding type"
+  [{:keys [schema data]} ent-name]
+  (get schema (lat/attr data ent-name :ent-type)))
+
+(defn query-opts
+  [{:keys [data]} ent-name]
+  (second (lat/attr data ent-name :query-term)))
+
 (defn relation-graph
   "A graph of the type dependencies in a schema. If entities of type
   `:project` reference an entity of type `:user` via `:owner-id`, then
@@ -121,31 +130,6 @@
   [{:keys [data schema]} ent-type]
   (numeric-node-name schema ent-type (ent-index data ent-type)))
 
-(defn add-edge-with-id
-  "When indicating :ent-a references :ent-b, include a
-  `:relation-attrs` graph attribute that includes the attributes via
-  which `:ent-a` references `:ent-b`. 
-
-  For example, if the `:project` named `:p0` has an `:owner-id` and
-  `:updated-by-id` that both reference the `:user` named `:u0`, then
-  the edge from `:p0` to `:u0` will if a `:relation-attrs` attribute
-  with value `#{:owner-id :updated-by-id}`.
-
-  This can be used e.g. to set the values for `:owner-id` and
-  `:updated-by-id`."
-  [g ent-name related-ent-name id]
-  (let [ids (lat/attr g ent-name related-ent-name :relation-attrs)]
-    (-> g
-        (lg/add-edges [ent-name related-ent-name])
-        (lat/add-attr ent-name related-ent-name :relation-attrs (conj (or ids #{}) id)))))
-
-(defn bound-name
-  "If `query-bindings` contains the binding `{:user :horton}` and the
-  `relation-attr` `:owner-id` references a user, then `:owner-id`
-  should reference `:horton`"
-  [schema query-bindings ent-type relation-attr]
-  (get query-bindings (get-in schema [ent-type :relations relation-attr 0])))
-
 (defn bound-descendants?
   "Check whether `query-relations` contains bindings that apply to any
   descendants of `related-ent-type`"
@@ -167,17 +151,34 @@
   (let [{:keys [prefix]} (related-ent-type schema)]
     (keyword (str (name prefix) "-bound-" (bound-relation-attr-name-source ent-name) "-" index))))
 
+(defn add-edge-with-id
+  "When indicating :ent-a references :ent-b, include a
+  `:relation-attrs` graph attribute that includes the attributes via
+  which `:ent-a` references `:ent-b`. 
+
+  For example, if the `:project` named `:p0` has an `:owner-id` and
+  `:updated-by-id` that both reference the `:user` named `:u0`, then
+  the edge from `:p0` to `:u0` will if a `:relation-attrs` attribute
+  with value `#{:owner-id :updated-by-id}`.
+
+  This can be used e.g. to set the values for `:owner-id` and
+  `:updated-by-id`."
+  [g ent-name related-ent-name id]
+  (let [ids (lat/attr g ent-name related-ent-name :relation-attrs)]
+    (-> g
+        (lg/add-edges [ent-name related-ent-name])
+        (lat/add-attr ent-name related-ent-name :relation-attrs (conj (or ids #{}) id)))))
+
 (defn related-ents
   "Returns all related ents for an ent's relation-attr"
-  [{:keys [schema data] :as db} ent-name ent-type relation-attr query-term]
+  [{:keys [schema data] :as db} ent-name ent-type relation-attr related-ent-type query-term]
   (let [{:keys [relations constraints]}   (ent-type schema)
         attr-constraints                  (relation-attr constraints)
         {:keys [refs bind]}               (and query-term
                                                (-> (s/conform ::query-term query-term)
                                                    second
                                                    :query-opts))
-        [qr-constraint [qr-type qr-term]] (relation-attr refs)
-        related-ent-type                  (-> relations relation-attr first)]
+        [qr-constraint [qr-type qr-term]] (relation-attr refs)]
 
     (cond (nil? qr-constraint) nil ;; noop
           
@@ -192,7 +193,7 @@
     (b/cond (= qr-type :ent-count) (mapv (partial numeric-node-name schema related-ent-type) (range qr-term))
             (= qr-type :ent-names) qr-term
             (= qr-type :ent-name)  [qr-term]
-            :let [bn (bound-name schema bind ent-type relation-attr)]
+            :let [bn (get bind related-ent-type)]
             bn   [bn]
             
             :let [has-bound-descendants? (bound-descendants? db bind related-ent-type)
@@ -204,40 +205,43 @@
             related-ent-type                   [(default-node-name db related-ent-type)]
             :else                              [])))
 
-(defn add-single-type-relation
-  [db ent-name ent-type relation-path relation-attr query-term]
-  (reduce (fn [db related-ent]
-            (-> db
-                (update :ref-ents conj [related-ent
-                                        (:ent-type relation-path)
-                                        (if-let [query-bindings (get-in query-term [1 :bind])]
-                                          [:_ {:bind query-bindings}]
-                                          [:_])])
-                (update :data add-edge-with-id ent-name related-ent relation-attr)))
-          db
-          (related-ents db ent-name ent-type relation-attr query-term)))
+(defn query-relation
+  "Returns the conformed relation for an ent's relation-attr. Handles
+  polymorphic relations."
+  [db ent-name relation-attr]
+  (let [{:keys [relations ref-types]} (ent-schema db ent-name)
+        [relation-type relation]      (s/conform ::relation (relation-attr relations))
+        ent-query-opts                (query-opts db ent-name)]
+    (case relation-type
+      :monotype-relation    relation
+      :polymorphic-relation (let [polymorphic-type-choice (or (get-in ent-query-opts [:ref-types relation-attr])
+                                                              (relation-attr ref-types))
+                                  polymorphic-relation    (->> relation
+                                                               (map second)
+                                                               (some #(and (= (:ent-type %) polymorphic-type-choice) %)))]
+                              (when-not polymorphic-relation
+                                (throw (ex-info "Could not determine polymorphic relation. Specify relation type under :ref-type key of query-opts, or specify default value in schema."
+                                                {:relation-attr  relation-attr
+                                                 :ent-name       ent-name
+                                                 :ent-query-opts ent-query-opts})))
+                              polymorphic-relation))))
 
-(defn add-polymorphic-relation
-  [{:keys [schema] :as db} ent-name ent-type polymorphic-relation-paths relation-attr query-term]
-  (let [relation-type (or (get-in query-term [1 :ref-types relation-attr])
-                          (get-in schema [ent-type :ref-types relation-attr]))
-        relation-path (->> polymorphic-relation-paths
-                           (map second)
-                           (some #(and (= (:ent-type %) relation-type) %)))]
-    (when-not relation-path
-      (throw (ex-info "Could not determine type for polymorphic relation. Specify relation type under :ref-type key of query-opts, or specify default value in schema."
-                      {:relation-attr relation-attr
-                       :query-term query-term})))
-    (add-single-type-relation db ent-name ent-type relation-path relation-attr query-term)))
 
 (defn add-related-ents
-  [{:keys [schema types data] :as db} ent-name ent-type query-term]
-  (let [relation-schema (get-in schema [ent-type :relations])]
+  [{:keys [data] :as db} ent-name ent-type query-term]
+  (let [relation-schema (:relations (ent-schema db ent-name))]
     (reduce (fn [db relation-attr]
-              (let [[relation-type relation-path] (s/conform ::relation-path (get-in db [:schema ent-type :relations relation-attr]))]
-                (case relation-type
-                  :single-type-relation-path (add-single-type-relation db ent-name ent-type relation-path relation-attr query-term)
-                  :polymorphic-relation-path (add-polymorphic-relation db ent-name ent-type relation-path relation-attr query-term))))
+              (let [related-ent-type (:ent-type (query-relation db ent-name relation-attr))]
+                (reduce (fn [db related-ent]
+                          (-> db
+                              (update :ref-ents conj [related-ent
+                                                      related-ent-type
+                                                      (if-let [query-bindings (get-in query-term [1 :bind])]
+                                                        [:_ {:bind query-bindings}]
+                                                        [:_])])
+                              (update :data add-edge-with-id ent-name related-ent relation-attr)))
+                        db
+                        (related-ents db ent-name ent-type relation-attr related-ent-type query-term))))
             db
             (keys relation-schema))))
 
@@ -381,11 +385,6 @@
           {}
           (ents db)))
 
-(defn ent-schema
-  "Given an ent node, return the schema of its corresponding type"
-  [{:keys [schema data]} ent-name]
-  (get schema (lat/attr data ent-name :ent-type)))
-
 (defn ent-related-by-attr?
   [data ent-name related-ent relation-attr]
   (and (contains? (lat/attr data ent-name related-ent :relation-attrs) relation-attr)
@@ -401,10 +400,6 @@
            (filter identity))
       (some #(ent-related-by-attr? data ent-name % relation-attr)
             related-ents))))
-
-(defn query-opts
-  [{:keys [data]} ent-name]
-  (second (lat/attr data ent-name :query-term)))
 
 (defn relation-attrs
   "Given an ent A and an ent it references B, return the set of attrs

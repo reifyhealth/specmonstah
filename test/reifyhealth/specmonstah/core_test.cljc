@@ -597,6 +597,24 @@
                  (lat/add-attr :w0 :ent-type :watch)
                  (lat/add-attr :w0 :tc0 :relation-attrs #{:watched-id}))))
 
+(deftest polymorphic-refs-with-ref-name-unspecified
+  ;; differs from above in that we leave out {:refs {:watched-id :tc0}}
+  (is-graph= (:data (sm/build-ent-db {:schema td/polymorphic-schema}
+                                     {:watch [[1 {:ref-types {:watched-id :topic-category}}]]}))
+             (-> (lg/digraph [:topic-category :tc0] [:watch :w0] [:w0 :tc0])
+                 (lat/add-attr :topic-category :type :ent-type)
+                 (lat/add-attr :tc0 :type :ent)
+                 (lat/add-attr :tc0 :index 0)
+                 (lat/add-attr :tc0 :query-term [:_])
+                 (lat/add-attr :tc0 :ent-type :topic-category)
+                 
+                 (lat/add-attr :watch :type :ent-type)
+                 (lat/add-attr :w0 :type :ent)
+                 (lat/add-attr :w0 :index 0)
+                 (lat/add-attr :w0 :query-term [1 {:ref-types {:watched-id :topic-category}}])
+                 (lat/add-attr :w0 :ent-type :watch)
+                 (lat/add-attr :w0 :tc0 :relation-attrs #{:watched-id}))))
+
 
 (deftest polymorphic-refs-nested
   ;; refer to topic instead of topic-category

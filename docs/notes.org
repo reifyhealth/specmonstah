@@ -105,10 +105,18 @@ e.g. {:spec-gen x} that applies to all ents of that type
 [:_ {:refs {} :bind {} :x1 :y1}]
 ** DONE get rid of ent-count query term?
 it's really not a huge win and it makes the code more complicated
-** TODO rename :data to :graph?
+** TODO test what happens when you include an ent that references another ent with a polymorphic ref
+- for example, try adding a notification which refers to a watch, then
+  try building a db with both watch and notification specified
+- however, do not specify watched name under watch refs
+- polymorphic spec-gen
 ** TODO polymorphic references
 cover datomic instance when e.g. a "watch" can be watching a topic, a
 topic category, etc
+*** TODO polymorphic + bound
+*** TODO polymorphic + default (from schema)
+*** TODO spec-gen and polymorphic
+** TODO resolve 'referenced ent' vs 'related ent'
 ** TODO do something about ::any
 bad hack! bad! can't gen!
 ** TODO make it easier to assoc relations
@@ -131,6 +139,7 @@ as spec-gen does- make it easy for any other mapper to do the same
 ** TODO spec gen cycle test, ensure that it would fail
 testing that :tl0 is inserted before :t0, but not sure that the order
 would be reversed without reordering
+** TODO rename :data to :graph?
 ** TODO possibly create new ns for map-ent-attr fns
 - rename "visit"? like, visit each node?
 - keep a record of each visit
