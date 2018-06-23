@@ -315,6 +315,8 @@
     ;; attribute: it's possible for the node to be added as an edge in
     ;; `add-related-ents`, without all the additional attributes below
     ;; to be added
+    ;;
+    ;; this prevents the attributes added below from being overwritten
     (if (and ((lg/nodes data) ent-name)
              (lat/attr data ent-name :type))
       db
