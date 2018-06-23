@@ -11,6 +11,8 @@
             [clojure.spec.alpha :as s])
   (:refer-clojure :exclude [>]))
 
+(declare add-ent)
+
 (s/def ::any (constantly true))
 (s/def ::ent-type keyword?)
 (s/def ::ent-name keyword?)
@@ -20,10 +22,29 @@
 (s/def ::constraint keyword?)
 (s/def ::spec (s/and keyword? namespace))
 
+;; -----------------
+;; -----------------
 ;; schema specs
+;; -----------------
+
+
+;; relations
+;; -----------------
+
+;; In these comments I'll use capital letters like A and B to refer to
+;; types.
+
+;; A relation is the description of how ents of type A reference ents
+;; of type B
+(s/def ::relation-path (s/+ ::any))
+
+(s/def ::conformed-relation
+  (s/map-of :ent-type ::ent-type
+            :path ::relation-path))
+
 (s/def ::monotype-relation
   (s/cat :ent-type ::ent-type
-         :path (s/+ ::any)))
+         :path ::relation-path))
 
 (s/def ::polymorphic-relation
   (s/coll-of ::relation))
@@ -35,12 +56,20 @@
 (s/def ::relations
   (s/map-of ::ent-attr ::relation))
 
+
+;; constraints
+;; -----------------
+
 ;; This isn't used for validation, just for documentation
 (s/def ::core-constraints
   #{:coll :uniq :required})
 
 (s/def ::constraints
   (s/map-of ::ent-attr (s/coll-of ::constraint)))
+
+
+;; schema
+;; -----------------
 
 (s/def ::ent-type-schema
   (s/keys :req-un [::prefix]
@@ -49,7 +78,14 @@
 (s/def ::schema
   (s/map-of ::ent-type ::ent-type-schema))
 
+;; -----------------
+;; -----------------
 ;; query specs
+;; -----------------
+
+;; query refs / relations
+;; -----------------
+
 (s/def ::coll-query-relations
   (s/or :ent-names (s/coll-of ::ent-name)
         :ent-count ::ent-count))
@@ -60,6 +96,9 @@
 (s/def ::refs
   (s/map-of ::ent-attr (s/or :coll  ::coll-query-relations
                              :unary ::unary-query-relations)))
+
+;; other query opts
+;; -----------------
 
 (s/def ::ref-types
   (s/map-of ::ent-attr ::ent-type))
@@ -74,6 +113,9 @@
   (s/or :ent-count ::ent-count
         :ent-name  ::ent-name))
 
+;; queries
+;; -----------------
+
 (s/def ::query-term
   (s/or :n-1 (s/cat :ent-id ::ent-id)
         :n-2 (s/cat :ent-id ::ent-id
@@ -86,7 +128,14 @@
 (s/def ::db
   (s/keys :req-un [::schema]))
 
-(declare add-ent)
+
+;; -----------------
+;; -----------------
+;; building / updating db
+;; -----------------
+
+;; utilities
+;; -----------------
 
 (defn ent-schema
   "Given an ent node, return the schema of its corresponding type"
@@ -106,6 +155,9 @@
   (->> schema
        (medley/map-vals (fn [v] (->> v :relations vals (map first) set)))
        (lg/digraph)))
+
+;; ent naming
+;; -----------------
 
 (defn ent-index
   "Used to keep track of entity's insertion order in graph relative to
@@ -130,6 +182,9 @@
   [{:keys [data schema]} ent-type]
   (numeric-node-name schema ent-type (ent-index data ent-type)))
 
+;; bound naming
+;; -----------------
+
 (defn bound-descendants?
   "Check whether `query-relations` contains bindings that apply to any
   descendants of `related-ent-type`"
@@ -150,6 +205,9 @@
   [{:keys [schema]} ent-name related-ent-type index]
   (let [{:keys [prefix]} (related-ent-type schema)]
     (keyword (str (name prefix) "-bound-" (bound-relation-attr-name-source ent-name) "-" index))))
+
+;; related ents
+;; -----------------
 
 (defn add-edge-with-id
   "When indicating :ent-a references :ent-b, include a
@@ -226,6 +284,9 @@
                                                  :ent-query-opts ent-query-opts})))
                               polymorphic-relation))))
 
+(s/fdef query-relation
+  :args (s/cat :db ::db :ent-name ::ent-name :relation-attr ::ent-attr)
+  :ret ::conformed-relation)
 
 (defn add-related-ents
   [{:keys [data] :as db} ent-name ent-type query-term]
