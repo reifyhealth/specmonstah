@@ -566,3 +566,49 @@
        (filter (fn [[ent-name attrs]]
                  (:top-level (meta (:query-term attrs)))))
        (map first)))
+
+(defn ents-by-type
+  "Given a db, returns a map of ent-type to a set of entities of that type."
+  [db]
+  (reduce-kv (fn [m k v] (update m v (fnil conj #{}) k))
+             {}
+             (attr-map db :ent-type)))
+
+(s/fdef ents-by-type
+  :args (s/tuple ::db)
+  :ret (s/map-of ::ent-type (s/coll-of ::ent-name)))
+
+(defn ent->relations [db ent]
+  (let [relations (get-in db [:data :attrs ent :loom.attr/edge-attrs])]
+    (apply merge-with
+           set/union
+           (for [[ref-ent {:keys [relation-attrs]}] relations
+                 relation-attr relation-attrs]
+             (let [{:keys [constraints] :as ent-schema} (ent-schema db ent)]
+               {relation-attr (if (contains? (get constraints relation-attr) :coll)
+                                #{ref-ent} ref-ent)})))))
+
+(s/fdef ent->relations
+  :args (s/tuple ::db ::ent-name)
+  :ret (s/map-of ::ent-attr (s/or :unary ::ent-name
+                                  :coll (s/coll-of ::ent-name))))
+
+(defn ent-relations
+  "Given a db, returns a map of ent-type to map of entity relations.
+
+  An example return value is:
+  {:patient {:p0 {:created-by :u0
+                  :updated-by :u1}
+             :p1 {:created-by :u0
+                  :updated-by :u2}}
+   :user {:u0 {:friends-with :u0}}}"
+  [db]
+  (reduce-kv
+   (fn [ents-by-type ent-type ents]
+     (assoc ents-by-type ent-type
+            (into {}
+                  (map (fn [ent]
+                         [ent (ent->relations db ent)]))
+                  ents)))
+   {}
+   (ents-by-type db)))

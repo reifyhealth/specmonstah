@@ -679,6 +679,19 @@
                  (lat/add-attr :w0 :ent-type :watch)
                  (lat/add-attr :w0 :t0 :relation-attrs #{:watched-id}))))
 
+(deftest ent->relations
+  (let [query {:project [[:p0 {:refs {:todo-list-ids 2}}]]
+               :todo    [[1]]}
+        db    (sm/build-ent-db {:schema td/schema} query)]
+    (is (= {:created-by-id :u0
+            :updated-by-id :u0
+            :todo-list-ids #{:tl0 :tl1}}
+           (sm/ent->relations db :p0)))
+    (is (= {:created-by-id :u0
+            :updated-by-id :u0
+            :todo-list-id  :tl0}
+           (sm/ent->relations db :t0)))))
+
 (deftest assert-schema-refs-must-exist
   (is (thrown-with-msg? #?(:clj java.lang.AssertionError
                            :cljs js/Error)
