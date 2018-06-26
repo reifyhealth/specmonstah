@@ -534,15 +534,13 @@
          #{{:type :ent :index 1 :ent-type :user :query-term [:_]}
            {:type :ent :index 0 :ent-type :user :query-term [:_]}})))
 
-(deftest test-q>
-  (is (= (sm/q> (sm/build-ent-db {:schema td/schema} {:todo [[1]]}))
-         [{:type       :ent
-           :index      0
-           :ent-type   :todo
-           :query-term [1]
-           :loom.attr/edge-attrs
-           {:u0  {:relation-attrs #{:created-by-id :updated-by-id}}
-            :tl0 {:relation-attrs #{:todo-list-id}}}}])))
+(deftest test-query-ents
+  (is (= [:t0]
+         (sm/query-ents (sm/build-ent-db {:schema td/schema} {:todo [[1]]}))))
+
+  (is (= #{:t0 :u0}
+         (set (sm/query-ents (sm/build-ent-db {:schema td/schema} {:user [[1]]
+                                                                   :todo [[1]]}))))))
 
 (deftest test-build-ent-db-throws-exception-on-invalid-db
   (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo

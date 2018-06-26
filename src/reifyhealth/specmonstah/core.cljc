@@ -342,9 +342,15 @@
              (dec n)))))
 
 (defn add-ent-type-query
+  "A query is composed of ent-type-queries, where each ent-type-query
+  specifies the ents that should be created for that type. This
+  function adds the ents for an ent-type-query."
   [db ent-type-query ent-type]
   (reduce (fn [db query-term]
-            (let [[query-term-type ent-id] (:ent-id (second (s/conform ::query-term query-term)))]
+            ;; top-level meta is used to track which ents are
+            ;; specified explicitly in a query
+            (let [query-term               (with-meta query-term {:top-level true})
+                  [query-term-type ent-id] (:ent-id (second (s/conform ::query-term query-term)))]
               (case query-term-type
                 :ent-count (add-n-ents db ent-type ent-id query-term)
                 :ent-name  (add-ent db ent-id ent-type query-term))))
@@ -377,6 +383,8 @@
     (throw (ex-info (str arg-name " is invalid") {::s/explain-data (s/explain-data spec data)}))))
 
 (defn identical-prefixes
+  "Schemas are invalid if two types have the same prefix. This checks
+  that."
   [schema]
   (->> (medley/map-vals :prefix schema)
        (reduce-kv (fn [grouping ent-type prefix]
@@ -551,10 +559,10 @@
   (->> (lg/successors data node)
        (map (:attrs data))))
 
-(defn q>
-  "Get seq of nodes that have a type referenced in the query"
+(defn query-ents
+  "Get seq of nodes that are explicitly defined in the query"
   [{:keys [data queries] :as db}]
-  (let [query-types (->> queries first keys set)]
-    (->> (ents db)
-         (map (:attrs data))
-         (filter #(query-types (:ent-type %))))))
+  (->> (:attrs data)
+       (filter (fn [[ent-name attrs]]
+                 (:top-level (meta (:query-term attrs)))))
+       (map first)))
