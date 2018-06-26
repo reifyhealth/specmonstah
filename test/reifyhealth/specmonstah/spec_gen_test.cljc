@@ -2,7 +2,6 @@
   (:require #?(:clj [clojure.test :refer [deftest is are use-fixtures testing]]
                :cljs [cljs.test :include-macros true :refer [deftest is are use-fixtures testing]])
             [clojure.spec.alpha :as s]
-            [clojure.data :as data]
             [clojure.test.check.generators :as gen :include-macros true]
             [reifyhealth.specmonstah.test-data :as td]
             [reifyhealth.specmonstah.core :as sm]
@@ -21,11 +20,6 @@
   (f))
 
 (use-fixtures :each td/test-fixture reset-dbs)
-
-(defn map-subset=
-  "All vals in m2 are present in m1"
-  [m1 m2]
-  (nil? (second (data/diff m1 m2))))
 
 (defn ids-present?
   [generated]
@@ -51,7 +45,7 @@
 
 (deftest test-spec-gen
   (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[1]]})]
-    (is (map-subset= gen {:u0 {:user-name "Luigi"}}))
+    (is (td/submap? {:u0 {:user-name "Luigi"}} gen))
     (is (ids-present? gen))
     (is (ids-match? gen
                     {:tl0 {:created-by-id [:u0 :id]
@@ -60,7 +54,7 @@
 
 (deftest test-spec-gen-nested
   (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:project [[:_ {:refs {:todo-list-ids 3}}]]})]
-    (is (map-subset= gen {:u0  {:user-name "Luigi"}}))
+    (is (td/submap? {:u0 {:user-name "Luigi"}} gen))
     (is (ids-present? gen))
     (is (ids-match? gen
                     {:tl0 {:created-by-id [:u0 :id]
@@ -78,16 +72,16 @@
 
 (deftest test-spec-gen-manual-attr
   (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo [[:_ {:spec-gen {:todo-title "pet the dog"}}]]})]
-    (is (map-subset= gen
-                     {:u0 {:user-name "Luigi"}
-                      :t0 {:todo-title "pet the dog"}}))
+    (is (td/submap? {:u0 {:user-name "Luigi"}
+                     :t0 {:todo-title "pet the dog"}}
+                    gen))
     (is (ids-present? gen))
     (is (ids-match? gen
                     {:tl0 {:created-by-id [:u0 :id]
                            :updated-by-id [:u0 :id]}
-                     :t0 {:created-by-id [:u0 :id]
-                          :updated-by-id [:u0 :id]
-                          :todo-list-id [:tl0 :id]}}))
+                     :t0  {:created-by-id [:u0 :id]
+                           :updated-by-id [:u0 :id]
+                           :todo-list-id  [:tl0 :id]}}))
     (is (only-has-ents? gen #{:tl0 :t0 :u0}))))
 
 (deftest test-idempotency
@@ -125,16 +119,16 @@
              [:todo :t0]}))
 
     (let [ent-map (into {} (map #(vec (drop 1 %)) gen-data))]
-      (is (map-subset= ent-map
-                       {:u0 {:user-name "Luigi"}
-                        :t0 {:todo-title "write unit tests"}}))
+      (is (td/submap? {:u0 {:user-name "Luigi"}
+                       :t0 {:todo-title "write unit tests"}}
+                       ent-map))
       (is (ids-present? ent-map))
       (is (ids-match? ent-map
                       {:tl0 {:created-by-id [:u0 :id]
                              :updated-by-id [:u0 :id]}
-                       :t0 {:created-by-id [:u0 :id]
-                            :updated-by-id [:u0 :id]
-                            :todo-list-id [:tl0 :id]}})))))
+                       :t0  {:created-by-id [:u0 :id]
+                             :updated-by-id [:u0 :id]
+                             :todo-list-id  [:tl0 :id]}})))))
 
 (deftest inserts-novel-data
   (testing "Given a db with a todo already added, next call adds a new
@@ -152,10 +146,10 @@
                  [:todo :t1]}))
 
         (let [ent-map (into {} (map #(vec (drop 1 %)) gen-data))]
-          (is (map-subset= ent-map
-                           {:u0 {:user-name "Luigi"}
-                            :t0 {:todo-title "write unit tests"}
-                            :t1 {:todo-title "write unit tests"}}))
+          (is (td/submap? {:u0 {:user-name "Luigi"}
+                           :t0 {:todo-title "write unit tests"}
+                           :t1 {:todo-title "write unit tests"}}
+                           ent-map))
           (is (ids-present? ent-map))
           (is (ids-match? ent-map
                           {:tl0 {:created-by-id [:u0 :id]

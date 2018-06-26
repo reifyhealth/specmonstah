@@ -2,7 +2,14 @@
   (:require #?(:clj [clojure.test :refer [deftest is are use-fixtures testing]]
                :cljs [cljs.test :include-macros true])
             [clojure.spec.alpha :as s]
-            [clojure.test.check.generators :as gen :include-macros true]))
+            [clojure.test.check.generators :as gen :include-macros true]
+            [clojure.data :as data]))
+
+;; Test helper functions
+(defn submap?
+  "All vals in m1 are present in m2"
+  [m1 m2]
+  (nil? (first (data/diff m1 m2))))
 
 (def id-seq (atom 0))
 
