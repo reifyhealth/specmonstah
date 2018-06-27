@@ -8,8 +8,7 @@
             [clojure.test.check.generators :as gen :include-macros true]
             [clojure.string :as str]
             [clojure.set :as set]
-            [clojure.spec.alpha :as s])
-  (:refer-clojure :exclude [>]))
+            [clojure.spec.alpha :as s]))
 
 (declare add-ent)
 
