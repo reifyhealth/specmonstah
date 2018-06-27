@@ -208,6 +208,19 @@
 ;; related ents
 ;; -----------------
 
+(defn coll-relation-attr?
+  "Given a db, ent, and relation-attr, determines whether the relation is
+  a coll attr."
+  [db ent relation-attr]
+  (-> db
+      (ent-schema ent)
+      (get-in [:constraints relation-attr])
+      (contains? :coll)))
+
+(s/fdef coll-relation-attr?
+  :args (s/tuple ::db ::ent-name ::ent-attr)
+  :ret boolean?)
+
 (defn add-edge-with-id
   "When indicating :ent-a references :ent-b, include a
   `:relation-attrs` graph attribute that includes the attributes via
@@ -231,6 +244,7 @@
   [{:keys [schema data] :as db} ent-name ent-type relation-attr related-ent-type query-term]
   (let [{:keys [relations constraints]}   (ent-type schema)
         attr-constraints                  (relation-attr constraints)
+        coll-attr?                        (coll-relation-attr? db ent-name relation-attr)
         {:keys [refs bind]}               (and query-term
                                                (-> (s/conform ::query-term query-term)
                                                    second
@@ -239,11 +253,11 @@
 
     (cond (nil? qr-constraint) nil ;; noop
           
-          (and (contains? attr-constraints :coll) (not= qr-constraint :coll))
+          (and coll-attr? (not= qr-constraint :coll))
           (throw (ex-info "Query-relations for coll attrs must be a number or vector"
                           {:spec-data (s/explain-data ::coll-query-relations qr-term)}))
 
-          (and (not (contains? attr-constraints :coll)) (not= qr-constraint :unary))
+          (and (not coll-attr?) (not= qr-constraint :unary))
           (throw (ex-info "Query-relations for unary attrs must be a keyword"
                           {:spec-data (s/explain-data ::unary-query-relations qr-term)})))
     
@@ -464,7 +478,7 @@
   [{:keys [data] :as db} ent-name relation-attr]
   (let [{:keys [constraints]} (ent-schema db ent-name)
         related-ents          (lg/successors data ent-name)]
-    (if (contains? (relation-attr constraints) :coll)
+    (if (coll-relation-attr? db ent-name relation-attr)
       (->> related-ents
            (map #(ent-related-by-attr? data ent-name % relation-attr))
            (filter identity))
@@ -574,22 +588,24 @@
   :args (s/tuple ::db)
   :ret (s/map-of ::ent-type (s/coll-of ::ent-name)))
 
-(defn ent->relations [db ent]
+(defn ent-relations
+  "Given a db and an ent, returns a map of relation attr to ent-name."
+  [db ent]
   (let [relations (get-in db [:data :attrs ent :loom.attr/edge-attrs])]
     (apply merge-with
            set/union
+           {}
            (for [[ref-ent {:keys [relation-attrs]}] relations
                  relation-attr relation-attrs]
-             (let [{:keys [constraints] :as ent-schema} (ent-schema db ent)]
-               {relation-attr (if (contains? (get constraints relation-attr) :coll)
-                                #{ref-ent} ref-ent)})))))
+             {relation-attr (if (coll-relation-attr? db ent relation-attr)
+                              #{ref-ent} ref-ent)}))))
 
-(s/fdef ent->relations
+(s/fdef ent-relations
   :args (s/tuple ::db ::ent-name)
   :ret (s/map-of ::ent-attr (s/or :unary ::ent-name
                                   :coll (s/coll-of ::ent-name))))
 
-(defn ent-relations
+(defn all-ent-relations
   "Given a db, returns a map of ent-type to map of entity relations.
 
   An example return value is:
@@ -604,7 +620,13 @@
      (assoc ents-by-type ent-type
             (into {}
                   (map (fn [ent]
-                         [ent (ent->relations db ent)]))
+                         [ent (ent-relations db ent)]))
                   ents)))
    {}
    (ents-by-type db)))
+
+(s/fdef all-ent-relations
+  :args (s/tuple ::db)
+  :ret (s/map-of ::ent-type
+                 (s/map-of ::ent-name
+                           (s/map-of ::ent-attr ::ent-name))))
