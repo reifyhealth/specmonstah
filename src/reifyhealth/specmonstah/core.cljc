@@ -219,8 +219,8 @@
       (contains? :coll)))
 
 (s/fdef coll-relation-attr?
-        :args (s/tuple ::db ::ent-name ::ent-attr)
-        :ret boolean?)
+  :args (s/tuple ::db ::ent-name ::ent-attr)
+  :ret boolean?)
 
 (defn add-edge-with-id
   "When indicating :ent-a references :ent-b, include a
