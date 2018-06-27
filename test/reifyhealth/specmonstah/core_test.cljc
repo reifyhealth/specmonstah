@@ -679,18 +679,37 @@
                  (lat/add-attr :w0 :ent-type :watch)
                  (lat/add-attr :w0 :t0 :relation-attrs #{:watched-id}))))
 
-(deftest ent->relations
+(deftest coll-relation-attr
+  (let [query {:project [[1]]}
+        db (sm/build-ent-db {:schema td/schema} query)]
+    (is (sm/coll-relation-attr? db :p0 :todo-list-ids))
+    (is (not (sm/coll-relation-attr? db :p0 :created-by-id)))))
+
+(deftest ent-relations
   (let [query {:project [[:p0 {:refs {:todo-list-ids 2}}]]
                :todo    [[1]]}
         db    (sm/build-ent-db {:schema td/schema} query)]
     (is (= {:created-by-id :u0
             :updated-by-id :u0
             :todo-list-ids #{:tl0 :tl1}}
-           (sm/ent->relations db :p0)))
+           (sm/ent-relations db :p0)))
     (is (= {:created-by-id :u0
             :updated-by-id :u0
             :todo-list-id  :tl0}
-           (sm/ent->relations db :t0)))))
+           (sm/ent-relations db :t0)))))
+
+(deftest all-ent-relations
+  (let [query {:project [[:p0 {:refs {:todo-list-ids 2}}]]}
+        db    (sm/build-ent-db {:schema td/schema} query)]
+    (is (= {:project   {:p0 {:created-by-id :u0
+                             :updated-by-id :u0
+                             :todo-list-ids #{:tl0 :tl1}}}
+            :user      {:u0 {}}
+            :todo-list {:tl0 {:created-by-id :u0
+                              :updated-by-id :u0}
+                        :tl1 {:created-by-id :u0
+                              :updated-by-id :u0}}}
+           (sm/all-ent-relations db)))))
 
 (deftest assert-schema-refs-must-exist
   (is (thrown-with-msg? #?(:clj java.lang.AssertionError
