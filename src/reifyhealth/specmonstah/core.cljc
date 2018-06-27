@@ -10,8 +10,6 @@
             [clojure.set :as set]
             [clojure.spec.alpha :as s]))
 
-(declare add-ent)
-
 (s/def ::any (constantly true))
 (s/def ::ent-type keyword?)
 (s/def ::ent-name keyword?)
@@ -371,6 +369,11 @@
           ent-type-query))
 
 (defn add-ref-ents
+  "Ents are added in two stages: first, all ents that are declared in
+  the query are added. During that process, we keep track of ref-ents,
+  ents which are automatically generated in order to satisfy
+  relations. This function adds those ref ents if an ent of the same
+  name doesn't exist already."
   [db]
   (loop [{:keys [ref-ents] :as db} db]
     (if (empty? ref-ents)
@@ -469,27 +472,29 @@
           {}
           (ents db)))
 
-(defn ent-related-by-attr?
-  [data ent-name related-ent relation-attr]
-  (and (contains? (lat/attr data ent-name related-ent :relation-attrs) relation-attr)
-       related-ent))
-
-(defn related-ents-by-attr
-  [{:keys [data] :as db} ent-name relation-attr]
-  (let [{:keys [constraints]} (ent-schema db ent-name)
-        related-ents          (lg/successors data ent-name)]
-    (if (coll-relation-attr? db ent-name relation-attr)
-      (->> related-ents
-           (map #(ent-related-by-attr? data ent-name % relation-attr))
-           (filter identity))
-      (some #(ent-related-by-attr? data ent-name % relation-attr)
-            related-ents))))
-
 (defn relation-attrs
   "Given an ent A and an ent it references B, return the set of attrs
   by which A references B"
   [{:keys [data]} ent-name referenced-ent]
   (lat/attr data ent-name referenced-ent :relation-attrs))
+
+(defn ent-related-by-attr?
+  "Is ent A related to ent B by the given relation-attr?"
+  [db ent-name related-ent relation-attr]
+  (and (contains? (relation-attrs db ent-name related-ent) relation-attr)
+       related-ent))
+
+(defn related-ents-by-attr
+  "All ents related to ent via relation-attr"
+  [{:keys [data] :as db} ent-name relation-attr]
+  (let [{:keys [constraints]} (ent-schema db ent-name)
+        related-ents          (lg/successors data ent-name)]
+    (if (coll-relation-attr? db ent-name relation-attr)
+      (->> related-ents
+           (map #(ent-related-by-attr? db ent-name % relation-attr))
+           (filter identity))
+      (some #(ent-related-by-attr? db ent-name % relation-attr)
+            related-ents))))
 
 (defn referenced-ent-attrs
   "seq of [referenced-ent relation-attr]"
@@ -499,6 +504,10 @@
     [referenced-ent relation-attr]))
 
 (defn required-ents
+  "For ent A, returns all the referenced ents that ent A requires as
+  specified in the schema's constraints. Used to order ent sequences;
+  ensures that required ents are positioned before the ents that
+  require them."
   [db ent-name]
   (let [{:keys [constraints]} (ent-schema db ent-name)]
     (->> (medley/filter-vals :required constraints)
@@ -573,8 +582,7 @@
   "Get seq of nodes that are explicitly defined in the query"
   [{:keys [data queries] :as db}]
   (->> (:attrs data)
-       (filter (fn [[ent-name attrs]]
-                 (:top-level (meta (:query-term attrs)))))
+       (filter (fn [[ent-name attrs]] (:top-level (meta (:query-term attrs)))))
        (map first)))
 
 (defn ents-by-type
@@ -615,15 +623,14 @@
                   :updated-by :u2}}
    :user {:u0 {:friends-with :u0}}}"
   [db]
-  (reduce-kv
-   (fn [ents-by-type ent-type ents]
-     (assoc ents-by-type ent-type
-            (into {}
-                  (map (fn [ent]
-                         [ent (ent-relations db ent)]))
-                  ents)))
-   {}
-   (ents-by-type db)))
+  (reduce-kv (fn [ents-by-type ent-type ents]
+               (assoc ents-by-type ent-type
+                      (into {}
+                            (map (fn [ent]
+                                   [ent (ent-relations db ent)]))
+                            ents)))
+             {}
+             (ents-by-type db)))
 
 (s/fdef all-ent-relations
   :args (s/tuple ::db)
