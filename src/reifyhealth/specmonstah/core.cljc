@@ -551,13 +551,10 @@
                        visit-fns)
                  ents))))
 
-;; Viewing attributes
-(defn >
-  "Get attrs of node's children. Can be used to get all ents of a
-  type."
-  [{:keys [data]} node]
-  (->> (lg/successors data node)
-       (map (:attrs data))))
+
+;; -----------------
+;; views
+;; -----------------
 
 (defn query-ents
   "Get seq of nodes that are explicitly defined in the query"
