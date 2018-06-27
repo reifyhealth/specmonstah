@@ -592,7 +592,9 @@
   :args (s/tuple ::db)
   :ret (s/map-of ::ent-type (s/coll-of ::ent-name)))
 
-(defn ent-relations [db ent]
+(defn ent-relations
+  "Given a db and an ent, returns a map of relation attr to ent-name."
+  [db ent]
   (let [relations (get-in db [:data :attrs ent :loom.attr/edge-attrs])]
     (apply merge-with
            set/union
