@@ -8,8 +8,7 @@
             [clojure.test.check.generators :as gen :include-macros true]
             [clojure.string :as str]
             [clojure.set :as set]
-            [clojure.spec.alpha :as s])
-  (:refer-clojure :exclude [>]))
+            [clojure.spec.alpha :as s]))
 
 (declare add-ent)
 
@@ -551,13 +550,10 @@
                        visit-fns)
                  ents))))
 
-;; Viewing attributes
-(defn >
-  "Get attrs of node's children. Can be used to get all ents of a
-  type."
-  [{:keys [data]} node]
-  (->> (lg/successors data node)
-       (map (:attrs data))))
+
+;; -----------------
+;; views
+;; -----------------
 
 (defn query-ents
   "Get seq of nodes that are explicitly defined in the query"

@@ -529,11 +529,6 @@
 
 ;; view tests
 
-(deftest test->
-  (is (= (into #{} (sm/> (sm/build-ent-db {:schema td/schema} {:user [[:_] [:_]]}) :user))
-         #{{:type :ent :index 1 :ent-type :user :query-term [:_]}
-           {:type :ent :index 0 :ent-type :user :query-term [:_]}})))
-
 (deftest test-query-ents
   (is (= [:t0]
          (sm/query-ents (sm/build-ent-db {:schema td/schema} {:todo [[1]]}))))
