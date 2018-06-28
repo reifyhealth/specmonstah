@@ -529,6 +529,15 @@
 
 ;; view tests
 
+(deftest test-attr-map
+  (let [db (sm/build-ent-db {:schema td/schema} {:todo [[1]]})]
+    (is (= {:tl0 :todo-list
+            :t0  :todo
+            :u0  :user}
+           (sm/attr-map db :ent-type)))
+    (is (= {:u0  :user}
+           (sm/attr-map db :ent-type [:u0])))))
+
 (deftest test-query-ents
   (is (= [:t0]
          (sm/query-ents (sm/build-ent-db {:schema td/schema} {:todo [[1]]}))))
@@ -679,6 +688,15 @@
     (is (sm/coll-relation-attr? db :p0 :todo-list-ids))
     (is (not (sm/coll-relation-attr? db :p0 :created-by-id)))))
 
+(deftest test-ents-by-type
+  (let [db (sm/build-ent-db {:schema td/schema} {:project [[1]]})]
+    (is (= {:user #{:u0}
+            :todo-list #{:tl0}
+            :project #{:p0}}
+           (sm/ents-by-type db)))
+    (is (= {:user #{:u0}}
+           (sm/ents-by-type db [:u0])))))
+
 (deftest test-ent-relations
   (let [db (sm/build-ent-db {:schema td/schema}
                             {:project [[:p0 {:refs {:todo-list-ids 2}}]]
@@ -693,17 +711,27 @@
            (sm/ent-relations db :t0)))))
 
 (deftest test-all-ent-relations
-  (is (= {:project   {:p0 {:created-by-id :u0
-                           :updated-by-id :u0
-                           :todo-list-ids #{:tl0 :tl1}}}
-          :user      {:u0 {}}
-          :todo-list {:tl0 {:created-by-id :u0
-                            :updated-by-id :u0}
-                      :tl1 {:created-by-id :u0
-                            :updated-by-id :u0}}}
-         (sm/all-ent-relations
-           (sm/build-ent-db {:schema td/schema}
-                            {:project [[:p0 {:refs {:todo-list-ids 2}}]]})))))
+  (let [db (sm/build-ent-db {:schema td/schema}
+                            {:project [[:p0 {:refs {:todo-list-ids 2}}]]})]
+    (is (= {:project   {:p0 {:created-by-id :u0
+                             :updated-by-id :u0
+                             :todo-list-ids #{:tl0 :tl1}}}
+            :user      {:u0 {}}
+            :todo-list {:tl0 {:created-by-id :u0
+                              :updated-by-id :u0}
+                        :tl1 {:created-by-id :u0
+                              :updated-by-id :u0}}}
+           (sm/all-ent-relations db)))
+    (is (= {:project   {:p0 {:created-by-id :u0
+                             :updated-by-id :u0
+                             :todo-list-ids #{:tl0 :tl1}}}
+            :todo-list {:tl0 {:created-by-id :u0
+                              :updated-by-id :u0}}}
+           (sm/all-ent-relations db [:p0 :tl0])))
+    (is (= {:project   {:p0 {:created-by-id :u0
+                             :updated-by-id :u0
+                             :todo-list-ids #{:tl0 :tl1}}}}
+           (sm/all-ent-relations db [:p0])))))
 
 (deftest assert-schema-refs-must-exist
   (is (thrown-with-msg? #?(:clj java.lang.AssertionError
