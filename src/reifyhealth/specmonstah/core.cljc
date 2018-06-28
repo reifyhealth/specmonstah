@@ -467,10 +467,11 @@
 (defn attr-map
   "Produce a map where each key is a node and its value is a graph
   attr on that node"
-  [{:keys [data] :as db} attr]
-  (reduce (fn [m ent] (assoc m ent (lat/attr data ent attr)))
-          {}
-          (ents db)))
+  ([db attr] (attr-map db attr (ents db)))
+  ([{:keys [data] :as db} attr ents]
+   (reduce (fn [m ent] (assoc m ent (lat/attr data ent attr)))
+           {}
+           ents)))
 
 (defn relation-attrs
   "Given an ent A and an ent it references B, return the set of attrs
@@ -586,11 +587,13 @@
        (map first)))
 
 (defn ents-by-type
-  "Given a db, returns a map of ent-type to a set of entities of that type."
-  [db]
-  (reduce-kv (fn [m k v] (update m v (fnil conj #{}) k))
-             {}
-             (attr-map db :ent-type)))
+  "Given a db, returns a map of ent-type to a set of entities of that
+  type. Optionally pass in a seq of the ents that should be included."
+  ([db] (ents-by-type db (ents db)))
+  ([db ents]
+   (reduce-kv (fn [m k v] (update m v (fnil conj #{}) k))
+              {}
+              (select-keys (attr-map db :ent-type) ents))))
 
 (s/fdef ents-by-type
   :args (s/tuple ::db)
@@ -622,15 +625,16 @@
              :p1 {:created-by :u0
                   :updated-by :u2}}
    :user {:u0 {:friends-with :u0}}}"
-  [db]
-  (reduce-kv (fn [ents-by-type ent-type ents]
-               (assoc ents-by-type ent-type
-                      (into {}
-                            (map (fn [ent]
-                                   [ent (ent-relations db ent)]))
-                            ents)))
-             {}
-             (ents-by-type db)))
+  ([db] (all-ent-relations db (ents db)))
+  ([db ents]
+   (reduce-kv (fn [ents-by-type ent-type ents]
+                (assoc ents-by-type ent-type
+                       (into {}
+                             (map (fn [ent]
+                                    [ent (ent-relations db ent)]))
+                             ents)))
+              {}
+              (ents-by-type db ents))))
 
 (s/fdef all-ent-relations
   :args (s/tuple ::db)
