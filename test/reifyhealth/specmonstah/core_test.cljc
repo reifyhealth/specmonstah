@@ -679,12 +679,6 @@
     (is (sm/coll-relation-attr? db :p0 :todo-list-ids))
     (is (not (sm/coll-relation-attr? db :p0 :created-by-id)))))
 
-(deftest test-ents-by-type
-  (is (= {:user #{:u0}
-          :todo-list #{:tl0}
-          :project #{:p0}}
-         (sm/ents-by-type (sm/build-ent-db {:schema td/schema} {:project [[1]]})))))
-
 (deftest test-ent-relations
   (let [db (sm/build-ent-db {:schema td/schema}
                             {:project [[:p0 {:refs {:todo-list-ids 2}}]]
