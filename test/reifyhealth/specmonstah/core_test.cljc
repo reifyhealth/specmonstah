@@ -570,7 +570,7 @@
       (is (= (lat/attr (:data db) :u0 :custom-attr-key)
              "yaaaaay a key")))))
 
-(deftest related-ents-by-attr
+(deftest test-related-ents-by-attr
   (let [db (sm/build-ent-db {:schema td/schema} {:todo [[1]]
                                                  :project [[1 {:refs {:todo-list-ids [:tl0 :tl1]}}]]})]
     (is (= (sm/related-ents-by-attr db :t0 :todo-list-id)
@@ -683,7 +683,7 @@
                  (lat/add-attr :w0 :ent-type :watch)
                  (lat/add-attr :w0 :t0 :relation-attrs #{:watched-id}))))
 
-(deftest coll-relation-attr
+(deftest test-coll-relation-attr?
   (let [db (sm/build-ent-db {:schema td/schema} {:project [[1]]})]
     (is (sm/coll-relation-attr? db :p0 :todo-list-ids))
     (is (not (sm/coll-relation-attr? db :p0 :created-by-id)))))
@@ -697,7 +697,7 @@
     (is (= {:user #{:u0}}
            (sm/ents-by-type db [:u0])))))
 
-(deftest ent-relations
+(deftest test-ent-relations
   (let [db (sm/build-ent-db {:schema td/schema}
                             {:project [[:p0 {:refs {:todo-list-ids 2}}]]
                              :todo    [[1]]})]
@@ -710,7 +710,7 @@
             :todo-list-id  :tl0}
            (sm/ent-relations db :t0)))))
 
-(deftest all-ent-relations
+(deftest test-all-ent-relations
   (let [db (sm/build-ent-db {:schema td/schema}
                             {:project [[:p0 {:refs {:todo-list-ids 2}}]]})]
     (is (= {:project   {:p0 {:created-by-id :u0
