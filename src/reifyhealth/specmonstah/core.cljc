@@ -205,17 +205,29 @@
 
 ;; related ents
 ;; -----------------
+(defn ent-relation-constraints
+  [db ent relation-attr]
+  (-> db
+      (ent-schema ent)
+      (get-in [:constraints relation-attr])))
 
 (defn coll-relation-attr?
   "Given a db, ent, and relation-attr, determines whether the relation is
   a coll attr."
   [db ent relation-attr]
-  (-> db
-      (ent-schema ent)
-      (get-in [:constraints relation-attr])
-      (contains? :coll)))
+  (contains? (ent-relation-constraints db ent relation-attr) :coll))
 
 (s/fdef coll-relation-attr?
+  :args (s/tuple ::db ::ent-name ::ent-attr)
+  :ret boolean?)
+
+(defn uniq-relation-attr?
+  "Given a db, ent, and relation-attr, determines whether the relation is
+  a uniq attr."
+  [db ent relation-attr]
+  (contains? (ent-relation-constraints db ent relation-attr) :uniq))
+
+(s/fdef uniq-relation-attr?
   :args (s/tuple ::db ::ent-name ::ent-attr)
   :ret boolean?)
 
@@ -237,18 +249,35 @@
         (lg/add-edges [ent-name related-ent-name])
         (lat/add-attr ent-name related-ent-name :relation-attrs (conj (or ids #{}) id)))))
 
-(defn related-ents
-  "Returns all related ents for an ent's relation-attr"
-  [{:keys [schema data] :as db} ent-name ent-type relation-attr related-ent-type query-term]
-  (let [{:keys [relations constraints]}   (ent-type schema)
-        attr-constraints                  (relation-attr constraints)
-        coll-attr?                        (coll-relation-attr? db ent-name relation-attr)
-        {:keys [refs bind]}               (and query-term
-                                               (-> (s/conform ::query-term query-term)
-                                                   second
-                                                   :query-opts))
-        [qr-constraint [qr-type qr-term]] (relation-attr refs)]
+(defn conformed-query-opts
+  "These conformed query opts allowo us to 1) validate the query term
+  and 2) dispatch on what kind of query was supplied.
 
+  This is one of the most complicated parts of SM because users can
+  supply different kinds of values for the `:refs` key of a query:
+
+  1. an ent-name for unary relations
+  2. a vector of ent-names for coll relations
+  3. a number for coll relations
+
+  Conforming the query opts provides spec metadata about the query
+  opts and that lets us do the dispatching."
+  [query-term relation-attr]
+  (let [{:keys [refs bind]}               (and query-term
+                                               (s/conform ::query-opts (second query-term)))
+        [qr-constraint [qr-type qr-term]] (relation-attr refs)]
+    {:bind          bind
+     :qr-constraint qr-constraint
+     :qr-type       qr-type
+     :qr-term       qr-term}))
+
+(defn validate-related-ents-query
+  "Check that the refs value supplied in a query is a collection if the
+  relation type is collection, or a keyword if the relation type is
+  unary"
+  [{:keys [schema data] :as db} ent-name relation-attr query-term]
+  (let [coll-attr?                      (coll-relation-attr? db ent-name relation-attr)
+        {:keys [qr-constraint qr-term]} (conformed-query-opts query-term relation-attr)]
     (cond (nil? qr-constraint) nil ;; noop
           
           (and coll-attr? (not= qr-constraint :coll))
@@ -257,7 +286,14 @@
 
           (and (not coll-attr?) (not= qr-constraint :unary))
           (throw (ex-info "Query-relations for unary attrs must be a keyword"
-                          {:spec-data (s/explain-data ::unary-query-relations qr-term)})))
+                          {:spec-data (s/explain-data ::unary-query-relations qr-term)})))))
+
+(defn related-ents
+  "Returns all related ents for an ent's relation-attr"
+  [{:keys [schema data] :as db} ent-name relation-attr related-ent-type query-term]
+  (let [{:keys [qr-constraint qr-type qr-term bind]} (conformed-query-opts query-term relation-attr)]
+
+    (validate-related-ents-query db ent-name relation-attr query-term)
     
     (b/cond (= qr-type :ent-count) (mapv (partial numeric-node-name schema related-ent-type) (range qr-term))
             (= qr-type :ent-names) qr-term
@@ -266,7 +302,7 @@
             bn   [bn]
             
             :let [has-bound-descendants? (bound-descendants? db bind related-ent-type)
-                  uniq?                  (contains? attr-constraints :uniq)
+                  uniq?                  (uniq-relation-attr? db ent-name relation-attr)
                   ent-index              (lat/attr data ent-name :index)]
             (and has-bound-descendants? uniq?) [(bound-relation-attr-name db ent-name related-ent-type ent-index)]
             has-bound-descendants?             [(bound-relation-attr-name db ent-name related-ent-type 0)]
@@ -313,7 +349,7 @@
                                                         [:_])])
                               (update :data add-edge-with-id ent-name related-ent relation-attr)))
                         db
-                        (related-ents db ent-name ent-type relation-attr related-ent-type query-term))))
+                        (related-ents db ent-name relation-attr related-ent-type query-term))))
             db
             (keys relation-schema))))
 
