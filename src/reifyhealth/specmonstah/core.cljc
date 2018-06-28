@@ -250,18 +250,25 @@
         (lat/add-attr ent-name related-ent-name :relation-attrs (conj (or ids #{}) id)))))
 
 (defn conformed-query-opts
-  "These conformed query opts allowo us to 1) validate the query term
-  and 2) dispatch on what kind of query was supplied.
+  "These conformed query opts allow us to 1) validate the query term and
+  2) dispatch on what kind of query was supplied.
 
   This is one of the most complicated parts of SM because users can
-  supply different kinds of values for the `:refs` key of a query:
+  supply different types of values for the `:refs` key of a query:
 
-  1. an ent-name for unary relations
-  2. a vector of ent-names for coll relations
-  3. a number for coll relations
+  1. an ent-name for unary relations          (type: `:ent-name`)
+  2. a vector of ent-names for coll relations (type: `:ent-names`)
+  3. a number for coll relations              (type: `:ent-count`)
 
-  Conforming the query opts provides spec metadata about the query
-  opts and that lets us do the dispatching."
+  These types are captured by the `::refs` specs, and the specs it
+  composes. The type for the supplied query-term is returned as
+  `:qr-type`.
+
+  Each of these qr-types corresponds to a constraint of either `:coll`
+  or `:unary`. The constraint is returned as `:qr-constraint`.
+
+  Conforming the query opts provides the `qr-type` and `qr-constraint`
+  so that dependent functions can dispatch on these values."
   [query-term relation-attr]
   (let [{:keys [refs bind]}               (and query-term
                                                (s/conform ::query-opts (second query-term)))
