@@ -724,6 +724,12 @@
            (sm/all-ent-relations db)))
     (is (= {:project   {:p0 {:created-by-id :u0
                              :updated-by-id :u0
+                             :todo-list-ids #{:tl0 :tl1}}}
+            :todo-list {:tl0 {:created-by-id :u0
+                              :updated-by-id :u0}}}
+           (sm/all-ent-relations db [:p0 :tl0])))
+    (is (= {:project   {:p0 {:created-by-id :u0
+                             :updated-by-id :u0
                              :todo-list-ids #{:tl0 :tl1}}}}
            (sm/all-ent-relations db [:p0])))))
 
