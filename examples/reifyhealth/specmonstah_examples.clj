@@ -6,6 +6,20 @@
             [clojure.spec.gen.alpha :as gen]
             [loom.io :as lio]))
 
+(def schema
+  {:user            {:spec   ::user
+                     :prefix :u}
+   :todo            {:spec      ::todo
+                     :relations {:created-by-id [:user :id]
+                                 :updated-by-id [:user :id]
+                                 :todo-list-id  [:todo-list :id]}
+                     :spec-gen  {:todo-title "write unit tests"}
+                     :prefix    :t}
+   :todo-list       {:spec      ::todo-list
+                     :relations {:created-by-id [:user :id]
+                                 :updated-by-id [:user :id]}
+                     :prefix    :tl}})
+
 (def view (comp lio/view :data #(sm/build-ent-db {:schema td/schema})))
 
 (defn view
