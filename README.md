@@ -74,9 +74,13 @@ operations of generating and manipulating entity graphs.
 
 In learning any new tool, I think it's useful to begin by learning the
 tool's purpose, then getting a high-level overview of the architecture
-and how it achieve's the tool's purpose. With those concepts in place,
+and how it achieves the tool's purpose. With those concepts in place,
 concrete examples and exercises will help you understand how to use
-the tool. So let's start with Specmonstah's purpose.
+the tool. If you think that approach is bazonkers because you're a
+hands-on type purpose, you can skip to [01: schema, query,
+ent-dbPurpose](#01-schema-query-ent-db).
+
+### Purpose & Architecture Overview
 
 Specmonstah was built to aid testing by generating and inserting
 records in a database in dependency order. For example, if you want to
@@ -85,9 +89,9 @@ of a TodoList, and the TodoList depends on a User, then Specmonstah
 will generate User and TodoList records and insert them without your
 having to clutter your test with code related to Users and TodoLists.
 
-To accomplish this, Specmonstah does the following:
+To accomplish this, Specmonstah supports the following:
 
-**1. Graph generation (and ent/ent type definitions)**
+#### 1. Graph generation (and ent/ent type definitions)
 
 It generates a graph whose nodes correspond to _entity types_ (or _ent
 types_) and _entities_ (or just _ents_):
@@ -133,30 +137,47 @@ layer that we can add data to.
 How does Specmonstah generate this graph? You'll be learning about
 that in the upcoming sections.
 
-**2. Node visitation**
+#### 2. Ent visitation
 
-**3. Viewing**
+Specmonstah provides functions for _visiting_ the ent nodes in the
+graph it generates. Visiting ent nodes is kind of like mapping: when
+you call `map` on a seq, you apply a mapping function to each element,
+creating a new seq from the mapping function's return values. When you
+visit ents, you apply a visiting function to each ent. The visiting
+function's return value is stored as an attribute on the ent (remember
+that ents are implemented as graph nodes, and nodes can have
+attributes).
 
+For example, there's a `spec-gen` visiting function that takes each
+ent as input and uses clojure.spec to return a value. For the `:u0`
+ent, whose ent type is `:user`, `spec-gen` would use clojure.spec to
+return a new `:user` map, complete with name, email address, favorite
+flower, whatever. That map would get assigned to the `:spec-gen`
+attribute of `:u0`.
 
-### WIP
+In your own application, you could implement an `insert` visiting
+function that looks up the values produced by the `spec-gen` visiting
+function and uses those to insert records in a database.
 
-the below sections aren't ready for review
+#### 3. Viewing
 
-2. It visits each ent and generates the data that should be inserted
-   using clojure.spec. It
-3.
+When you're writing a test, it's important to be able to a) concisely
+express the values you're testing and b) easily figure out why a test
+is failing.
 
-The tutorial builds toward accomplishing Specmonstah's primary use
-case: inserting records in a database
+At odds with these requirements is the fact that Specmonstah returns
+rich data structures under the philosophy that it's better to have
+information and not need it than need it and not have it. This can be
+overwhelming; picture two or three screens of output when you try to
+view a raw Specmonstah value in the REPL. But fear not: Specmonstah
+comes equipped with several useful _view functions_ that narrow down
+its return values so that you can focus on only the information you
+care about.
 
-Specmonstah's purpose is to create a graph of _entities_ and make it
-easy to do things with the entities, like generate and insert
-data. For example, you might want to easily create 3 Todo entities,
-which belong to one TodoList entity, which belongs to a User entity.
-
-You've seen the term _entity_ used about 800 times already, and you're
-going to see it a lot more. The term roughly corresponds to a _record_
-in database, but it's not the same thing.
+So that's a moon's-eye view of Specmonstah: it's built to generate,
+insert, and inspect test data. Architecturally this corresponds to
+tools for generating an ent graph, visiting ents, and viewing the
+slices of the result that you care about.
 
 ### 01: schema, query, ent-db
 
