@@ -71,18 +71,31 @@
     (is (only-has-ents? gen #{:tl0 :tl1 :tl2 :u0 :p0}))))
 
 (deftest test-spec-gen-manual-attr
-  (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo [[:_ {:spec-gen {:todo-title "pet the dog"}}]]})]
-    (is (td/submap? {:u0 {:user-name "Luigi"}
-                     :t0 {:todo-title "pet the dog"}}
-                    gen))
-    (is (ids-present? gen))
-    (is (ids-match? gen
-                    {:tl0 {:created-by-id [:u0 :id]
-                           :updated-by-id [:u0 :id]}
-                     :t0  {:created-by-id [:u0 :id]
-                           :updated-by-id [:u0 :id]
-                           :todo-list-id  [:tl0 :id]}}))
-    (is (only-has-ents? gen #{:tl0 :t0 :u0}))))
+  (testing "Manual attribute setting for non-reference field"
+    (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo [[:_ {:spec-gen {:todo-title "pet the dog"}}]]})]
+      (is (td/submap? {:u0 {:user-name "Luigi"}
+                       :t0 {:todo-title "pet the dog"}}
+                      gen))
+      (is (ids-present? gen))
+      (is (ids-match? gen
+                      {:tl0 {:created-by-id [:u0 :id]
+                             :updated-by-id [:u0 :id]}
+                       :t0  {:created-by-id [:u0 :id]
+                             :updated-by-id [:u0 :id]
+                             :todo-list-id  [:tl0 :id]}}))
+      (is (only-has-ents? gen #{:tl0 :t0 :u0}))))
+  (testing "Manual attribute setting for reference field"
+    (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo [[:_ {:spec-gen {:created-by-id 1}}]]})]
+      (is (td/submap? {:u0 {:user-name "Luigi"}
+                       :t0 {:created-by-id 1}}
+                      gen))
+      (is (ids-present? gen))
+      (is (ids-match? gen
+                      {:tl0 {:created-by-id [:u0 :id]
+                             :updated-by-id [:u0 :id]}
+                       :t0  {:updated-by-id [:u0 :id]
+                             :todo-list-id  [:tl0 :id]}}))
+      (is (only-has-ents? gen #{:tl0 :t0 :u0})))))
 
 (deftest test-spec-gen-omit
   (testing "Ref not created and data is nil when omitted"

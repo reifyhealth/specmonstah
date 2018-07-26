@@ -44,17 +44,15 @@
 
 (defn spec-gen-generate-ent-val
   "First pass function, uses spec to generate a val for every entity"
-  [db ent-name ent-attr-key]
-  (let [{:keys [spec spec-gen]} (sm/ent-schema db ent-name)]
-    (merge (->> (gen/generate (s/gen spec))
-                (reset-relations db ent-name))
-           spec-gen
-           (ent-attr-key (sm/query-opts db ent-name)))))
+  [db ent-name _ent-attr-key]
+  (let [{:keys [spec]} (sm/ent-schema db ent-name)]
+    (->> (gen/generate (s/gen spec))
+         (reset-relations db ent-name))))
 
 (defn spec-gen-assoc-relations
-  "Look up referenced attributes and assign them"
+  "Next, look up referenced attributes and assign them"
   [{:keys [data] :as db} ent-name ent-attr-key]
-  (let [{:keys [relations constraints spec-gen]} (sm/ent-schema db ent-name)]
+  (let [{:keys [constraints]} (sm/ent-schema db ent-name)]
     (reduce (fn [ent-data [referenced-ent relation-attr]]
               (assoc-relation ent-data
                               relation-attr
@@ -64,7 +62,17 @@
             (lat/attr data ent-name ent-attr-key)
             (sm/referenced-ent-attrs db ent-name))))
 
-(def spec-gen [spec-gen-generate-ent-val spec-gen-assoc-relations])
+(defn spec-gen-merge-overwrites
+  "Finally, merge any overwrites specified in the schema or query"
+  [{:keys [data] :as db} ent-name ent-attr-key]
+  (let [{:keys [spec-gen]} (sm/ent-schema db ent-name)]
+    (merge (lat/attr data ent-name ent-attr-key)
+           spec-gen
+           (ent-attr-key (sm/query-opts db ent-name)))))
+
+(def spec-gen [spec-gen-generate-ent-val
+               spec-gen-assoc-relations
+               spec-gen-merge-overwrites])
 
 (defn ent-db-spec-gen
   "Convenience function to build a new db using the spec-gen mapper
