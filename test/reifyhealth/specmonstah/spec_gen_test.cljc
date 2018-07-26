@@ -84,6 +84,27 @@
                            :todo-list-id  [:tl0 :id]}}))
     (is (only-has-ents? gen #{:tl0 :t0 :u0}))))
 
+(deftest test-spec-gen-omit
+  (testing "Ref not created and data is nil when omitted"
+    (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[:_ {:refs {:created-by-id ::sm/omit
+                                                                                    :updated-by-id ::sm/omit}}]]})]
+      (is (ids-present? gen))
+      (is (only-has-ents? gen #{:tl0}))
+      (is (->> gen :tl0 ((juxt :created-by-id :updated-by-id)) (every? nil?)))))
+  (testing "Ref is created when at least 1 field references it, but omitted data is still nil"
+    (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[:_ {:refs {:updated-by-id ::sm/omit}}]]})]
+      (is (td/submap? {:u0 {:user-name "Luigi"}} gen))
+      (is (ids-present? gen))
+      (is (ids-match? gen
+                      {:tl0 {:created-by-id [:u0 :id]}}))
+      (is (only-has-ents? gen #{:tl0 :u0}))
+      (is (nil? (-> gen :tl0 :updated-by-id)))))
+  (testing "Overwriting value of omitted ref with custom value"
+    (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[:_ {:refs {:updated-by-id ::sm/omit}
+                                                                             :spec-gen {:updated-by-id 42}}]]})]
+      (is (ids-present? gen))
+      (is (= 42 (-> gen :tl0 :updated-by-id))))))
+
 (deftest test-idempotency
   (testing "Gen traversal won't replace already generated data with newly generated data"
     (let [gen-fn     #(sg/ent-db-spec-gen % {:todo [[:t0 {:spec-gen {:todo-title "pet the dog"}}]]})

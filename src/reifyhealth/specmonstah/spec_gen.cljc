@@ -19,22 +19,35 @@
     (update gen-data relation-attr #(conj % relation-val))
     (assoc gen-data relation-attr relation-val)))
 
-(defn reset-coll-relations
-  "For ents that have have a `:coll` relation, the associated spec
-  might generate a bunch of dummy IDs. This replaces those with an empty
-  vector."
-  [ent-data constraints]
-  (reduce (fn [ent-data hm-key] (assoc ent-data hm-key []))
-          ent-data
-          (keys (medley/filter-vals (fn [attr-constraints] (contains? attr-constraints :coll))
-                                    constraints))))
+(defn omit-relation?
+  [db ent-name k]
+  (let [{{ref k} :refs} (sm/query-opts db ent-name)]
+    (sm/omit? ref)))
+
+(defn reset-relations
+  "The generated data will generate values agnostic of any constraints that may
+  be present. This function updates values in the generated data to match up
+  with constraints. First, it will remove any dummy ID's for a `:coll` relation.
+  Next, it will remove any dummy ID's generated for an `:omit` relation. The
+  updated ent-data map will be returned."
+  [db ent-name ent-data]
+  (let [acoll? (->> (sm/ent-schema db ent-name)
+                    :constraints
+                    (medley/filter-vals
+                      (fn [attr-constraints] (contains? attr-constraints :coll)))
+                    keys
+                    set)]
+    (into {}
+          (comp (map (fn [[k v]] (if (acoll? k) [k []] [k v])))
+                (map (fn [[k v]] (if (omit-relation? db ent-name k) [k nil] [k v]))))
+          ent-data)))
 
 (defn spec-gen-generate-ent-val
   "First pass function, uses spec to generate a val for every entity"
   [db ent-name ent-attr-key]
-  (let [{:keys [relations constraints spec spec-gen]} (sm/ent-schema db ent-name)]
-    (merge (-> (gen/generate (s/gen spec))
-               (reset-coll-relations constraints))
+  (let [{:keys [spec spec-gen]} (sm/ent-schema db ent-name)]
+    (merge (->> (gen/generate (s/gen spec))
+                (reset-relations db ent-name))
            spec-gen
            (ent-attr-key (sm/query-opts db ent-name)))))
 

@@ -10,9 +10,13 @@
             [clojure.set :as set]
             [clojure.spec.alpha :as s]))
 
+(defn omit?
+  [x]
+  (= x ::omit))
+
 (s/def ::any (constantly true))
 (s/def ::ent-type keyword?)
-(s/def ::ent-name keyword?)
+(s/def ::ent-name (s/and keyword? (complement omit?)))
 (s/def ::ent-attr keyword?)
 (s/def ::ent-count pos-int?)
 (s/def ::prefix keyword?)
@@ -92,7 +96,8 @@
 
 (s/def ::refs
   (s/map-of ::ent-attr (s/or :coll  ::coll-query-relations
-                             :unary ::unary-query-relations)))
+                             :unary ::unary-query-relations
+                             :omit  omit?)))
 
 ;; other query opts
 ;; -----------------
@@ -270,13 +275,15 @@
   Conforming the query opts provides the `qr-type` and `qr-constraint`
   so that dependent functions can dispatch on these values."
   [query-term relation-attr]
-  (let [{:keys [refs bind]}               (and query-term
-                                               (s/conform ::query-opts (second query-term)))
-        [qr-constraint [qr-type qr-term]] (relation-attr refs)]
-    {:bind          bind
-     :qr-constraint qr-constraint
-     :qr-type       qr-type
-     :qr-term       qr-term}))
+  (let [{:keys [refs bind]}        (and query-term
+                                        (s/conform ::query-opts (second query-term)))
+        [qr-constraint qr-details] (relation-attr refs)]
+    (if (= qr-constraint :omit)
+      {:qr-constraint :omit}
+      {:bind          bind
+       :qr-constraint qr-constraint
+       :qr-type       (first qr-details)
+       :qr-term       (second qr-details)})))
 
 (defn validate-related-ents-query
   "Check that the refs value supplied in a query is a collection if the
@@ -285,7 +292,7 @@
   [{:keys [schema data] :as db} ent-name relation-attr query-term]
   (let [coll-attr?                      (coll-relation-attr? db ent-name relation-attr)
         {:keys [qr-constraint qr-term]} (conformed-query-opts query-term relation-attr)]
-    (cond (nil? qr-constraint) nil ;; noop
+    (cond (or (nil? qr-constraint) (= :omit qr-constraint)) nil ;; noop
           
           (and coll-attr? (not= qr-constraint :coll))
           (throw (ex-info "Query-relations for coll attrs must be a number or vector"
@@ -298,13 +305,14 @@
 (defn related-ents
   "Returns all related ents for an ent's relation-attr"
   [{:keys [schema data] :as db} ent-name relation-attr related-ent-type query-term]
-  (let [{:keys [qr-constraint qr-type qr-term bind]} (conformed-query-opts query-term relation-attr)]
+  (let [{:keys [qr-constraint qr-type qr-term bind] :as q} (conformed-query-opts query-term relation-attr)]
 
     (validate-related-ents-query db ent-name relation-attr query-term)
-    
-    (b/cond (= qr-type :ent-count) (mapv (partial numeric-node-name schema related-ent-type) (range qr-term))
-            (= qr-type :ent-names) qr-term
-            (= qr-type :ent-name)  [qr-term]
+
+    (b/cond (= qr-constraint :omit) []
+            (= qr-type :ent-count)  (mapv (partial numeric-node-name schema related-ent-type) (range qr-term))
+            (= qr-type :ent-names)  qr-term
+            (= qr-type :ent-name)   [qr-term]
             :let [bn (get bind related-ent-type)]
             bn   [bn]
             
