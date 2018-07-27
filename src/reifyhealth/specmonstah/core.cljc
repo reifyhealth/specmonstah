@@ -21,7 +21,8 @@
 (s/def ::ent-count pos-int?)
 (s/def ::prefix keyword?)
 (s/def ::constraint keyword?)
-(s/def ::spec (s/and keyword? namespace))
+(s/def ::spec (s/or :keyword (s/and keyword? namespace)
+                    :spec    s/spec?))
 
 ;; -----------------
 ;; -----------------
