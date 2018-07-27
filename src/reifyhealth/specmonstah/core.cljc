@@ -288,7 +288,7 @@
 (defn validate-related-ents-query
   "Check that the refs value supplied in a query is a collection if the
   relation type is collection, or a keyword if the relation type is
-  unary"
+  unary. If the reference is omit, no further validation is required."
   [{:keys [schema data] :as db} ent-name relation-attr query-term]
   (let [coll-attr?                      (coll-relation-attr? db ent-name relation-attr)
         {:keys [qr-constraint qr-term]} (conformed-query-opts query-term relation-attr)]

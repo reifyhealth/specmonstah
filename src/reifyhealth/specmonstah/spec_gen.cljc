@@ -20,8 +20,8 @@
     (assoc gen-data relation-attr relation-val)))
 
 (defn omit-relation?
-  [db ent-name k]
-  (let [{{ref k} :refs} (sm/query-opts db ent-name)]
+  [db ent-name ent-attr-key]
+  (let [{{ref ent-attr-key} :refs} (sm/query-opts db ent-name)]
     (sm/omit? ref)))
 
 (defn reset-relations
