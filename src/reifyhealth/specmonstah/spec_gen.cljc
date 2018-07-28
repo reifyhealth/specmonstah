@@ -31,15 +31,10 @@
   Next, it will remove any dummy ID's generated for an `:omit` relation. The
   updated ent-data map will be returned."
   [db ent-name ent-data]
-  (let [acoll? (->> (sm/ent-schema db ent-name)
-                    :constraints
-                    (medley/filter-vals
-                      (fn [attr-constraints] (contains? attr-constraints :coll)))
-                    keys
-                    set)]
+  (let [coll-attrs (sm/relation-attrs-with-constraint db ent-name :coll)]
     (into {}
-          (comp (map (fn [[k v]] (if (acoll? k) [k []] [k v])))
-                (map (fn [[k v]] (if (omit-relation? db ent-name k) [k nil] [k v]))))
+          (comp (map (fn [[k v]] (if (coll-attrs k) [k []] [k v])))
+                (map (fn [[k v]] (if-not (omit-relation? db ent-name k) [k v]))))
           ent-data)))
 
 (defn spec-gen-generate-ent-val

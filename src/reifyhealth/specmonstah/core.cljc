@@ -141,9 +141,18 @@
 ;; -----------------
 
 (defn ent-schema
-  "Given an ent node, return the schema of its corresponding type"
+  "Given an ent name, return the schema of its corresponding type"
   [{:keys [schema data]} ent-name]
   (get schema (lat/attr data ent-name :ent-type)))
+
+(defn relation-attrs-with-constraint
+  "Given an ent name, return all relation attributes which include the constraint."
+  [db ent-name constraint]
+  (->> (ent-schema db ent-name)
+       :constraints
+       (medley/filter-vals (fn [attr-constraints] (contains? attr-constraints :coll)))
+       keys
+       set))
 
 (defn query-opts
   [{:keys [data]} ent-name]

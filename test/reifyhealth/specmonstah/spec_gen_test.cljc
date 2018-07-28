@@ -84,6 +84,7 @@
                              :updated-by-id [:u0 :id]
                              :todo-list-id  [:tl0 :id]}}))
       (is (only-has-ents? gen #{:tl0 :t0 :u0}))))
+  
   (testing "Manual attribute setting for reference field"
     (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo [[:_ {:spec-gen {:created-by-id 1}}]]})]
       (is (td/submap? {:u0 {:user-name "Luigi"}
@@ -98,20 +99,22 @@
       (is (only-has-ents? gen #{:tl0 :t0 :u0})))))
 
 (deftest test-spec-gen-omit
-  (testing "Ref not created and data is nil when omitted"
+  (testing "Ref not created and attr is not present when omitted"
     (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[:_ {:refs {:created-by-id ::sm/omit
                                                                                     :updated-by-id ::sm/omit}}]]})]
       (is (ids-present? gen))
       (is (only-has-ents? gen #{:tl0}))
-      (is (->> gen :tl0 ((juxt :created-by-id :updated-by-id)) (every? nil?)))))
-  (testing "Ref is created when at least 1 field references it, but omitted data is still nil"
+      (is (= [:id] (keys (:tl0 gen))))))
+  
+  (testing "Ref is created when at least 1 field references it, but omitted attrs are still not present"
     (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[:_ {:refs {:updated-by-id ::sm/omit}}]]})]
       (is (td/submap? {:u0 {:user-name "Luigi"}} gen))
       (is (ids-present? gen))
       (is (ids-match? gen
                       {:tl0 {:created-by-id [:u0 :id]}}))
       (is (only-has-ents? gen #{:tl0 :u0}))
-      (is (nil? (-> gen :tl0 :updated-by-id)))))
+      (is (= [:id :created-by-id] (keys (:tl0 gen))))))
+  
   (testing "Overwriting value of omitted ref with custom value"
     (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[:_ {:refs {:updated-by-id ::sm/omit}
                                                                              :spec-gen {:updated-by-id 42}}]]})]
