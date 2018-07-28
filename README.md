@@ -1,76 +1,262 @@
 # Specmonstah
 
-* [Purpose](#purpose)
+* [Introduction](#introduction)
+* [Infomercial](#infomercial)
 * [Tutorial](#tutorial)
-* [Usage](#usage)
+* [Usage Reference](#usage-reference)
 * [Glossary](#glossary)
 
-## Purpose
+## Introduction
 
 Specmonstah lets you generate and manipulate deeply-nested,
 hierarchical graphs of business data (what you typically store in a
 relational database) using a concise DSL. It's great for dramatically
-reducing the amount of boilerplate code you have to write for tests.
+reducing the amount of boilerplate code you have to write for
+tests. It's similar in purpose to Ruby's
+[factory_bot](https://github.com/thoughtbot/factory_bot).
 
 ![Specmonstah purpose](docs/diagram.png)
 
-For example, say you need to test the insertion of a few _Todos_ in a
-database: your foreign key constraints would require you to first
-insert the _TodoList_ that the to Todo belongs to, and the _User_ that
-the TodoList and Todo belong to. To do that, you could use the
-following to generate the graph:
+For example, say you need to test a function that inserts a _Todo_ in
+a database: your foreign key constraints would require you to first
+insert the _TodoList_ that the Todo belongs to, and the _User_ that
+the TodoList and Todo belong to. Instead of having to write something
+like this:
 
 ```clojure
-(ns your-project.core
-  (:require [reifyhealth.specmonstah.core :as sm]
-            [loom.io :as lio]))
-
-;; The schema is similar to a db schema. It's used to establish
-;; entity types and relationships among instances of those entities.
-;; You only have to write the schema once.
-(def schema
-  {:user      {:prefix :u}
-   :todo      {:relations {:created-by-id [:user :id]
-                           :updated-by-id [:user :id]
-                           :todo-list-id  [:todo-list :id]}
-               :prefix    :t}
-   :todo-list {:relations {:created-by-id [:user :id]
-                           :updated-by-id [:user :id]}
-               :prefix    :tl}})
-
-;; The graph is under `:data`, and `lio/view` produces an image
-;; of the graph.
-(-> (sm/build-ent-db {:schema schema} {:todo [[3]]})
-    :data
-    lio/view)
+(let [user      (create-user! {:username "bob" :email "bob@bob-town.com"})
+      todo-list (create-todo-list! {:title         "Bob convention todos"
+                                    :created-by-id (:id user)})]
+  (create-todo! {:description "Book flight"
+                 :todo-list-id (:id todo-list)
+                 :created-by-id (:id user)}))
 ```
 
-![Simple todo example](docs/todo-example.png)
+Specmonstah lets you write something like this:
 
-This graph shows that you've generated three Todos which belong to a
-single TodoList. The Todos and TodoList both are both related to a
-User. In the line `(sm/build-ent-db {:schema schema} {:todo [[3]]})`,
-you're using the _query_ `{:todo [[3]]}` to tell the function
-`sm/build-ent-db` to generate three Todos. `sm/build-ent-db` uses
-`schema` to generate `User` and `TodoList` entities without your
-having to specify them in your query.
+```clojure
+(create! {:todo [[1 {:spec-gen {:description "Book flight"}}]]})
+```
 
-The graph only contains entity types, and entity instances and their
-relationships; it doesn't include fields for the entities like the
-user's name or the todo list's name. Once you've generated the graph,
-it's straightforward to visit each node in the graph to a) use
-clojure spec to generate that data and b) insert the generated data
-into a database.
+Specmonstah creates the User and TodoList, and ensures that the
+TodoList correctly references the User and the Todo correctly
+references the TodoList and user. Call me crazy, but I think the
+second snippet is preferable to the first.
+
+Specmonstah is a specialized tool that introduces new concepts and
+vocabulary. It will take an hour or two to get comfortable with it,
+but once you do, that investment will pay huge dividends over time as
+you use it to write code that is more clear, concise, and easy to
+maintain. This guide has four parts to get you there:
+
+* The [Infomercial](#infomercial) is a quick tour of the cool stuff you can
+  do with Specmonstah, showing you why it's worth the investment
+* A detailed [Tutorial](#tutorial) introduces you to Specmonstah
+  concepts one a time 
+* The [Usage Reference](#usage-reference) contains code snippets
+  demonstrating the facets of Specmonstah usage
+* Because Specmonstah introduces new terms, we provide a
+  [Glossary](#glossary)
+
+## Infomercial
+
+In the time-honored tradition of infomercials everywhere, these
+snippets gloss over a lot of details to reveal the truest, purest
+essence of a product. If you want to go all FDA on me and validate the
+claims, check out [the full
+source](./examples/reifyhealth/infomercial.cljc).
+
+The code below will ~~shout at~~ show you how you can generate and
+insert data for a forum's database. Here's an entity relationship
+diagram for the database:
+
+![Forum ERD](docs/forum-erd.png)
+
+One thing the diagram doesn't capture is that, for the `like` type,
+there's a uniqueness constraint on `post-id` and
+`created-by-id`. Also, every instance of `created-by-id` and
+`updated-by-id` refers to a user, but including that in the diagram
+would just clutter it.
+
+### Insert entity hierarchy in dependency order, with correct foreign keys
+
+Posts have a foreign key referencing a Topic, Topics reference a Topic
+Category, and all of these reference a User. The snippet below shows
+that you can specify that you want one Post created, and Specmonstah
+will ensure that the other entities are created and inserted in
+dependency order:
+
+```clojure
+(insert {:post [[1]]})
+@ent-db
+; =>
+[[:user {:id 1 :username "K7X5r6UVs9Mm2Eks"}]
+ [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
+ [:topic {:id 5
+          :topic-category-id 2
+          :title "ejJ2B88UZo2NK2sMuU4"
+          :created-by-id 1
+          :updated-by-id 1}]
+ [:post {:id 9 :topic-id 5 :created-by-id 1 :updated-by-id 1}]]
+```
+
+The `insert` function simulates inserting records in a db by conjing
+entities on the `ent-db` atom. The maps were generated using
+`clojure.spec`. Notice that all the foreign keys line up.
+
+### Specify different users
+
+In the previous example, all entities referenced the same User. In
+this one, the Topic's `created-by-id` will reference a new user:
+
+```clojure
+(insert {:topic [[:t0 {:refs {:created-by-id :custom-user}}]]
+         :post [[1]]})
+@ent-db
+; =>
+[[:user {:id 1 :username "gMKGTwBnOvB0xt"}]
+ [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
+ [:user {:id 5 :username "2jK0TXCU2UcBM89"}]
+ [:topic {:id 6
+          :topic-category-id 2
+          :title "cmo2Vg8DQByz302c"
+          :created-by-id 5
+          :updated-by-id 1}]
+ [:post {:id 10 :topic-id 6 :created-by-id 1 :updated-by-id 1}]]
+```
+
+Two users, one with `:id 1` and another with `:id 5`. The topic's
+`:created-by-id` attribute is 5, and all other User references are
+`1`.
+
+### Multiple entities
+
+What if you want to insert 2 or 3 or more posts?
+
+```clojure
+(insert {:post [[3]]})
+@ent-db
+; =>
+[[:user {:id 1 :username "yB96fd"}]
+ [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
+ [:topic {:id 5
+          :topic-category-id 2
+          :title "KEh29Ru7aVVg2"
+          :created-by-id 1
+          :updated-by-id 1}]
+ [:post {:id 9 :topic-id 5 :created-by-id 1 :updated-by-id 1}]
+ [:post {:id 13 :topic-id 5 :created-by-id 1 :updated-by-id 1}]
+ [:post {:id 17 :topic-id 5 :created-by-id 1 :updated-by-id 1}]]
+```
+
+Just say "I want 3 posts" and Specmonstah delivers.
+
+### Uniqueness constraints
+
+You can't have two Likes that reference the same Post and User; in
+other words, a User can't Like the same Post twice. Specmonstah will
+automatically generate unique Users if you specify multiple Likes:
+
+```clojure
+(insert {:like [[3]]})
+@ent-db
+; =>
+[[:user {:id 1 :username "T2TD3pAB79X5"}]
+ [:user {:id 2 :username "ziJ9GnvNMOHcaUz"}]
+ [:topic-category {:id 3 :created-by-id 2 :updated-by-id 2}]
+ [:topic {:id 6
+          :topic-category-id 3
+          :title "4juV71q9Ih9eE1"
+          :created-by-id 2
+          :updated-by-id 2}]
+ [:post {:id 10 :topic-id 6 :created-by-id 2 :updated-by-id 2}]
+ [:like {:id 14 :post-id 10 :created-by-id 1}]
+ [:like {:id 17 :post-id 10 :created-by-id 2}]
+ [:user {:id 20 :username "b73Ts5BoO"}]
+ [:like {:id 21 :post-id 10 :created-by-id 20}]]
+```
+
+Three Likes, Three different Users, and we're not violating the
+uniqueness constraaint. With just one line of code. I think this
+feature's particularly cool.
+
+### Polymorphic relations
+
+Whereas foreign keys in RDBMSs must reference records in a specific
+table, some databases like Datomic have reference types attributes
+that can reference any entity at all. You might want to use this in
+your forum so that users can like either Topics or Posts. Specmonstah
+handles this use case.
+
+There are two snippets below. In teh first, you say you want to create
+three `:polymorphic-like`s with `{:ref-types {:liked-id
+:post}}`. Specmonstah generates 3 likes that refer to a post. The
+second snippet includes `{:ref-types {:liked-id :topic}}`, so the
+likes refer to a topic. Polymorphic references compose with uniqueness
+contraints, so three users are created, just like in the previous snippet.
+
+```clojure
+(insert {:polymorphic-like [[3 {:ref-types {:liked-id :post}}]]})
+@ent-db
+[[:user {:id 1 :username "gI3q3Y6HR1uwc"}]
+ [:user {:id 2 :username "klKs7"}]
+ [:topic-category {:id 3 :created-by-id 2 :updated-by-id 2}]
+ [:topic {:id 6
+          :topic-category-id 3
+          :title "RF6g"
+          :created-by-id 2
+          :updated-by-id 2}]
+ [:post {:id 10 :topic-id 6 :created-by-id 2 :updated-by-id 2}]
+ [:polymorphic-like {:id 14 :liked-id 10 :created-by-id 1}]
+ [:polymorphic-like {:id 17 :liked-id 10 :created-by-id 2}]
+ [:user {:id 20 :username "Gcf"}]
+ [:polymorphic-like {:id 21 :liked-id 10 :created-by-id 20}]]
+
+
+(insert {:polymorphic-like [[3 {:ref-types {:liked-id :topic}}]]})
+@ent-db
+[[:user {:id 1 :username "5Z382YCNrJB"}]
+ [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
+ [:topic {:id 5
+          :topic-category-id 2
+          :title "i3"
+          :created-by-id 1
+          :updated-by-id 1}]
+ [:user {:id 9 :username "dJtC"}]
+ [:polymorphic-like {:id 10 :liked-id 5 :created-by-id 9}]
+ [:polymorphic-like {:id 13 :liked-id 5 :created-by-id 1}]
+ [:user {:id 16 :username "8ZS"}]
+ [:polymorphic-like {:id 17 :liked-id 5 :created-by-id 16}]]
+```
+
+
+### Visualization
+
+Sometimes you want to inspect aall the work that Specmonstah is doing
+for you. One way to do that is to produce an image of the entities
+Specmonstah produces, and their relationships:
+
+```clojure
+(lio/view (:data (sm/build-ent-db {:schema schema} {:like [[2]]})))
+```
+
+![like graph](docs/like-graph.png)
+
+This shows that that two Likes were generated (`l0` and `l1`). The
+Likes are applied to a Post (`p0`), and so forth.
+
+And that brings the infomercial to a close. If you're ready to learn
+how you, too, can accomplish these amazing feats, read on!
+
+## Tutorial
 
 Specmonstah was born out of a need to replace brittle, repetitive code
 for creating deeply-nested hierarchies of data in unit tests. This
-guide's tutorial will show you how to use Specmonstah specifically for
-this use case. Along the way you'll learn how to make the most of
+tutorial will show you how to use Specmonstah specifically for this
+use case. Along the way you'll learn how to make the most of
 Specmonstah by understanding how it's not implemented to support
 writing unit tests per se, but to support the more fundamental
 operations of generating and manipulating entity graphs.
-
-## Tutorial
 
 In learning any new tool, I think it's useful to begin by learning the
 tool's purpose, then getting a high-level overview of the architecture
@@ -78,7 +264,7 @@ and how it achieves the tool's purpose. With those concepts in place,
 concrete examples and exercises will help you understand how to use
 the tool. If you think that approach is bazonkers because you're a
 hands-on type purpose, you can skip to [01: schema, query,
-ent-dbPurpose](#01-schema-query-ent-db).
+ent-db](#01-schema-query-ent-db).
 
 ### Purpose & Architecture Overview
 
@@ -92,8 +278,9 @@ having to clutter your test with code related to Users and TodoLists.
 Specmonstah accomplishes this work in three phases. The phases are
 summarized here, with detailed explanations below.
 
-1. **Graph generation.** SM uses the loom graph library to create
-   a graph that represents the entities (ents) to insert.
+1. **Graph generation.** SM uses the
+   [loom](https://github.com/aysylu/loom) graph library to create a
+   graph that represents the entities (ents) to insert.
 2. **Ent visitation.** Once the graph is generated, you perform
    functions on each node. One function will use clojure.spec to
    generate a map of data to be inserted, and another function will
@@ -116,14 +303,14 @@ correspond to ent types, and the rest correspond to ents.
 We're going to be using the terms _ent_ and _ent type_ a lot, and
 you'll see them all throughout the source code, so let's define them:
 
-**Ent type.** An ent type is kind of analogous to a relation in a
-relational database, or a class in object-oriented programming. It
-differs in that relations and classes define all the attributes of
-their instances, whereas ent types don't. Ent types define how ent
-instances are related to each other. For example, the `:todo` ent type
-wouldn't include a `:description` attribute, but it does specify that
-a `:todo` instances reference `:todo-list` instances. In the next
-section you'll learn how to define ent types.
+**Ent type.** An ent type analogous to a relation in a relational
+database, or a class in object-oriented programming. It differs in
+that relations and classes define all the attributes of their
+instances, whereas ent types don't. Ent types define how instances are
+related to each other. For example, the `:todo` ent type wouldn't
+include a `:description` attribute, but it does specify that a `:todo`
+instances reference `:todo-list` instances. In the next section you'll
+learn how to define ent types.
 
 Ent types are represented as nodes in the Specmonstah graph (let's
 abbreviate that with _SG_). Ent types have directed edges to their
@@ -214,9 +401,15 @@ overwhelming; picture two or three screens of output when you try to
 view a raw Specmonstah value in the REPL. But fear not: Specmonstah
 comes equipped with several useful _view functions_ that narrow down
 its return values so that you can focus on only the information you
-care about.
+care about. For example, you could use the `attr-map` function to
+return a map of entities and their spec-generated data. If you called
+it on the data shown in the previous snippet, you'd get:
 
-So that's a moon's-eye view of Specmonstah: it's built to generate,
+```clojure
+{:u0 {:id 2 :user-name "Luigi"}}
+```
+
+So that's a bird's-eye view of Specmonstah: it's built to generate,
 insert, and inspect test data. Architecturally this corresponds to
 tools for generating an ent graph, visiting ents, and viewing the
 slices of the result that you care about.
@@ -275,7 +468,7 @@ key/value pairs:
 
 
 
-## Usage
+## Usage Reference
 
 ## Glossary
 

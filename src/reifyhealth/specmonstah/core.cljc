@@ -133,7 +133,6 @@
 
 ;; utilities
 ;; -----------------
-
 (defn ent-schema
   "Given an ent node, return the schema of its corresponding type"
   [{:keys [schema data]} ent-name]
