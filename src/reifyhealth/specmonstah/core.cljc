@@ -315,7 +315,7 @@
 (defn related-ents
   "Returns all related ents for an ent's relation-attr"
   [{:keys [schema data] :as db} ent-name relation-attr related-ent-type query-term]
-  (let [{:keys [qr-constraint qr-type qr-term bind] :as q} (conformed-query-opts query-term relation-attr)]
+  (let [{:keys [qr-constraint qr-type qr-term bind]} (conformed-query-opts query-term relation-attr)]
 
     (validate-related-ents-query db ent-name relation-attr query-term)
 
