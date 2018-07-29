@@ -1,4 +1,4 @@
-(ns reifyhealth.specmonstah-tutorial.02
+(ns reifyhealth.specmonstah-tutorial.03
   (:require [reifyhealth.specmonstah.core :as sm]
             [loom.io :as lio]))
 

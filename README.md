@@ -527,8 +527,8 @@ Here's the source for this chapter:
 ```
 
 The ent db's schema defines ent types. It's implemented as a map where
-keys are the ent type names and values are ent type definitions. In
-the code above, `schema` defines two ent types, `:user` and
+keys are the ent types' names and values are their definitions. In the
+code above, `schema` defines two ent types, `:user` and
 `:todo-list`. The ent type definitions include two keys, `:prefix` and
 `:relations`.
 
@@ -564,6 +564,37 @@ doesn't explicitly mention `:user`, and that the `:todo-list`s
 `:tl0` and `:tl1` reference `:u0`.
 
 ### Ch. 03: Queries
+
+```clojure
+(ns reifyhealth.specmonstah-tutorial.03
+  (:require [reifyhealth.specmonstah.core :as sm]
+            [loom.io :as lio]))
+
+(def schema
+  {:user      {:prefix :u}
+   :todo-list {:prefix    :tl
+               :relations {:owner-id [:user :id]}}})
+(defn ex-01
+  []
+  (sm/build-ent-db {:schema schema} {:todo-list [[2]]}))
+```
+
+
+Queries are used to specify what ents should get generated. The term
+_query_ might throw you off because usually it's used to refer to the
+language for _retrieving_ records from a database. In Specmonstah, I
+think of queries as allowing you to express, _generate the minimal
+ent-db necessary for me to retrieve the ents I've specified_. I
+
+In `ex-01`, the query passed to `sm/build-ent-db` is `{:todo-list
+[[2]]}`. This is like saying, _I want two `:todo-list`s. Create an
+ent-db with the minimum ents needed so that I can retrieve them._
+Because `:todo-list` ents must refer to a `:user`, Specmonstah
+generates the `:user` ent `:u0`. Specmonstah only generates one
+`:user`, not two, because that's the mininum needed to satisfy the
+query.
+
+
 
 * numbers
 * names
