@@ -414,12 +414,16 @@ insert, and inspect test data. Architecturally this corresponds to
 tools for generating an ent graph, visiting ents, and viewing the
 slices of the result that you care about.
 
-### WIP 01: schema, query, ent-db
-
-The tutorial consists of a sequence of clojure files under the
+Now that you have the broad picture of how Specmonstah works, let's
+start exploring the details with source code. The rest of the tutorial
+consists of chapters with corresponding clojure files under the
 [](tutorial/reifyhealth/specmonstah_tutorial) directory, each
-introducing a new concept. You'll have the best experience if you
-follow along in a REPL, starting with
+introducing new concepts. You'll have the best experience if you
+follow along in a REPL.
+
+### Ch. 01: ent-db
+
+In this section you're going to learn about the _ent-db_. Open
 [reifyhealth.specmonstah-tutorial.01](tutorial/reifyhealth/specmonstah_tutorial/01.clj):
 
 ```clojure
@@ -433,38 +437,76 @@ follow along in a REPL, starting with
 (defn ex-01
   []
   (sm/build-ent-db {:schema schema} {:user [[3]]}))
-
-(defn ex-02
-  []
-  (sm/build-ent-db {:schema schema} {:user [[:circe]]}))
 ```
 
-Throughout the tutorials, I'll use functions named `ex-01`, `ex-02`,
-etc, to illustrate some concept. We'll begin by using `ex-01` to
-explore how Specmonstah's `build-ent-db` takes a _schema_ and a
-_query_ to build an _ent-db_.
-
-Let's look at specific examples of these terms to construct the terms'
-definition:
-
-* call to `build-ent-db`: `(sm/build-ent-db {:schema schema} {:user [[3]]})`
-* _schema_: `{:user {:prefix :u}}`
-* _query_: `{:user [[3]]}`
-
-When you call `ex-01` the, _ent-db_ returned contains the following
-key/value pairs:
+Throughout the tutorial, I'll use functions named `ex-01`, `ex-02`,
+etc, to illustrate some concept. When you call `(ex-01)`, it returns:
 
 ```clojure
+(ex-01) ;=>
 {:schema {:user {:prefix :u}}
- :data   {:nodeset #{:u1 :u0 :u2 :user}
-          :adj     {:user #{:u1 :u0 :u2}}
-          :in      {:u0 #{:user} :u1 #{:user} :u2 #{:user}}
-          :attrs   {:user {:type :ent-type}
-                    :u0   {:type :ent :index 0 :ent-type :user :query-term [3]}
-                    :u1   {:type :ent :index 1 :ent-type :user :query-term [3]}
-                    :u2   {:type :ent :index 2 :ent-type :user :query-term [3]}}}}
+ :data {:nodeset #{:u1 :u0 :u2 :user}
+        :adj {:user #{:u1 :u0 :u2}}
+        :in {:u0 #{:user} :u1 #{:user} :u2 #{:user}}
+        :attrs {:user {:type :ent-type}
+                :u0 {:type :ent, :index 0, :ent-type :user, :query-term [3]}
+                :u1 {:type :ent, :index 1, :ent-type :user, :query-term [3]}
+                :u2 {:type :ent, :index 2, :ent-type :user, :query-term [3]}}}
+ :queries ({:user [[3]]})
+ :relation-graph {:nodeset #{:user} :adj {} :in {}}
+ :types #{:user}
+ :ref-ents []}
  ```
 
+`ex-01` invokes the function call `(sm/build-ent-db {:schema schema}
+{:user [[3]]})`. You'll always call `sm/build-ent-db` first whenever
+you use Specmonstah. It takes two arguments, a schema and a query, and
+returns an _ent-db_.
+
+ent-db's are at the core of Specmonstah; most functions take an ent-db
+as their first argument and return an ent-db. The ent-db is
+conceptually similar to the databases you're familiar with. Its
+`:schema` key refers to an entity schema, just as an RDBMS includes
+schema information. In this case, the schema is `{:user {:prefix
+:u}}`, which is as simple a schema as possible. In later chapters,
+you'll learn more about schemas and how they're used to define
+relationships and constraints among ents.
+
+The ent-db's `:data` key refers to a
+[graph](https://www.geeksforgeeks.org/graph-data-structure-and-algorithms/)
+representing ents, their relationships, and their attributes. In this
+ent-db there are three users, `:u0`, `:u1`, and `:u2`. There aren't
+any ent relationships because our schema didn't specify any, but each
+ent does have attributes: `:type`, `:index`, `:ent-type`, and
+`:query-term`. As you go through the tutorial, you'll see how a lot of
+Specmonstah functions involve reading and updating ents' attributes.
+
+The graph also includes nodes for ent types; you can see `:user`, and
+ent-type, under the `:nodeset` key of the graph. This is used
+internally.
+
+It happens that the graph
+is produced by [loom](https://github.com/aysylu/loom), a sweet little
+library for working with graphs. Specmonstah doesn't try to hide this
+implementation detail from you: it's entirely possible you'll want to
+use one of loom's many useful graph functions to interact with the
+ent-db's data. You might, for instance, want to render the graph as an
+image. Try this in your REPL:
+
+```clojure
+(lio/view (:data (ex-01)))
+```
+
+The rest of the keys (`:queries`, `:relation-graph`, `:types`,
+`:ref-ents`) are used internally to generate the ent-db, and can
+safely be ignored.
+
+Building an ent-db is the first step whenever you're using
+Specmonstah. The two main ingredients for building an ent-db are the
+_query_ and _schema_. In the next chapter, we'll explain how schemas
+work, and chapter 3 will explain queries.
+
+### Ch. 02: Schemas
 
 
 
