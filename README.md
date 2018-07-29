@@ -421,9 +421,9 @@ consists of chapters with corresponding clojure files under the
 introducing new concepts. You'll have the best experience if you
 follow along in a REPL.
 
-### Ch. 01: ent-db
+### Ch. 01: ent db
 
-In this section you're going to learn about the _ent-db_. Open
+In this section you're going to learn about the _ent db_. Open
 [reifyhealth.specmonstah-tutorial.01](tutorial/reifyhealth/specmonstah_tutorial/01.clj):
 
 ```clojure
@@ -461,10 +461,10 @@ etc, to illustrate some concept. When you call `(ex-01)`, it returns:
 `ex-01` invokes the function call `(sm/build-ent-db {:schema schema}
 {:user [[3]]})`. You'll always call `sm/build-ent-db` first whenever
 you use Specmonstah. It takes two arguments, a schema and a query, and
-returns an _ent-db_.
+returns an _ent db_.
 
-ent-db's are at the core of Specmonstah; most functions take an ent-db
-as their first argument and return an ent-db. The ent-db is
+ent db's are at the core of Specmonstah; most functions take an ent db
+as their first argument and return an ent db. The ent db is
 conceptually similar to the databases you're familiar with. Its
 `:schema` key refers to an entity schema, just as an RDBMS includes
 schema information. In this case, the schema is `{:user {:prefix
@@ -472,10 +472,10 @@ schema information. In this case, the schema is `{:user {:prefix
 you'll learn more about schemas and how they're used to define
 relationships and constraints among ents.
 
-The ent-db's `:data` key refers to a
+The ent db's `:data` key refers to a
 [graph](https://www.geeksforgeeks.org/graph-data-structure-and-algorithms/)
 representing ents, their relationships, and their attributes. In this
-ent-db there are three users, `:u0`, `:u1`, and `:u2`. There aren't
+ent db there are three users, `:u0`, `:u1`, and `:u2`. There aren't
 any ent relationships because our schema didn't specify any, but each
 ent does have attributes: `:type`, `:index`, `:ent-type`, and
 `:query-term`. As you go through the tutorial, you'll see how a lot of
@@ -490,7 +490,7 @@ is produced by [loom](https://github.com/aysylu/loom), a sweet little
 library for working with graphs. Specmonstah doesn't try to hide this
 implementation detail from you: it's entirely possible you'll want to
 use one of loom's many useful graph functions to interact with the
-ent-db's data. You might, for instance, want to render the graph as an
+ent db's data. You might, for instance, want to render the graph as an
 image. Try this in your REPL:
 
 ```clojure
@@ -498,17 +498,97 @@ image. Try this in your REPL:
 ```
 
 The rest of the keys (`:queries`, `:relation-graph`, `:types`,
-`:ref-ents`) are used internally to generate the ent-db, and can
+`:ref-ents`) are used internally to generate the ent db, and can
 safely be ignored.
 
-Building an ent-db is the first step whenever you're using
-Specmonstah. The two main ingredients for building an ent-db are the
+Building an ent db is the first step whenever you're using
+Specmonstah. The two main ingredients for building an ent db are the
 _query_ and _schema_. In the next chapter, we'll explain how schemas
 work, and chapter 3 will explain queries.
 
 ### Ch. 02: Schemas
 
+Here's the source for this chapter:
 
+```clojure
+(ns reifyhealth.specmonstah-tutorial.02
+  (:require [reifyhealth.specmonstah.core :as sm]
+            [loom.io :as lio]))
+
+(def schema
+  {:user      {:prefix :u}
+   :todo-list {:prefix    :tl
+               :relations {:owner-id [:user :id]}}})
+
+
+(defn ex-01
+  []
+  (sm/build-ent-db {:schema schema} {:todo-list [[2]]}))
+```
+
+The ent db's schema defines ent types. It's implemented as a map where
+keys are the ent type names and values are ent type definitions. In
+the code above, `schema` defines two ent types, `:user` and
+`:todo-list`. The ent type definitions include two keys, `:prefix` and
+`:relations`.
+
+`:prefix` is used by `build-ent-db` to name the ents it creates. For
+example, in `ex-01`, we produce an ent db that has two todo-lists and
+a user:
+
+```clojure
+(defn ex-01
+  []
+  (sm/build-ent-db {:schema schema} {:todo-list [[2]]}))
+
+(lio/view (:data (ex-01)))
+```
+
+![prefixes](docs/02/prefixes.png)
+
+The todo-lists are named `:tl0` and `:tl1`, and the user is
+`:u0`. There's a pattern here: every generated ent is named
+`:{schema-prefix}{index}`.
+
+The schema's `:relations` key is used to specify how ents are related
+to each other. The `:todo-list` definition includes `:relations
+{:owner-id [:user :id]}`, specifying that a `:todo-list` should
+reference a `:user`. The relation also specifies that the
+`:todo-list`'s `:owner-id` should be set to the `:user`'s `:id`,
+information that will be used when we use spec-gen to generate records
+for these ents.
+
+It's because of this relation that the query `{:todo-list [[2]]}`
+results in the `:user` `:u0` being created even though the query
+doesn't explicitly mention `:user`, and that the `:todo-list`s
+`:tl0` and `:tl1` reference `:u0`.
+
+### Ch. 03: Queries
+
+* numbers
+* names
+* options
+
+### Ch. 04: refs
+
+* implicit
+* explicit for differentiation
+
+### Ch. 05: spec-gen
+
+* writing the specs
+* including in the schema
+* overriding in query
+
+### Ch. 06: Custom visitors (insert)
+
+### More use cases
+
+* db as input
+* Uniqueness constraints
+* binding
+* polymorphism
+* collection constraint
 
 ## Usage Reference
 
@@ -538,3 +618,9 @@ I'm looking to exercise Specmonstah 2 against the following use cases:
 * Progressively generating and mapping a database.
   * Does anything unexpected happen if you create an entity database
     and map over it to perform inserts over multiple calls?
+
+## Notes to self
+
+* Tutorial is structured so that dev can start using SM ASAP, within
+  first few chapters, and the remaining chapters fill in details as
+  needed.
