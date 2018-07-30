@@ -14,5 +14,6 @@ output
 crash.log
 tmp
 gpg.edn
+*cider-repl*
 project.clj
 pom.xml
