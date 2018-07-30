@@ -97,6 +97,18 @@
                  
                  (lat/add-attr :tl0 :u0 :relation-attrs #{:created-by-id :updated-by-id}))))
 
+(deftest test-build-ent-db-one-level-relation-with-omit
+  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list [[1 {:refs {:created-by-id ::sm/omit
+                                                                                 :updated-by-id ::sm/omit}}]]}))
+             (-> (lg/digraph [:todo-list :tl0])
+
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl0 :type :ent)
+                 (lat/add-attr :tl0 :index 0)
+                 (lat/add-attr :tl0 :ent-type :todo-list)
+                 (lat/add-attr :tl0 :query-term [1 {:refs {:created-by-id ::sm/omit
+                                                           :updated-by-id ::sm/omit}}]))))
+
 (deftest test-build-ent-db-mult-ents-w-extended-query
   (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list [[2 {:refs {:created-by-id :bloop :updated-by-id :bloop}}]]}))
              (-> (lg/digraph [:user :bloop]
