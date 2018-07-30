@@ -416,12 +416,12 @@ slices of the result that you care about.
 
 Now that you have the broad picture of how Specmonstah works, let's
 start exploring the details with source code. The rest of the tutorial
-consists of chapters with corresponding clojure files under the
+consists of sections with corresponding clojure files under the
 [](tutorial/reifyhealth/specmonstah_tutorial) directory, each
 introducing new concepts. You'll have the best experience if you
 follow along in a REPL.
 
-### Ch. 01: ent db
+### 01: ent db
 
 In this section you're going to learn about the _ent db_. Open
 [reifyhealth.specmonstah-tutorial.01](tutorial/reifyhealth/specmonstah_tutorial/01.clj):
@@ -468,7 +468,7 @@ as their first argument and return an ent db. The ent db is
 conceptually similar to the databases you're familiar with. Its
 `:schema` key refers to an entity schema, just as an RDBMS includes
 schema information. In this case, the schema is `{:user {:prefix
-:u}}`, which is as simple a schema as possible. In later chapters,
+:u}}`, which is as simple a schema as possible. In later ssections,
 you'll learn more about schemas and how they're used to define
 relationships and constraints among ents.
 
@@ -503,10 +503,10 @@ safely be ignored.
 
 Building an ent db is the first step whenever you're using
 Specmonstah. The two main ingredients for building an ent db are the
-_query_ and _schema_. In the next chapter, we'll explain how schemas
-work, and chapter 3 will explain queries.
+_query_ and _schema_. In the next section, we'll explain how schemas
+work, and section 3 will explain queries.
 
-### Ch. 02: Schemas
+### 02: Schemas
 
 Here's the source for this chapter:
 
@@ -563,7 +563,7 @@ results in the `:user` `:u0` being created even though the query
 doesn't explicitly mention `:user`, and that the `:todo-list`s
 `:tl0` and `:tl1` reference `:u0`.
 
-### Ch. 03: Queries
+### 03: Queries
 
 ```clojure
 (ns reifyhealth.specmonstah-tutorial.03
@@ -600,18 +600,18 @@ query.
 * names
 * options
 
-### Ch. 04: refs
+### 04: refs
 
 * implicit
 * explicit for differentiation
 
-### Ch. 05: spec-gen
+### 05: spec-gen
 
 * writing the specs
 * including in the schema
 * overriding in query
 
-### Ch. 06: Custom visitors (insert)
+### 06: Custom visitors (insert)
 
 ### More use cases
 
