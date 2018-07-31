@@ -38,12 +38,12 @@ Specmonstah lets you write something like this:
 (create! {:todo [[1 {:spec-gen {:description "Book flight"}}]]})
 ```
 
-Specmonstah creates the User and TodoList, and ensures that the
+Specmonstah (SM) creates the User and TodoList, and ensures that the
 TodoList correctly references the User and the Todo correctly
 references the TodoList and user. Call me crazy, but I think the
 second snippet is preferable to the first.
 
-Specmonstah is a specialized tool that introduces new concepts and
+SM is a specialized tool that introduces new concepts and
 vocabulary. It will take an hour or two to get comfortable with it,
 but once you do, that investment will pay huge dividends over time as
 you use it to write code that is more clear, concise, and easy to
@@ -51,10 +51,11 @@ maintain. This guide has four parts to get you there:
 
 * The [Infomercial](#infomercial) is a quick tour of the cool stuff you can
   do with Specmonstah, showing you why it's worth the investment
-* A detailed [Tutorial](#tutorial) introduces you to Specmonstah
-  concepts one a time 
-* The [Usage Reference](#usage-reference) contains code snippets
-  demonstrating the facets of Specmonstah usage
+* A detailed [Tutorial](#tutorial) walks you through the library. It's
+  written so the first sections get you productive with the core
+  concepts quickly, and later sections fill in more esoteric details.
+* The [Usage Reference](#usage-reference) contains at-a-glance code
+  snippets demonstrating the facets of Specmonstah usage
 * Because Specmonstah introduces new terms, we provide a
   [Glossary](#glossary)
 
@@ -565,6 +566,8 @@ doesn't explicitly mention `:user`, and that the `:todo-list`s
 
 ### 03: Queries
 
+Section 3's source file begins:
+
 ```clojure
 (ns reifyhealth.specmonstah-tutorial.03
   (:require [reifyhealth.specmonstah.core :as sm]
@@ -594,16 +597,176 @@ generates the `:user` ent `:u0`. Specmonstah only generates one
 `:user`, not two, because that's the mininum needed to satisfy the
 query.
 
+Queries are maps, where each key is the name of an ent type, and each
+value is a vector of _query terms_. In the query `{:todo-list [[2]]}`,
+`:todo-list` is an ent type and `[2]` is a query term.
 
+Each query term is a vector where the first element is either a number
+or an _ent name_. When you provide a number, as in `[2]`, you're
+instructing SM to generate that many ents of the given ent type, and
+to name them according to its default naming system. As we saw in the
+last section, SM names ents by appending an index to the ent type's
+`:prefix`. The `:prefix` for `:todo-list` is `:tl`, so the
+`:todo-list` ents are named `:tl0` and `:tl1`. Figuring out what to
+name your test data is one of the tedious aspects of testing that SM
+handles for you.
 
-* numbers
-* names
-* options
+On the other hand, if you _do_ want to name an ent, you can provide a
+keyword as the first element in the query term, as in `ex-02`:
+
+```clojure
+(defn ex-02
+  []
+  (sm/build-ent-db {:schema schema} {:todo-list [[:my-todo-list]
+                                                 [:my-todoodle-do-list]]}))
+
+(lio/view (:data (ex-02)))
+```
+
+![custom names](docs/03/custom-names.png)
+
+Here, you're naming your `:todo-list` ents `:my-todo-list` and, in a
+fit of whimsy, `:my-todoodle-do-list`.
+
+You can add as many query terms to an ent type as you want, mixing
+numbers and ent names as you please:
+
+```clojure
+(defn ex-03
+  []
+  (sm/build-ent-db {:schema schema} {:todo-list [[1]
+                                                 [:work]
+                                                 [1]
+                                                 [:cones-of-dunshire-club]]}))
+
+```
+
+![custom names](docs/03/cones.png)
+
+Query terms take a second argument, an options map map, which is used
+to further tune the creation of the ent. The next section will show
+you how to use the options map to generate unique references.
 
 ### 04: refs
 
-* implicit
-* explicit for differentiation
+In all the examples so far, all the todo lists have referred to the
+same user, `:u0`. What if you want to create two todo lists, but you
+want them to belong to different users? Here's how you could do that:
+
+```clojure
+(ns reifyhealth.specmonstah-tutorial.03
+  (:require [reifyhealth.specmonstah.core :as sm]
+            [loom.io :as lio]))
+
+(def schema
+  {:user      {:prefix :u}
+   :todo-list {:prefix    :tl
+               :relations {:owner-id [:user :id]}}
+   :todo      {:prefix :t
+               :relations {:todo-list-id [:todo-list :id]}}})
+(defn ex-01
+  []
+  (sm/build-ent-db {:schema schema} {:todo-list [[2 {:refs {:owner-id :my-own-sweet-user}}]
+                                                 [1]]}))
+                                                 
+(lio/view (:data (ex-01)))
+```
+
+![custom refs](docs/04/custom-ref.png)
+
+What's new in this example is the map `{:refs {:owner-id
+:my-own-sweet-user}}`. It resulted in two todo lists, `:tl0` and
+`:tl1`, referring to a `:user` ent named `:my-own-sweet-user` instead
+of `:u0`. Let's break this down.
+
+In the `schema`, `:todo-list` includes this relations definition:
+
+```clojure
+:relations {:owner-id [:user :id]}
+```
+
+This means, _`:todo-list`s refer to a user via the `:owner-id`
+attribute_. Remember that queries are essentially telling Specmonstah,
+_generate the minimal ent-db necessary for me to retrieve the ents
+I've specified_, so when you call the `build-ent-db` function and
+instruct SM to generate a `:todo-list`, SM's default behavior is to
+satisfy this schema definition by creating a `:user` and naming it
+according to its default naming system. Internally, the ent db tracks
+that the `:todo-list` refers to the `:user` via the `:owner-id`
+attribute.
+
+However, when your query includes the option `{:refs {:owner-id
+:my-own-sweet-user}}`, you're saying, _I want the user that
+`:owner-id` refers to to be named `:my-own-sweet-user`_. One way you
+might use this would be to write a test ensuring that users can't
+modify each others' todo lists.
+
+If you look back at the schema for this section, you'll notice it
+introduced a new ent type, `:todo`, and `:todo`s reference
+`:todo-list`s. What if you wanted to create two todo lists, each with
+one todo and each belonging to a different user? Here's how you could
+do that:
+
+```clojure
+(defn ex-02
+  []
+  (sm/build-ent-db {:schema schema} {:todo-list [[1]
+                                                 [1 {:refs {:owner-id :hamburglar}}]]
+                                     :todo      [[1]
+                                                 [1 {:refs {:todo-list-id :tl1}}]]}))
+
+(lio/view (:data (ex-02)))
+```
+
+![implicit refs](docs/04/hamburglar.png)
+
+Before reading the explanation of how this works, indulge the educator
+in me and take a moment to write or say your own explanation. Quizzing
+yourself like this is an effective way to clarify and retain your
+understanding. There's all kinds of studies that show it; it's called
+"the testing effect" and it's one of the best ways to learn.
+
+Let's break this query down term by term:
+
+```clojure
+{:todo-list [[1]
+             [1 {:refs {:owner-id :hamburglar}}]]
+ :todo      [[1]
+             [1 {:refs {:todo-list-id :tl1}}]]}
+```
+
+Under `:todo-list`, `[1]` tells Specmonstah to create a
+`:todo-list`. It's given the default name `:tl0`. Since you didn't
+specify any refs, it refers to the default user, `:u0`.
+
+The next query term, `[1 {:refs {:owner-id :hamburglar}}]`, instructs
+SM to create a `:todo-list` that refers to a user named, of all
+things, `:hamburglar`. This `:todo-list` is given the default name of
+`:tl1`.
+
+Under `:todo`, `[1]` tells Specmonstah to create a `:todo` with a
+default name and default refs. Therefore, `:t0` refers to `:tl0`.
+
+The next term, `[1 {:refs {:todo-list-id :tl1}}]`, tells SM that the
+next `:todo` should refer to the `:todo-list` named `:tl1`. We
+specified the `:tl1` here because we know that Specmonstah's simple,
+consistent naming system will produce that name for the second
+`:todo-list` specified in the query.
+
+The point of all this is that you can rely on Specmonstah's naming
+system to reliably and concisely establish the properties and
+relations of the ent db you want to generate. If you don't want to
+keep track of Specmonstah's implicit names, you can name things
+explicitly:
+
+```clojure
+(defn ex-03
+  []
+  (sm/build-ent-db {:schema schema} {:todo-list [[:tl0]
+                                                 [:tl1 {:refs {:owner-id :hamburglar}}]]
+                                     :todo      [[1 {:refs {:todo-list-id :tl0}}]
+                                                 [1 {:refs {:todo-list-id :tl1}}]]}))
+```
 
 ### 05: spec-gen
 
