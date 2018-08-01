@@ -308,10 +308,11 @@ you'll see them all throughout the source code, so let's define them:
 database, or a class in object-oriented programming. It differs in
 that relations and classes define all the attributes of their
 instances, whereas ent types don't. Ent types define how instances are
-related to each other. For example, the `:todo` ent type wouldn't
-include a `:description` attribute, but it does specify that a `:todo`
-instances reference `:todo-list` instances. In the next section you'll
-learn how to define ent types.
+related to each other. For example, a Todo schema might include a
+`:description` attribute, but the `:todo` ent type doesn't. The
+`:todo` ent type _does_ specify that a `:todo` instances reference
+`:todo-list` instances. In the next section you'll learn how to define
+ent types.
 
 Ent types are represented as nodes in the Specmonstah graph (let's
 abbreviate that with _SG_). Ent types have directed edges to their
@@ -345,8 +346,8 @@ single user:
            :u0   {:type :ent :index 0 :ent-type :user :query-term [1]}}}
 ```
 
-Conspicuously absent are the `:user` attributes you'd expect, like
-`:username` or `:email`.
+Conspicuously absent are the business `:user` attributes you'd expect,
+like `:username` or `:email`. 
 
 How does Specmonstah generate this graph? You'll be learning about
 that in the upcoming sections.
@@ -475,12 +476,17 @@ relationships and constraints among ents.
 
 The ent db's `:data` key refers to a
 [graph](https://www.geeksforgeeks.org/graph-data-structure-and-algorithms/)
-representing ents, their relationships, and their attributes. In this
-ent db there are three users, `:u0`, `:u1`, and `:u2`. There aren't
-any ent relationships because our schema didn't specify any, but each
-ent does have attributes: `:type`, `:index`, `:ent-type`, and
-`:query-term`. As you go through the tutorial, you'll see how a lot of
-Specmonstah functions involve reading and updating ents' attributes.
+representing ents, their relationships, and their _ent attributes_ (as
+opposed to business attributes). In this ent db there are three users,
+`:u0`, `:u1`, and `:u2`. There aren't any ent relationships because
+our schema didn't specify any, but each ent does have attributes:
+`:type`, `:index`, `:ent-type`, and `:query-term`. I know I've said it
+multiple times already, but these are _ent attributes_, which are
+distinct from _business attributes_. The latter are the attributes
+related to whatever domain you're modeling; for users, these might
+include name, username, email address, and so forth. As you go through
+the tutorial, you'll see how a lot of Specmonstah functions involve
+reading and updating ents' attributes.
 
 The graph also includes nodes for ent types; you can see `:user`, and
 ent-type, under the `:nodeset` key of the graph. This is used
@@ -654,7 +660,7 @@ same user, `:u0`. What if you want to create two todo lists, but you
 want them to belong to different users? Here's how you could do that:
 
 ```clojure
-(ns reifyhealth.specmonstah-tutorial.03
+(ns reifyhealth.specmonstah-tutorial.04
   (:require [reifyhealth.specmonstah.core :as sm]
             [loom.io :as lio]))
 
@@ -768,11 +774,15 @@ explicitly:
                                                  [1 {:refs {:todo-list-id :tl1}}]]}))
 ```
 
-### 05: spec-gen
+Everything you've learned up to this point has focused on generating
+an ent db: you've learned a bit about how to use schemas and queries
+together to concisely specify what ents to create. You've also learned
+how to customize the relationships with the `:refs` query option.
 
-* writing the specs
-* including in the schema
-* overriding in query
+In the next couple sections, you'll learn about how Specmonstah uses
+_visitation_ to generate and insert business data
+
+### 05: spec-gen
 
 ### 06: Custom visitors (insert)
 
