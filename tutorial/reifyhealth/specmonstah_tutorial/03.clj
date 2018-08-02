@@ -10,3 +10,14 @@
   []
   (sm/build-ent-db {:schema schema} {:todo-list [[2]]}))
 
+(defn ex-02
+  []
+  (sm/build-ent-db {:schema schema} {:todo-list [[:my-todo-list]
+                                                 [:my-todoodle-do-list]]}))
+
+(defn ex-03
+  []
+  (sm/build-ent-db {:schema schema} {:todo-list [[1]
+                                                 [:work]
+                                                 [1]
+                                                 [:cones-of-dunshire-club]]}))
