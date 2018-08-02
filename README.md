@@ -780,9 +780,133 @@ together to concisely specify what ents to create. You've also learned
 how to customize the relationships with the `:refs` query option.
 
 In the next couple sections, you'll learn about how Specmonstah uses
-_visitation_ to generate and insert business data
+_visitation_ to generate and insert business data.
 
-### 05: spec-gen
+### 05: Progressive construction
+
+* build-ent-db actually takes a db as the first argument
+* output is input
+
+### 06: spec-gen
+
+If you're not familiar with clojure.spec, check out [the spec guide on
+clojure.org](https://clojure.org/guides/spec), it's very well-written.
+
+Our code:
+
+```clojure
+(ns reifyhealth.specmonstah-tutorial.05
+  (:require [reifyhealth.specmonstah.core :as sm]
+            [loom.io :as lio]
+            [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as gen]
+            [reifyhealth.specmonstah.spec-gen :as sg]))
+
+(s/def ::id (s/and pos-int? #(< % 100)))
+(s/def ::not-empty-string (s/and string? not-empty #(< (count %) 20)))
+
+(s/def ::username ::not-empty-string)
+(s/def ::user (s/keys :req-un [::id ::not-empty-string]))
+
+(s/def ::name ::not-empty-string)
+(s/def ::owner-id ::id)
+(s/def ::todo-list (s/keys :req-un [::id ::name ::owner-id]))
+
+(s/def ::details ::not-empty-string)
+(s/def ::todo-list-id ::id)
+(s/def ::todo (s/keys :req-un [::id ::details ::todo-list-id]))
+
+(def schema
+  {:user      {:prefix :u
+               :spec   ::user}
+   :todo-list {:prefix    :tl
+               :spec      ::todo-list
+               :relations {:owner-id [:user :id]}}
+   :todo      {:prefix    :t
+               :spec     ::todo
+               :relations {:todo-list-id [:todo-list :id]}}})
+
+(defn ex-01
+  []
+  {:user      (gen/generate (s/gen ::user))
+   :todo-list (gen/generate (s/gen ::todo-list))
+   :todo      (gen/generate (s/gen ::todo))})
+```
+
+We define some simple specs to generate a little dummy data. Here's
+what the raw generated data looks like:
+
+```clojure
+(ex-01) ;=>
+{:user      {:id 2, :not-empty-string "qI0iNgiy"}
+ :todo-list {:id 4, :name "etIZ3l6jDO7m9UR5P", :owner-id 11}
+ :todo      {:id 1, :details "1K85jiEU3L366NTx1", :todo-list-id 2}}
+```
+
+That's useful, but we can't insert that into a test database because
+the foreign keys wouldn't match the values they reference. The
+`:todo-list`'s `:user-id`, for example, is `11`, where the `:user`'s
+`:id` is 2.
+
+We can use `reifyhealth.specmonstah.spec-gen/ent-db-spec-gen` to
+generate data and then assign the foreign keys:
+
+```clojure
+(defn ex-02
+  []
+  (:data (sg/ent-db-spec-gen {:schema schema} {:todo [[1]]})))
+
+(ex-02)
+; =>
+{:nodeset #{:todo-list :tl0 :t0 :u0 :todo :user},
+ :adj {:todo #{:t0},
+       :t0 #{:tl0},
+       :todo-list #{:tl0},
+       :tl0 #{:u0},
+       :user #{:u0}},
+ :in {:t0 #{:todo}, :tl0 #{:todo-list :t0}, :u0 #{:tl0 :user}},
+ :attrs {:todo {:type :ent-type},
+         :t0 {:type :ent,
+              :index 0,
+              :ent-type :todo,
+              :query-term [1],
+              :loom.attr/edge-attrs {:tl0 {:relation-attrs #{:todo-list-id}}},
+              :spec-gen {:id 1, :details "uhr5LSa", :todo-list-id 8}},
+         :todo-list {:type :ent-type},
+         :tl0 {:type :ent,
+               :index 0,
+               :ent-type :todo-list,
+               :query-term [:_],
+               :loom.attr/edge-attrs {:u0 {:relation-attrs #{:owner-id}}},
+               :spec-gen {:id 8, :name "xbamqBULZ", :owner-id 42}},
+         :user {:type :ent-type},
+         :u0 {:type :ent,
+              :index 0,
+              :ent-type :user,
+              :query-term [:_],
+              :spec-gen {:id 42, :not-empty-string "abrfR4s1I15"}}}}
+```
+
+Oh wow, OK. That's a lot to look at. Let's go through it piece by
+piece, starting with the call to `sg/ent-db-spec-gen`. Here's that
+function's definition:
+
+```clojure
+(defn ent-db-spec-gen
+  "Convenience function to build a new db using the spec-gen mapper
+  and the default attr-key"
+  [db query]
+  (-> (sm/build-ent-db db query)
+      (sm/visit-ents-once spec-gen-ent-attr-key spec-gen)))
+```
+
+`ent-db-spec-gen` passes its arguments to `sm/build-ent-db`. In a
+previous section I mentioned that using Specmonstah always starts with
+a call to `sm/build-ent-db`, and you can see that here. The resulting
+ent db is passed to `sm/visit-ents-once`.
+
+* override spec gen attributes
+* ::omit
 
 ### 06: Custom visitors (insert)
 
