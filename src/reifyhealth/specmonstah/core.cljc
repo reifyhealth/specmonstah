@@ -153,6 +153,10 @@
        keys
        set))
 
+(defn ent-attrs
+  [{:keys [data]} ent-name]
+  (get-in data [:attrs ent-name]))
+
 (defn query-opts
   [{:keys [data]} ent-name]
   (second (lat/attr data ent-name :query-term)))

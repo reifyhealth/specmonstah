@@ -9,7 +9,7 @@
 (s/def ::not-empty-string (s/and string? not-empty #(< (count %) 20)))
 
 (s/def ::username ::not-empty-string)
-(s/def ::user (s/keys :req-un [::id ::not-empty-string]))
+(s/def ::user (s/keys :req-un [::id ::username]))
 
 (s/def ::name ::not-empty-string)
 (s/def ::owner-id ::id)
@@ -36,7 +36,7 @@
    :todo      (gen/generate (s/gen ::todo))})
 
 ;;=>
-{:user      {:id 2, :not-empty-string "qI0iNgiy"}
+{:user      {:id 2, :username "qI0iNgiy"}
  :todo-list {:id 4, :name "etIZ3l6jDO7m9UR5P", :owner-id 11}
  :todo      {:id 1, :details "1K85jiEU3L366NTx1", :todo-list-id 2}}
 
@@ -44,7 +44,7 @@
   []
   (:data (sg/ent-db-spec-gen {:schema schema} {:todo [[1]]})))
 
-
+;; =>
 {:nodeset #{:todo-list :tl0 :t0 :u0 :todo :user},
  :adj {:todo #{:t0},
        :t0 #{:tl0},
@@ -71,5 +71,25 @@
               :index 0,
               :ent-type :user,
               :query-term [:_],
-              :spec-gen {:id 42, :not-empty-string "abrfR4s1I15"}}}}
+              :spec-gen {:id 42, :username "abrfR4s1I15"}}}}
 
+(defn ex-03
+  []
+  (-> (sg/ent-db-spec-gen {:schema schema} {:todo [[1]]})
+      (sm/attr-map :spec-gen)))
+
+;; => 
+{:tl0 {:id 21, :name "0N2xKMNwM8uO", :owner-id 19}
+ :t0  {:id 4, :details "PGf92", :todo-list-id 21}
+ :u0  {:id 19, :username "fz774"}}
+
+
+(defn ex-04
+  []
+  (sg/ent-db-spec-gen-attr {:schema schema} {:todo [[1]]}))
+
+(ex-04)
+;; =>
+{:tl0 {:id 51, :name "VO1161Id66DJRftxq", :owner-id 90}
+ :t0  {:id 91, :details "qaQ0e5Bfa6B", :todo-list-id 51}
+ :u0  {:id 90, :username "82d71j551NVMFj4"}}

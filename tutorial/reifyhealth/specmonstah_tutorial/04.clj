@@ -19,3 +19,10 @@
                                                  [1 {:refs {:owner-id :hamburglar}}]]
                                      :todo      [[1]
                                                  [1 {:refs {:todo-list-id :tl1}}]]}))
+
+(defn ex-03
+  []
+  (sm/build-ent-db {:schema schema} {:todo-list [[:tl0]
+                                                 [:tl1 {:refs {:owner-id :hamburglar}}]]
+                                     :todo      [[1 {:refs {:todo-list-id :tl0}}]
+                                                 [1 {:refs {:todo-list-id :tl1}}]]}))
