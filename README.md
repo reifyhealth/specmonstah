@@ -8,11 +8,11 @@
 
 ## Introduction
 
-Specmonstah lets you generate and manipulate deeply-nested,
-hierarchical graphs of business data (what you typically store in a
-relational database) using a concise DSL. It's great for dramatically
-reducing the amount of boilerplate code you have to write for
-tests. It's similar in purpose to Ruby's
+Specmonstah (Boston for "Specmonster") lets you generate and
+manipulate deeply-nested, hierarchical graphs of business data (what
+you typically store in a relational database) using a concise
+DSL. It's great for dramatically reducing the amount of boilerplate
+code you have to write for tests. It's similar in purpose to Ruby's
 [factory_bot](https://github.com/thoughtbot/factory_bot).
 
 ![Specmonstah purpose](docs/diagram.png)
@@ -774,6 +774,72 @@ explicitly:
                                                  [1 {:refs {:todo-list-id :tl1}}]]}))
 ```
 
+### 05: Progressive construction
+
+At the beginning of this tutorial, I told you that `build-ent-db` takes a
+schema as an argument:
+
+```clojure
+(sm/build-ent-db {:schema schema} {:todo [[1]]})
+```
+
+You may have wondered why the map `{:schema schema}` is used, rather
+than just directly passing in `schema`; why don't we just write this?
+
+```clojure
+(sm/build-ent-db schema {:todo [[1]]})
+```
+
+The reason is that `build-ent-db` actually takes an ent db as its
+first argument. When you pass in `{:schema schema}`, you're passing in
+an ent db with no data. However, you can take the return value of
+`build-ent-db` and pass it in as the first argument to further calls
+to `build-ent-db`:
+
+```clojure
+(ns reifyhealth.specmonstah-tutorial.05
+  (:require [reifyhealth.specmonstah.core :as sm]
+            [loom.io :as lio]))
+
+(def schema
+  {:user      {:prefix :u}
+   :todo-list {:prefix    :tl
+               :relations {:owner-id [:user :id]}}
+   :todo      {:prefix :t
+               :relations {:todo-list-id [:todo-list :id]}}})
+
+(defn ex-01
+  []
+  (let [ent-db-1 (sm/build-ent-db {:schema schema} {:todo-list [[1]]})
+        ent-db-2 (sm/build-ent-db ent-db-1 {:todo-list [[1] [1 {:refs {:owner-id :hamburglar}}]]})]
+    (lio/view (:data ent-db-1))
+    (lio/view (:data ent-db-2))))
+
+(ex-01)
+```
+
+Additional calls to `build-ent-db` are additive; they will never alter
+existing ents, and will only add new ents. The first call,
+`(sm/build-ent-db {:schema schema} {:todo-list [[1]]})`, produces a
+`:todo-list` named `:tl0` referencing a `:user` named `:u0`:
+
+![progressive generation 1](docs/05/progressive-1.png)
+
+That ent db is passed to the next call, `(sm/build-ent-db ent-db-1
+{:todo-list [[1] [1 {:refs {:owner-id :hamburglar}}]]})`. This creates
+two more todo lists: 
+
+![progressive generation](docs/05/progressive.png)
+
+The default naming system picks up where it left off, giving the todo
+lists the names `:tl1` and `:tl2`. `:tl1` references the existing
+user, `:u0`, and `:tl2` references a new user from the `:refs`,
+`:hamburglar`. When progressively generating an ent-db, you can expect
+Specmonstah to behave as if all queries were passed as a single query
+to a single call of `build-ent-db`.
+
+---
+
 Everything you've learned up to this point has focused on generating
 an ent db: you've learned a bit about how to use schemas and queries
 together to concisely specify what ents to create. You've also learned
@@ -782,15 +848,10 @@ how to customize the relationships with the `:refs` query option.
 In the next couple sections, you'll learn about how Specmonstah uses
 _visitation_ to generate and insert business data.
 
-### 05: Progressive construction
-
-* build-ent-db actually takes a db as the first argument
-* output is input
-
 ### 06: spec-gen
 
 If you're not familiar with clojure.spec, check out [the spec guide on
-clojure.org](https://clojure.org/guides/spec), it's very well-written.
+clojure.org](https://clojure.org/guides/spec). It's very well-written.
 
 Our code:
 
@@ -887,40 +948,411 @@ generate data and then assign the foreign keys:
               :spec-gen {:id 42, :not-empty-string "abrfR4s1I15"}}}}
 ```
 
-Oh wow, OK. That's a lot to look at. Let's go through it piece by
-piece, starting with the call to `sg/ent-db-spec-gen`. Here's that
-function's definition:
+Oh wow, OK. That's a lot to look at. Let's step through it.
+
+We're looking at the value for the ent db's `:data` key. This is the
+loom graph that we've looked at in earlier sections, the graph
+returned by `build-ent-db` that captures ents and their
+relationships. Under the `:attrs` key, you can see that each ent
+(`:t0`, `:tl0`, and `:u0`) now has the attribute `:spec-gen`. Under
+`:spec-gen` is a map that's been generated using clojure.spec, except
+that the foreign keys have been updated to be correct.
+
+Sometimes you want to view the data that clojure.spec has
+generated. To make that easier, Specmonstah has the
+`reifyhealth.specmonstah.core/attr-map` function:
 
 ```clojure
-(defn ent-db-spec-gen
-  "Convenience function to build a new db using the spec-gen mapper
-  and the default attr-key"
-  [db query]
-  (-> (sm/build-ent-db db query)
-      (sm/visit-ents-once spec-gen-ent-attr-key spec-gen)))
+(defn ex-03
+  []
+  (-> (sg/ent-db-spec-gen {:schema schema} {:todo [[1]]})
+      (sm/attr-map :spec-gen)))
+
+(ex-03)
+;; => 
+{:tl0 {:id 21, :name "0N2xKMNwM8uO", :owner-id 19}
+ :t0  {:id 4, :details "PGf92", :todo-list-id 21}
+ :u0  {:id 19, :not-empty-string "fz774"}}
 ```
 
-`ent-db-spec-gen` passes its arguments to `sm/build-ent-db`. In a
-previous section I mentioned that using Specmonstah always starts with
-a call to `sm/build-ent-db`, and you can see that here. The resulting
-ent db is passed to `sm/visit-ents-once`.
+`attr-map` returns a map where the keys are ent names and the values
+are the value of the given node attribute (`:spec-gen` here) for each
+ent. There's a convenience function that combines `sg/ent-db-spec-gen`
+and `sm/attr-map`, `sg/ent-db-spec-gen-attr`:
 
-* override spec gen attributes
-* ::omit
+```clojure
+(defn ex-04
+  []
+  (sg/ent-db-spec-gen-attr {:schema schema} {:todo [[1]]}))
 
-### 06: Custom visitors (insert)
+(ex-04)
+;; =>
+{:tl0 {:id 51, :name "VO1161Id66DJRftxq", :owner-id 90}
+ :t0 {:id 91, :details "qaQ0e5Bfa6B", :todo-list-id 51}
+ :u0 {:id 90, :not-empty-string "82d71j551NVMFj4"}}
+ ```
+
+### 07: spec gen customization and omission
+
+You can override the values produces by `ent-db-spec-gen` in the
+query:
+
+```clojure
+(defn ex-01
+  []
+  (sg/ent-db-spec-gen-attr {:schema schema}
+                           {:user [[1 {:spec-gen {:username "bob"}}]]
+                            :todo [[1 {:spec-gen {:details "get groceries"}}]]}))
+
+(ex-01)
+;; =>
+{:tl0 {:id 48, :name "C8Cj51DSbZIb69Z", :owner-id 2}
+ :t0  {:id 21, :details "get groceries", :todo-list-id 48}
+ :u0  {:id 2, :username "bob"}}
+```
+
+You can also specify that you don't want an ent to reference one of
+the ents defined in its schema. For example, if a `:todo-list`'s
+`:owner-id` is optional and you don't want it to be present, you could
+do this:
+
+```clojure
+(defn ex-02
+  []
+  (sg/ent-db-spec-gen-attr {:schema schema} {:todo-list [[1 {:refs {:owner-id ::sm/omit}}]]}))
+
+(ex-02)
+;; =>
+{:tl0 {:id 2, :name "v"}}
+```
+
+`::sm/omit` prevents the referenced ent from even being created in the
+ent db. spec generation respects this and omits `:owner-id` from the
+map it generates. If you want `:owner-id` to be `nil`, you'd have to
+specify that like this:
+
+```
+(defn ex-03
+  []
+  (sg/ent-db-spec-gen-attr {:schema schema} {:todo-list [[1 {:refs     {:owner-id ::sm/omit}
+                                                             :spec-gen {:owner-id nil}}]]}))
+
+(ex-03)
+;; =>
+{:tl0 {:id 2, :name "pijm" :owner-id nil}}
+```
+
+### 08: Visiting functions
+
+You now have most of the pieces you need to generate and insert
+fixture data into a test database. Now you just need to... actually
+insert the data! To insert data you must _visit_ each ent in the ent
+db with a _visiting function_, and that's what you'll learn to do in
+this section and the next.
+
+Earlier I wrote,
+
+> Visiting ent nodes is kind of like mapping: when you call `map` on a
+> seq, you apply a mapping function to each element, creating a new
+> seq from the mapping function's return values. When you visit ents,
+> you apply a visiting function to each ent. The visiting function's
+> return value is stored as an attribute on the ent (remember that
+> ents are implemented as graph nodes, and nodes can have attributes).
+
+You've actually already seen a visiting function at work. In the last
+couple sections you learned how to use spec to generate a value for
+each ent. The generated value was stored under the `:spec-gen`
+attribute; that's because the `sg/ent-db-spec-gen` you called actually
+applies a visiting function to the ent db it generates. Let's create
+our own visiting function so you can see how this works:
+
+```clojure
+(ns reifyhealth.specmonstah-tutorial.08
+  (:require [reifyhealth.specmonstah.core :as sm]))
+
+
+(def schema
+  {:user      {:prefix :u}
+   :todo-list {:prefix    :tl
+               :relations {:owner-id [:user :id]}}
+   :todo      {:prefix    :t
+               :relations {:todo-list-id [:todo-list :id]}}})
+
+(defn announce
+  [db ent-name visit-key]
+  (str "announcing... " ent-name "!"))
+
+(defn ex-01
+  []
+  (-> (sm/build-ent-db {:schema schema} {:todo [[1]]})
+      (sm/visit-ents :announce announce)
+      (get-in [:data :attrs])))
+
+(ex-01)
+;; =>
+{:todo {:type :ent-type},
+ :t0
+ {:type :ent,
+  :index 0,
+  :ent-type :todo,
+  :query-term [1],
+  :loom.attr/edge-attrs {:tl0 {:relation-attrs #{:todo-list-id}}},
+  :announce "announcing... :t0!"},
+ :todo-list {:type :ent-type},
+ :tl0
+ {:type :ent,
+  :index 0,
+  :ent-type :todo-list,
+  :query-term [:_],
+  :loom.attr/edge-attrs {:u0 {:relation-attrs #{:owner-id}}},
+  :announce "announcing... :tl0!"},
+ :user {:type :ent-type},
+ :u0
+ {:type :ent,
+  :index 0,
+  :ent-type :user,
+  :query-term [:_],
+  :announce "announcing... :u0!"}}
+```
+
+`(ex-01)` creates an ent db, applies a visiting function, and then
+looks up the `:attrs` key in the graph associated with the ent db's
+`:data` key. The `:attrs` key is where loom stores each node's
+attributes. We can see that each ent (`:u0`, `:t0`, `:tl0`) has an
+attribute with the key `:announce` and the value of
+`"announcing... :ent-name!"`. Let's walk through this. You call the
+function `ex-01`, whose body is:
+
+```clojure
+(-> (sm/build-ent-db {:schema schema} {:todo [[1]]})
+    (sm/visit-ents :announce announce)
+    (get-in [:data :attrs]))
+```
+
+`sm/build-ent-db` builds the ent db and passes it to `sm/visit-ents`.
+`sm/visit-ents` takes three arguments: the ent db, a _visit key_, and
+a visiting function. Then, internally, `sm/visits-ents` iterates overs
+each ent in the ent db, passing the ent's name to the visiting
+function along with the db and visit key, using the return value to
+assign an attribute to the ent.
+
+So in the above example, the ents are `:u0`, `:tl0`, and `:t0`, and
+`sm/visit-ents` iterates over them in that order. For `:u0`, it passes
+the following arguments to the visiting function `announce`:
+
+1. the ent db
+2. the ent name, `:u0`
+3. the visit key, `:announce`
+
+The return value of `announce` is `"announcing... :u0!"`, and that
+gets associated with the `:announce` key under the ent's attributes.
+
+I'm concerned that this part of the tutorial isn't clear enough, and I
+hope to be able to improve it. In the mean time, if you're still
+struggling with visiting functions, try guessing what would happen if
+you changed the arguments to `sm/visit-ents`, then actually change the
+arguments and see if your guess was correct.
+
+### 09: An insertion visiting function
+
+In this section you'll look at how you could insert the data
+Specmonstah has generated into a database. We'll be addimg the data to
+an atom, but you can apply idea to your own database. The code:
+
+```clojure
+(ns reifyhealth.specmonstah-tutorial.09
+  (:require [reifyhealth.specmonstah.core :as sm]
+            [reifyhealth.specmonstah.spec-gen :as sg]
+            [clojure.spec.alpha :as s]))
+
+(s/def ::id (s/and pos-int? #(< % 100)))
+(s/def ::not-empty-string (s/and string? not-empty #(< (count %) 20)))
+
+(s/def ::username ::not-empty-string)
+(s/def ::user (s/keys :req-un [::id ::username]))
+
+(s/def ::name ::not-empty-string)
+(s/def ::owner-id ::id)
+(s/def ::todo-list (s/keys :req-un [::id ::name ::owner-id]))
+
+(s/def ::details ::not-empty-string)
+(s/def ::todo-list-id ::id)
+(s/def ::todo (s/keys :req-un [::id ::details ::todo-list-id]))
+
+(def schema
+  {:user      {:prefix :u
+               :spec   ::user}
+   :todo-list {:prefix    :tl
+               :spec      ::todo-list
+               :relations {:owner-id [:user :id]}}
+   :todo      {:prefix    :t
+               :spec     ::todo
+               :relations {:todo-list-id [:todo-list :id]}}})
+
+(def database (atom []))
+
+(defn insert
+  [db ent-name visit-key]
+  (let [{:keys [spec-gen ent-type] :as attrs} (sm/ent-attrs db ent-name)]
+    (when-not (visit-key attrs)
+      (swap! database conj [ent-type spec-gen])
+      true)))
+
+(defn ex-01
+  []
+  (reset! database [])
+  (-> (sg/ent-db-spec-gen {:schema schema} {:todo [[1]]})
+      (sm/visit-ents :insert insert))
+  @database)
+
+(ex-01)
+;; =>
+[[:user {:id 6, :username "Ov0zaH57lTk86bAh"}]
+ [:todo-list {:id 23, :name "9", :owner-id 6}]
+ [:todo {:id 2, :details "hf", :todo-list-id 23}]]
+```
+
+The specs and schema should be familiar by now. Looking at the `ex-01`
+function, we see that it calls `sg/ent-db-spec-gen`. As you saw
+earlier, this creates the ent db and uses clojure.spec to generate a
+map for each ent, storing the map under the ent's `:spec-gen`
+attribute. The resulting ent db is passed to `sm/visit-ents` with the
+visit key `:insert` and visiting function `insert`.
+
+
+`insert` works by:
+
+* Checking whether this ent has already been inserted
+* If not, updating the `database` atom by conjing a vector of the
+  ent's type and the value generated by `spec-gen`.
+
+Let's go through `insert` line by line:
+
+```clojure
+(defn insert
+  [db ent-name visit-key]
+  (let [{:keys [spec-gen ent-type] :as attrs} (sm/ent-attrs db ent-name)]
+    (when-not (visit-key attrs)
+      (swap! database conj [ent-type spec-gen])
+      true)))
+```
+
+In the `let` binding you get the ent's attributes with
+`sm/ent-attrs`. The next line, `(when-not (visit-key attrs) ...)`,
+checks whether `insert` has already visited this ent. (I'll explain
+why you want to perform this check soon.) If the ent hasn't been
+visited, the `database` gets updated by conjing a vector of the
+`ent-type` and `spec-gen`. The `database` atom ends up with a value
+like this:
+
+```clojure
+[[:user {:id 6, :username "Ov0zaH57lTk86bAh"}]
+ [:todo-list {:id 23, :name "9", :owner-id 6}]
+ [:todo {:id 2, :details "hf", :todo-list-id 23}]]
+ ```
+
+Each ent is inserted in dependency order: `:user` first, then
+`:todo-list`, then `:todo`.
+
+Now let's revisit ``(when-not (visit-key attrs) ...)`. You want to
+perform this check because of Specmonstah's progressive construction
+feature: as we covered in [05: Progressive
+construction](#05-progressive-construction), it's possible to pass an
+ent-db to successive calls to `sm/build-ent-db`. If you added more
+ents and wanted to insert, you wouldn't want to re-insert previous
+ents. `ex-02` demonstrates this:
+
+```clojure
+(defn ex-02
+  []
+  (reset! database [])
+  (-> (sg/ent-db-spec-gen {:schema schema} {:todo [[1]]})
+      (sm/visit-ents :insert insert)
+      (sg/ent-db-spec-gen {:todo [[3]]})
+      (sm/visit-ents :insert insert))
+  @database)
+
+(ex-02)
+;; =>
+[[:user {:id 23, :username "0B1E5Iq4QWz4q"}]
+ [:todo-list {:id 16, :name "gt", :owner-id 23}]
+ [:todo {:id 17, :details "wN92", :todo-list-id 16}]
+ [:todo {:id 3, :details "cQOav9DBqI8M57", :todo-list-id 16}]
+ [:todo {:id 8, :details "Ek065tC78bD9wEJwLa", :todo-list-id 16}]
+ [:todo {:id 5, :details "9", :todo-list-id 16}]]
+```
+The `:user`, `:todo-list`, and `:todo` ents from the first call to
+`ent-db-spec-gen` are only inserted once, even though they are visited
+by `insert` multiple times.
+
+In fact, recall that `ent-db-spec-gen` internally calls
+`sm/build-ent-db` and then calls the `sg/spec-gen` visiting
+function. `sg/spec-gen` is written with this same principle in mind:
+it can visit the ent db multiple times, and won't overwrite any
+existing values. The pattern is common enough that Specmonstah
+provides the `sm/visit-ents-once` which you can use instead of
+`sm/visit-ents`:
+
+```clojure
+(defn insert-once
+  [db ent-name visit-key]
+  (swap! database conj ((juxt :ent-type :spec-gen) (sm/ent-attrs db ent-name)))
+  true)
+
+(defn ex-03
+  []
+  (reset! database [])
+  (-> (sg/ent-db-spec-gen {:schema schema} {:todo [[1]]})
+      (sm/visit-ents-once :insert insert-once)
+      (sg/ent-db-spec-gen {:todo [[3]]})
+      (sm/visit-ents-once :insert insert-once))
+  @database)
+
+(ex-03)
+;; =>
+[[:user {:id 2, :username "S"}]
+ [:todo-list {:id 2, :name "58Zb3p0Y75BJZS1m", :owner-id 2}]
+ [:todo {:id 2, :details "OHqbuPz", :todo-list-id 2}]
+ [:todo {:id 13, :details "3v7rllHTps1r6gN3", :todo-list-id 2}]
+ [:todo {:id 27, :details "5nn24T029w7Z9KBUXE", :todo-list-id 2}]
+ [:todo {:id 2, :details "zV37csm519blvP3r", :todo-list-id 2}]]
+```
+
+With this coverage of `visit-ents` and `visit-ents-once`, you should
+be able to handle most use cases. Specmonstah handles other corner
+cases (like inserting records in the correct order when there are
+cycles.) This guide is a work in progress, and those usages aren't
+covered yet. However, every use case is covered in the test suite, so
+if you're running into an issue, check the tests first.
 
 ### More use cases
 
-* db as input
+TODO
+
 * Uniqueness constraints
 * binding
 * polymorphism
 * collection constraint
+* handling cycles
 
 ## Usage Reference
 
+TODO
+
 ## Glossary
+
+TODO
+
+* ent
+* ent db
+* ent attr
+* schema
+* visiting
+* visit key
+* visiting function
+* constraints
+* refs
+* bind
 
 ## Contributing
 
@@ -946,9 +1378,3 @@ I'm looking to exercise Specmonstah 2 against the following use cases:
 * Progressively generating and mapping a database.
   * Does anything unexpected happen if you create an entity database
     and map over it to perform inserts over multiple calls?
-
-## Notes to self
-
-* Tutorial is structured so that dev can start using SM ASAP, within
-  first few chapters, and the remaining chapters fill in details as
-  needed.
