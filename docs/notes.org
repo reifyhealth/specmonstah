@@ -1,0 +1,247 @@
+* requirements
+** automatically construct related ents
+** allow naming a non-default related ent, automatically construct it
+** specify a non-default ent
+** auto-alias
+*** ::x/abc can be referred to as :abc
+** auto-prefix
+*** ::x/project gets :p
+*** ::x/project-supporter gets :ps
+*** ::x/project-supporter-blah gets :psb
+** allow binding, such that all edges to node of type go to same node
+** constraints
+*** uniq: for every generated record, specified relation must generate new unique ent
+*** has-many: gen many, collect ids in vector
+*** 
+* implementation
+** nodes are spec namespaced keywords
+** edges have path attr that includes how to set child val
+*** multiple edges to same node (user, owner and updated-by)
+** auto-gen
+*** what are auto gen'd ents named?
+rule is, if it's not explicitly named it gets a prefix name
+**** spec: ::realm
+**** alias: :realm
+**** WINNER: prefixed: :r-1
+** scratch pad
+*** schema-spec will probably be necessary
+we can just have that be the schema, I don't think we need to iterate
+over the abstract relation topo except to set up the initial
+graph. And maybe not event then?
+*** add query terms to nodes?
+*** ensure that existing query term is used
+* next steps
+** DONE generate data
+*** DONE traverse nodes
+- skip type nodes
+- use type sort to traverse in order to preserve order
+  - sort by topsort, then by index attr on nodes
+- function should return a key/value pair that gets added to node;
+  another possibility is to update attr map
+- post-traverse
+- use schema as input
+- some gen fn?
+** DONE decide whether to pass in traverse attr or not
+** DONE add back has-many constraint to indicate autogen should be in vector
+*** also update spec-gen to handle has-many
+*** re-write spec-gen to iterate over relation attrs first, not edges
+** DONE allow overwriting of gen data
+*** look up query term
+** DONE transact the data
+*** a traversal function that relies on some other attrs of node
+*** test that gen / traverse only happen once
+** DONE spec the schema
+** DONE in has-many relation, specify names of ents
+** DONE find some other way to indicate bindings that can't conflict with fk attrs
+** DONE use conform for dsl parsing
+*** handle s/? regex case - arg is optional, but position should always mean binding
+*** DONE update query term spec to handle vector of names
+** DONE only allow vector or int on has-many relationships
+- has many has vector or int
+- non has-many only allowed to have keyword
+** DONE allow :_ for auto name
+** DONE something better than falsey for attr update checking
+equivalent of has-key for node attrs
+** DONE make n anonymous with attrs, relations, query term etc
+** DONE rename 'has-many' and 'has-one' to 'coll' and 'unary'
+** DONE binding naming for nested bound names
+:tl-bound-p0-0
+:t-bound-tl-bound-p0-0-0
+** DONE re-work examples to something more familiar
+** DONE better error handling
+*** DONE check refs and ent types
+*** DONE raise exception for s/conform errors
+*** DONE exception when multiple types have the same prefix
+*** DONE exception when constraints reference relations that don't exist
+** DONE handle query better
+(lio/view (:data (sm/build-ent-db {:schema td/schema} {:todo [[3 nil {:user :bloop}]]})))
+** DONE test watcher group
+** DONE change traverse update to not check
+leave that up to traversal function
+or else have a separate function that only does the work once
+** DONE views
+*** view strategies
+**** attr-map, attr-vec with optional type arg
+***** or optional filter, e.g. :ent-type = :todo
+*** view types
+**** by type, ordered
+**** by type, node name map
+{:todo [{:name :x} {:name :y}]}
+
+[:todo sc//* sc/by-index]
+**** by type, attr
+** DONE spec attr-fn
+** DONE make constraints a set
+*** allow :uniq and :required
+** DONE helper fns for navigating to related ents
+** DONE use related ents to find if `:required` is satisfied in spec gen test
+and if not, return keyword
+** DONE get CI passing
+** DONE ambiguity of "attr"
+used to refer to graph/node attrs, but also to refer to ent attrs
+** DONE in schema, specify mapper defaults
+e.g. {:spec-gen x} that applies to all ents of that type
+** DONE just use ent-name map for query terms
+[:_ {:refs {} :bind {} :x1 :y1}]
+** DONE get rid of ent-count query term?
+it's really not a huge win and it makes the code more complicated
+** DONE test what happens when you include an ent that references another ent with a polymorphic ref
+- for example, try adding a notification which refers to a watch, then
+  try building a db with both watch and notification specified
+- however, do not specify watched name under watch refs
+- polymorphic spec-gen
+** TODO polymorphic references
+cover datomic instance when e.g. a "watch" can be watching a topic, a
+topic category, etc
+*** DONE polymorphic + default (from schema)
+*** DONE spec-gen and polymorphic
+*** TODO polymorphic + bound
+** TODO resolve 'referenced ent' vs 'related ent'
+** TODO is there a diff between "ent" and "ent name"?
+** TODO do something about ::any
+bad hack! bad! can't gen!
+** TODO make it easier to assoc relations
+as spec-gen does- make it easy for any other mapper to do the same
+** TODO more elegant way to build up a query
+** TODO re-explore flat format
+- what were the reasons for not using it?
+- is it possible to infer type from a prefix?
+** TODO better abstractions
+*** TODO testing
+**** TODO "db insertion"
+**** checking that only ents specified are there
+*** DONE map ent attr
+** TODO change 'prefix' to 'ent-name-prefix'?
+** TODO decide where `:required` means a non-nil value
+- that could make it easier to code down the line, as you wouldn't
+  have to dissoc nil values
+- it's hard to imagine why you would have a required attribute that can be nil
+- maybe it's just some?
+** TODO spec gen cycle test, ensure that it would fail
+testing that :tl0 is inserted before :t0, but not sure that the order
+would be reversed without reordering
+** TODO rename :data to :graph?
+** TODO possibly create new ns for map-ent-attr fns
+- rename "visit"? like, visit each node?
+- keep a record of each visit
+** TODO investigate why we need nil as first arg in query term
+has to do with bound names
+** TODO store `query` instead of `queries` in init-db
+If we don't also store every schema, it doesn't make sense to store
+every query. No reason not to make it the client's responsibility to
+keep track of schema and query over time.
+** TODO create a specmonstah db from an existing source
+for example, populate the :data key with a graph derived from postgres
+** TODO insertion order for A->A refs
+for example if a user has `created-by`, the `created-by` needs to be inserted first
+
+Update: this is possible but we wouldn't be able to use :type-order
+hack because it relies on topsort, and topsort does not abide
+cycles. :type-order makes it much easier to create the entity DAG
+without confusing recursion , but it should be possible to build the
+entity DAG without it
+*** cycles to DAG
+*** instead of simple traversal, make traversal result in seq of jobs
+possible for an ent to add more than one job? or to specify that jobs get appended?
+a layer of abstraction between entity and job
+** TODO clear vocabulary / documentation for aspects of system
+*** graph
+*** node
+*** ent
+*** ent type
+*** update
+** TODO some way to compose specs
+traversal functions can expect different query terms, schema
+** TODO preference for making fourth arg a map, keyed by updater
+** TODO team steps
+*** convert more bengal
+*** explore converting salk demo db
+*** QA
+**** is anything broken?
+**** does it make sense?
+**** is anything surprising?
+*** break out todos into stories/issues
+** TODO find better home for docs
+*** need TOC, better navigability for tutorial
+*** API docs
+** TODO seq abstraction - map, filter, etc
+* docs
+** bottom-up examples
+try focusing on only one aspec of the tool at a time
+*** focus on query
+*** focus on schema
+** top-down
+*** 
+** purpose
+*** concisely create network of dependent data
+*** fixtures
+** the interface
+*** queries
+*** mappers
+*** views
+** the underparts
+*** graph
+*** store mappers as attrs
+*** relations as edge attrs
+** transparently uses loom
+*** you can extend by using loom fns
+*** it pays to know how loom structures data (attrs key)
+** features
+*** progressive build up
+return value of one call can be used as input to another
+*** loom graph
+- can use graph lib to interact
+- lio/view
+*** well-spec'd / arg checking / guard rails
+** concepts
+*** entity type
+Roughly corresponds to a relation in an RDBMS
+*** entity
+an instance of an entity type
+*** schema
+A schema is used to generate a dataase
+
+A schema describes entity types, and how entities of a type relate to
+other entities. A schema also specifies has-many and uniq constraints.
+
+entities of another type
+**** the metadata describing: 
+- how the type relates to other types
+- how to generate the type
+- how to name the generated ents
+*** db
+**** 
+*** query
+*** binding
+*** relation
+*** mappers
+*** views
+*** deterministic naming
+** README
+*** generate and interact with graphs
+**** application types
+** tutorial
+* arch
+** building
+** adding attrs
+** viewing

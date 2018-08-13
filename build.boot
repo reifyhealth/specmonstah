@@ -13,6 +13,7 @@
                     [crisptrutski/boot-cljs-test "0.3.0"         :scope "test"]
                     [doo                         "0.1.7"         :scope "test"]
                     [org.clojure/spec.alpha      "0.1.123"       :scope "test"]
+                    [better-cond "2.0.1-SNAPSHOT"]
                     [aysylu/loom "1.0.0"]
                     [medley "0.8.3"]])
 
@@ -20,14 +21,13 @@
          '[adzerk.boot-test :refer :all]
          '[crisptrutski.boot-cljs-test :refer [test-cljs]])
 
-
-(def +version+ "1.1.1")
+(def +version+ "2.0.0-alpha-1")
 (bootlaces! +version+)
 
 (task-options!
   pom  {:project     'reifyhealth/specmonstah
         :version     +version+
-        :description "Generate and process arbitrary graphs of dependencies"
+        :description "Generate and process graphs of dependencies"
         :url         "https://github.com/reifyhealth/specmonstah"
         :scm         {:url "https://github.com/reifyhealth/specmonstah"}
         :license     {"MIT" "https://opensource.org/licenses/MIT"}}

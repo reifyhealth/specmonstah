@@ -1,401 +1,778 @@
 (ns reifyhealth.specmonstah.core-test
-  (:require [reifyhealth.specmonstah.core :as sm]
+  (:require #?(:clj [clojure.test :refer [deftest is are use-fixtures testing]]
+               :cljs [cljs.test :include-macros true :refer [deftest is are use-fixtures testing]])
             [clojure.spec.alpha :as s]
-            [clojure.test :as t :refer [deftest is use-fixtures testing]]
             [clojure.test.check.generators :as gen :include-macros true]
-            [clojure.walk :as walk]))
+            [reifyhealth.specmonstah.test-data :as td]
+            [reifyhealth.specmonstah.core :as sm]
+            [reifyhealth.specmonstah.spec-gen :as sg]
+            [loom.graph :as lg]
+            [loom.alg :as la]
+            [loom.attr :as lat]))
 
-(def id-seq (atom 0))
+(use-fixtures :each td/test-fixture)
 
-(defn gen1
-  [spec]
-  (gen/generate (s/gen spec)))
+(defmacro is-graph=
+  "Breaks graph equality test into comparisons on graph keys to
+  pinpoint inequality more quickly"
+  [g1 g2]
+  (let [g1-sym 'returned
+        g2-sym 'expected]
+    `(let [~g1-sym ~g1
+           ~g2-sym ~g2]
+       (are [k] (= (k ~g1-sym) (k ~g2-sym))
+         :nodeset
+         :adj
+         :in
+         :attrs))))
 
-(defn test-fixture [f]
-  (reset! id-seq 0)
-  (f))
+(deftest test-relation-graph
+  (is-graph= (sm/relation-graph td/schema)
+             (lg/digraph [:project :todo-list]
+                         [:project :user]
+                         [:todo-list-watch :todo-list]
+                         [:todo-list-watch :user]
+                         [:todo :todo-list]
+                         [:todo-list :user]
+                         [:todo :user]
+                         [:attachment :todo]
+                         [:attachment :user])))
 
-(use-fixtures :each test-fixture)
+(defn strip-db
+  [db]
+  (dissoc db :relation-graph :types :type-order))
 
-(defn before? [a b xs]
-  (< (.indexOf xs a)
-     (.indexOf xs b)))
+(deftest test-build-ent-db-empty
+  (is-graph= (strip-db (sm/build-ent-db {:schema td/schema} {}))
+             {:schema td/schema
+              :data   (lg/digraph)}))
 
-(defn references? [tree p1 p2]
-  (= (get-in tree p1)
-     (get-in tree p2)))
+(deftest test-bound-relation-attr-name
+  (is (= (sm/bound-relation-attr-name (sm/build-ent-db {:schema td/schema} {}) :tl-bound-p-0 :todo 1)
+         :t-bound-p-1)))
 
-(s/def ::id
-  (s/with-gen
-    pos-int?
-    #(gen/fmap (fn [_] (swap! id-seq inc)) (gen/return nil))))
+(deftest test-build-ent-db-relationless-ent
+  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:user [[:u1]]}))
+             (-> (lg/digraph [:user :u1])
+                 (lat/add-attr :user :type :ent-type)
+                 (lat/add-attr :u1 :type :ent)
+                 (lat/add-attr :u1 :index 0)
+                 (lat/add-attr :u1 :query-term [:u1])
+                 (lat/add-attr :u1 :ent-type :user))))
 
-(s/def ::author-name #{"Fabrizio S."})
-(s/def ::author (s/keys :req-un [::id ::author-name]))
+(deftest test-build-ent-db-mult-relationless-ents
+  (is-graph= (:data (strip-db (sm/build-ent-db {:schema td/schema} {:user [[3]]})))
+             (-> (lg/digraph [:user :u0] [:user :u1] [:user :u2])
+                 (lat/add-attr :user :type :ent-type)
+                 (lat/add-attr :u0 :type :ent)
+                 (lat/add-attr :u0 :index 0)
+                 (lat/add-attr :u0 :query-term [3])
+                 (lat/add-attr :u0 :ent-type :user)
+                 
+                 (lat/add-attr :u1 :type :ent)
+                 (lat/add-attr :u1 :index 1)
+                 (lat/add-attr :u1 :query-term [3])
+                 (lat/add-attr :u1 :ent-type :user)
+                 
+                 (lat/add-attr :u2 :type :ent)
+                 (lat/add-attr :u2 :index 2)
+                 (lat/add-attr :u2 :query-term [3])
+                 (lat/add-attr :u2 :ent-type :user))))
 
-(s/def ::book-name #{"The Book"})
-(s/def ::book (s/keys :req-un [::id ::book-name]))
+(deftest test-build-ent-db-one-level-relation
+  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list [[1]]}))
+             (-> (lg/digraph [:user :u0] [:todo-list :tl0] [:tl0 :u0])
+                 
+                 (lat/add-attr :user :type :ent-type)
+                 (lat/add-attr :u0 :type :ent)
+                 (lat/add-attr :u0 :index 0)
+                 (lat/add-attr :u0 :query-term [:_])
+                 (lat/add-attr :u0 :ent-type :user)
 
-(s/def ::chapter-name #{"Chapter 1"})
-(s/def ::chapter (s/keys :req-un [::id ::chapter-name]))
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl0 :type :ent)
+                 (lat/add-attr :tl0 :index 0)
+                 (lat/add-attr :tl0 :ent-type :todo-list)
+                 (lat/add-attr :tl0 :query-term [1])
+                 
+                 (lat/add-attr :tl0 :u0 :relation-attrs #{:created-by-id :updated-by-id}))))
 
-(s/def ::publisher-name #{"PublishCo"})
-(s/def ::publisher (s/keys :req-un [::id ::publisher-name]))
+(deftest test-build-ent-db-one-level-relation-with-omit
+  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list [[1 {:refs {:created-by-id ::sm/omit
+                                                                                 :updated-by-id ::sm/omit}}]]}))
+             (-> (lg/digraph [:todo-list :tl0])
 
-(def relation-template
-  {::author []
-   ::publisher []
-   ::book [{:author-id [::author :id]
-            :publisher-id [::publisher :id]}]
-   ::chapter [{:book-id [::book :id]}]})
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl0 :type :ent)
+                 (lat/add-attr :tl0 :index 0)
+                 (lat/add-attr :tl0 :ent-type :todo-list)
+                 (lat/add-attr :tl0 :query-term [1 {:refs {:created-by-id ::sm/omit
+                                                           :updated-by-id ::sm/omit}}]))))
 
-(def template-relations (sm/expand-relation-template relation-template))
+(deftest test-build-ent-db-mult-ents-w-extended-query
+  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list [[2 {:refs {:created-by-id :bloop :updated-by-id :bloop}}]]}))
+             (-> (lg/digraph [:user :bloop]
+                             [:todo-list :tl0]
+                             [:todo-list :tl1]
+                             [:tl0 :bloop]
+                             [:tl1 :bloop])
+                 
+                 (lat/add-attr :user :type :ent-type)
+                 (lat/add-attr :bloop :type :ent)
+                 (lat/add-attr :bloop :index 0)
+                 (lat/add-attr :bloop :query-term [:_])
+                 (lat/add-attr :bloop :ent-type :user)
 
-(defn normalize-and-expand
-  [query]
-  (let [query (#'sm/vectorize-query-terms query)]
-    [(#'sm/gen-format-query template-relations query)
-     (#'sm/add-query-relations template-relations query)]))
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl0 :type :ent)
+                 (lat/add-attr :tl0 :index 0)
+                 (lat/add-attr :tl0 :ent-type :todo-list)
+                 (lat/add-attr :tl0 :query-term [2 {:refs {:created-by-id :bloop :updated-by-id :bloop}}])
 
-(deftest gen-format-query
-  (is (= (#'sm/gen-format-query template-relations [[::book]])
-         [[::book
-           {:author-id [::author ::sm/template :id]
-            :publisher-id [::publisher ::sm/template :id]}
-           nil]]))
-  (is (= (#'sm/gen-format-query template-relations [[::book] [::book {:author-id :new}]])
-         [[::book
-           {:author-id [::author ::sm/template :id]
-            :publisher-id [::publisher ::sm/template :id]}
-           nil]
-          [::book
-           {:author-id [::author :new :id]
-            :publisher-id [::publisher ::sm/template :id]}
-           nil]])))
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl1 :type :ent)
+                 (lat/add-attr :tl1 :index 1)
+                 (lat/add-attr :tl1 :ent-type :todo-list)
+                 (lat/add-attr :tl1 :query-term [2 {:refs {:created-by-id :bloop :updated-by-id :bloop}}])
 
-(deftest add-query-relations
-  (is (= (#'sm/add-query-relations template-relations [[::book] [::book {:author-id :auth1}]])
-         {::author {::sm/template [nil nil] :auth1 [nil nil]}
-          ::publisher {::sm/template [nil nil]}
-          ::book {::sm/template [{:author-id [::author ::sm/template :id]
-                                  :publisher-id [::publisher ::sm/template :id]}
-                                 nil]}
-          ::chapter {::sm/template [{:book-id [::book ::sm/template :id]} nil]}}))
+                 (lat/add-attr :tl0 :bloop :relation-attrs #{:created-by-id :updated-by-id})
+                 (lat/add-attr :tl1 :bloop :relation-attrs #{:created-by-id :updated-by-id}))))
 
-  (is (= (#'sm/add-query-relations template-relations [[::book {:author-id :a1 :publisher-id :p1}]])
-         {::author {::sm/template [nil nil] :a1 [nil nil]}
-          ::publisher {::sm/template [nil nil] :p1 [nil nil]}
-          ::book {::sm/template [{:author-id [::author ::sm/template :id]
-                                  :publisher-id [::publisher ::sm/template :id]}
-                                 nil]} 
-          ::chapter {::sm/template [{:book-id [::book ::sm/template :id]} nil]}}))
+(deftest test-build-ent-db-one-level-relation-custom-related
+  (is-graph= (:data (strip-db (sm/build-ent-db {:schema td/schema} {:todo-list [[:_ {:refs {:created-by-id :owner0
+                                                                                            :updated-by-id :owner0}}]]})))
+             (-> (lg/digraph [:user :owner0] [:todo-list :tl0] [:tl0 :owner0])
+                 (lat/add-attr :user :type :ent-type)
+                 (lat/add-attr :owner0 :type :ent)
+                 (lat/add-attr :owner0 :index 0)
+                 (lat/add-attr :owner0 :query-term [:_])
+                 (lat/add-attr :owner0 :ent-type :user)
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl0 :type :ent)
+                 (lat/add-attr :tl0 :index 0)
+                 (lat/add-attr :tl0 :ent-type :todo-list)
+                 (lat/add-attr :tl0 :query-term [:_ {:refs {:created-by-id :owner0
+                                                            :updated-by-id :owner0}}])
+                 (lat/add-attr :tl0 :owner0 :relation-attrs #{:updated-by-id :created-by-id}))))
 
-  (testing "When you name a new ref, its refs get copied from the template"
-    (is (= (#'sm/add-query-relations template-relations [[::chapter {:book-id :b1}]])
-           {::author {::sm/template [nil nil]}
-            ::publisher {::sm/template [nil nil]}
-            ::book {::sm/template [{:author-id [::author ::sm/template :id]
-                                    :publisher-id [::publisher ::sm/template :id]}
-                                   nil]
-                    :b1 [{:author-id [::author ::sm/template :id]
-                          :publisher-id [::publisher ::sm/template :id]}
-                         nil]} 
-            ::chapter {::sm/template [{:book-id [::book ::sm/template :id]} nil]}})))
+(deftest test-build-ent-db-two-level-coll-relation
+  (testing "can specify how many ents to gen in a coll relationship"
+    (is-graph= (:data (strip-db (sm/build-ent-db {:schema td/schema} {:project [[:_ {:refs {:todo-list-ids 2}}]]})))
+               (-> (lg/digraph [:user :u0]
+                               [:todo-list :tl0] [:todo-list :tl1]  [:tl0 :u0] [:tl1 :u0]
+                               [:project :p0] [:p0 :u0] [:p0 :tl0] [:p0 :tl1] [:p0 :u0])
 
-  (testing "You can recursively name refs"
-    (is (= (#'sm/add-query-relations template-relations [[::chapter {:book-id [:b1 {:author-id :a1}]}]])
-           {::author {::sm/template [nil nil] :a1 [nil nil]}
-            ::publisher {::sm/template [nil nil]}
-            ::book {::sm/template [{:author-id [::author ::sm/template :id]
-                                    :publisher-id [::publisher ::sm/template :id]}
-                                   nil]
-                    :b1 [{:author-id [::author :a1 :id]
-                          :publisher-id [::publisher ::sm/template :id]}
-                         nil]} 
-            ::chapter {::sm/template [{:book-id [::book ::sm/template :id]} nil]}})))
+                   (lat/add-attr :user :type :ent-type)
+                   (lat/add-attr :u0 :type :ent)
+                   (lat/add-attr :u0 :index 0)
+                   (lat/add-attr :u0 :query-term [:_])
+                   (lat/add-attr :u0 :ent-type :user)
+                   
+                   (lat/add-attr :project :type :ent-type)
+                   (lat/add-attr :p0 :type :ent)
+                   (lat/add-attr :p0 :index 0)
+                   (lat/add-attr :p0 :query-term [:_ {:refs {:todo-list-ids 2}}])
+                   (lat/add-attr :p0 :ent-type :project)
+                   (lat/add-attr :p0 :u0 :relation-attrs #{:created-by-id :updated-by-id})
+                   
+                   (lat/add-attr :todo-list :type :ent-type)
+                   (lat/add-attr :tl0 :type :ent)
+                   (lat/add-attr :tl0 :index 0)
+                   (lat/add-attr :tl0 :ent-type :todo-list)
+                   (lat/add-attr :tl0 :query-term [:_])
 
-  (testing "You can specify attrs for refs"
-    (is (= (#'sm/add-query-relations template-relations [[::book {:author-id [:auth1 {} {:author-name "Fred"}]}]])
-           {::author {::sm/template [nil nil]
-                      :auth1 [{} {:author-name "Fred"}]}
-            ::publisher {::sm/template [nil nil]}
-            ::book {::sm/template [{:author-id [::author ::sm/template :id]
-                                    :publisher-id [::publisher ::sm/template :id]}
-                                   nil]}
-            ::chapter {::sm/template [{:book-id [::book ::sm/template :id]} nil]}}))))
+                   (lat/add-attr :todo-list :type :ent-type)
+                   (lat/add-attr :tl1 :type :ent)
+                   (lat/add-attr :tl1 :index 1)
+                   (lat/add-attr :tl1 :ent-type :todo-list)
+                   (lat/add-attr :tl1 :query-term [:_])
 
-(deftest ent-references
-  (is (= (#'sm/ent-references nil)
-         #{}))
-  (is (= (#'sm/ent-references {:author-id [::author ::sm/template :id]
-                               :publisher-id [::publisher ::sm/template :id]})
-         #{[::author ::sm/template]
-           [::publisher ::sm/template]}))
-  (is (= (#'sm/ent-references {:author-id [::author ::auth1 :id]
-                               :publisher-id [::publisher ::sm/template :id]})
-         #{[::author ::auth1]
-           [::publisher ::sm/template]})))
+                   (lat/add-attr :p0 :tl0 :relation-attrs #{:todo-list-ids})
+                   (lat/add-attr :p0 :tl1 :relation-attrs #{:todo-list-ids})
+                   (lat/add-attr :p0 :u0 :relation-attrs #{:created-by-id :updated-by-id})
+                   (lat/add-attr :tl0 :u0 :relation-attrs #{:created-by-id :updated-by-id})
+                   (lat/add-attr :tl1 :u0 :relation-attrs #{:created-by-id :updated-by-id})))))
 
-(deftest references
-  (is (= (#'sm/references (#'sm/gen-format-query template-relations [[::book] [::book {:author-id :auth1}]]))
-         #{[::author :auth1]
-           [::author ::sm/template]
-           [::publisher ::sm/template]})))
+(deftest test-build-ent-db-two-level-coll-relation-names
+  (testing "can specify names in a coll relationship"
+    (is-graph= (:data (strip-db (sm/build-ent-db {:schema td/schema} {:project [[:_ {:refs {:todo-list-ids [:mario :luigi]}}]]})))
+               (-> (lg/digraph [:user :u0]
+                               [:todo-list :mario] [:todo-list :luigi]  [:mario :u0] [:luigi :u0]
+                               [:project :p0] [:p0 :u0] [:p0 :mario] [:p0 :luigi] [:p0 :u0])
 
-(deftest topo
-  (is (= (#'sm/topo (#'sm/add-query-relations template-relations [[::book] [::book {:author-id :auth1}]]))
-         {[::author ::sm/template] #{}
-          [::author :auth1] #{}
-          [::publisher ::sm/template] #{}
-          [::book ::sm/template] #{[::author ::sm/template] [::publisher ::sm/template]}
-          [::chapter ::sm/template] #{[::book ::sm/template]}})))
+                   (lat/add-attr :user :type :ent-type)
+                   (lat/add-attr :u0 :type :ent)
+                   (lat/add-attr :u0 :index 0)
+                   (lat/add-attr :u0 :query-term [:_])
+                   (lat/add-attr :u0 :ent-type :user)
+                   
+                   (lat/add-attr :project :type :ent-type)
+                   (lat/add-attr :p0 :type :ent)
+                   (lat/add-attr :p0 :index 0)
+                   (lat/add-attr :p0 :query-term [:_ {:refs {:todo-list-ids [:mario :luigi]}}])
+                   (lat/add-attr :p0 :ent-type :project)
+                   (lat/add-attr :p0 :u0 :relation-attrs #{:created-by-id :updated-by-id})
+                   
+                   (lat/add-attr :todo-list :type :ent-type)
+                   (lat/add-attr :mario :type :ent)
+                   (lat/add-attr :mario :index 0)
+                   (lat/add-attr :mario :ent-type :todo-list)
+                   (lat/add-attr :mario :query-term [:_])
 
-;; TODO update
+                   (lat/add-attr :todo-list :type :ent-type)
+                   (lat/add-attr :luigi :type :ent)
+                   (lat/add-attr :luigi :index 1)
+                   (lat/add-attr :luigi :ent-type :todo-list)
+                   (lat/add-attr :luigi :query-term [:_])
 
-(deftest selected-ents
-  (let [query [[::chapter] [::chapter {:book-id [:book1 {:author-id :auth1}]}]]
-        formatted-query (#'sm/gen-format-query template-relations query)
-        selected (#'sm/selected-ents (#'sm/add-query-relations template-relations query) formatted-query)]
-    (is (before? [::author :auth1] [::book :book1] selected))
-    (is (before? [::author ::sm/template] [::book ::sm/template] selected))
-    (is (before? [::publisher ::sm/template][::book ::sm/template] selected))))
+                   (lat/add-attr :p0 :mario :relation-attrs #{:todo-list-ids})
+                   (lat/add-attr :p0 :luigi :relation-attrs #{:todo-list-ids})
+                   (lat/add-attr :p0 :u0 :relation-attrs #{:created-by-id :updated-by-id})
+                   (lat/add-attr :mario :u0 :relation-attrs #{:created-by-id :updated-by-id})
+                   (lat/add-attr :luigi :u0 :relation-attrs #{:created-by-id :updated-by-id})))))
 
+(deftest test-build-ent-db-one-level-relation-binding
+  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list [[:_ {:bind {:user :bloop}}]]}))
+             (-> (lg/digraph [:user :bloop] [:todo-list :tl0] [:tl0 :bloop])
+                 (lat/add-attr :user :type :ent-type)
+                 (lat/add-attr :bloop :type :ent)
+                 (lat/add-attr :bloop :index 0)
+                 (lat/add-attr :bloop :query-term [:_ {:bind {:user :bloop}}])
+                 (lat/add-attr :bloop :ent-type :user)
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl0 :type :ent)
+                 (lat/add-attr :tl0 :index 0)
+                 (lat/add-attr :tl0 :ent-type :todo-list)
+                 (lat/add-attr :tl0 :query-term [:_ {:bind {:user :bloop}}])
+                 (lat/add-attr :tl0 :bloop :relation-attrs #{:created-by-id :updated-by-id}))))
 
-(deftest flatten-query
-  (is (= (#'sm/flatten-query template-relations [[::book] [::chapter {:book-id [:b1 {:author-id :a1}]}]])
-         [[::book nil nil] [::chapter {:book-id :b1} nil]])))
+(deftest test-build-ent-db-two-level-relation-binding
+  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo [[:_ {:bind {:user :bloop}}]]}))
+             (-> (lg/digraph [:user :bloop]
+                             [:todo :t0]
+                             [:todo-list :tl-bound-t-0]
+                             [:t0 :bloop]
+                             [:t0 :tl-bound-t-0]
+                             [:tl-bound-t-0 :bloop])
+                 
+                 (lat/add-attr :user :type :ent-type)
+                 (lat/add-attr :bloop :type :ent)
+                 (lat/add-attr :bloop :index 0)
+                 (lat/add-attr :bloop :ent-type :user)
+                 (lat/add-attr :bloop :query-term [:_ {:bind {:user :bloop}}])
 
-(deftest merge-query-refs
-  (is (= (#'sm/merge-query-refs template-relations
-                                [[::book {}] [::chapter {:book-id :b1}]])
-         [[::book
-           {:author-id [::author ::sm/template :id]
-            :publisher-id [::publisher ::sm/template :id]}
-           nil]
-          [::chapter
-           {:book-id [::book :b1 :id]}
-           nil]])))
+                 (lat/add-attr :todo :type :ent-type)
+                 (lat/add-attr :t0 :type :ent)
+                 (lat/add-attr :t0 :index 0)
+                 (lat/add-attr :t0 :ent-type :todo)
+                 (lat/add-attr :t0 :query-term [:_ {:bind {:user :bloop}}])
 
-(deftest add-query-term-relations
-  (is (= (#'sm/add-query-term-relations [::chapter {:book-id [:b1 {:author-id :a1}]}] template-relations)
-         {::author {::sm/template [nil nil]
-                    :a1 [nil nil]}
-          ::publisher {::sm/template [nil nil]}
-          ::book {::sm/template [{:author-id [::author ::sm/template :id]
-                                  :publisher-id [::publisher ::sm/template :id]}
-                                 nil]
-                  :b1 [{:author-id [::author :a1 :id]
-                        :publisher-id [::publisher ::sm/template :id]}
-                       nil]}
-          ::chapter {::sm/template [{:book-id [::book ::sm/template :id]} nil]}})))
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl-bound-t-0 :type :ent)
+                 (lat/add-attr :tl-bound-t-0 :index 0)
+                 (lat/add-attr :tl-bound-t-0 :ent-type :todo-list)
+                 (lat/add-attr :tl-bound-t-0 :query-term [:_ {:bind {:user :bloop}}])
 
-(deftest gen-tree
-  (let [tree (sm/gen-tree gen1 template-relations [::book])]
-    ;; Remove order because it's nondeterministic for nodes that are
-    ;; topographically on the same level
-    (is (= (dissoc tree ::sm/order)
-           {::author {::sm/template {:id 1 :author-name "Fabrizio S."}}
-            ::publisher {::sm/template {:id 2 :publisher-name "PublishCo"}}
-            ::sm/query [[::book {:id 3 :book-name "The Book" :author-id 1 :publisher-id 2}]]}))
-    (is (= (set (::sm/order tree))
-           #{[::author ::sm/template]
-             [::publisher ::sm/template]})))
+                 (lat/add-attr :t0 :bloop :relation-attrs #{:created-by-id :updated-by-id})
+                 (lat/add-attr :t0 :tl-bound-t-0 :relation-attrs #{:todo-list-id})
 
-  (let [tree (sm/gen-tree gen1 template-relations [[::book {} {:book-name "Custom Book Name 1"}]
-                                                   [::chapter {:book-id [:b1 {:author-id :a1} {:book-name "Nested Query Book Name"}]}]])
-        order (::sm/order tree)]
-    (is (= (set order)
-           #{[::author ::sm/template]
-             [::publisher ::sm/template]
-             [::author :a1]
-             [::book :b1]}))
-    (is (before? [::author :a1] [::book :b1] order))
-    (is (before? [::publisher ::sm/template] [::book :b1] order))
+                 (lat/add-attr :tl-bound-t-0 :bloop :relation-attrs #{:created-by-id :updated-by-id}))))
 
-    ;; book query references author and publisher
-    (is (references? [::sm/query 0 1 :author-id] [::author ::sm/template :id] tree))
-    (is (references? [::sm/query 0 1 :publisher-id-id] [::publisher ::sm/template :id] tree))
+(deftest test-build-ent-db-multiple-two-level-relation-binding
+  (testing "only one bound todo list is created for the three todos"
+    (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo [[3 {:bind {:user :bloop}}]]}))
+               (-> (lg/digraph [:user :bloop]
+                               [:todo-list :tl-bound-t-0]
+                               [:todo :t0]
+                               [:t0 :bloop]
+                               [:t0 :tl-bound-t-0]
+                               [:todo :t1]
+                               [:t1 :bloop]
+                               [:t1 :tl-bound-t-0]
+                               [:todo :t2]
+                               [:t2 :bloop]
+                               [:t2 :tl-bound-t-0]
+                               [:tl-bound-t-0 :bloop])
+                   
+                   (lat/add-attr :user :type :ent-type)
+                   (lat/add-attr :bloop :type :ent)
+                   (lat/add-attr :bloop :index 0)
+                   (lat/add-attr :bloop :ent-type :user)
+                   (lat/add-attr :bloop :query-term [:_ {:bind {:user :bloop}}])
 
-    ;; chapter query references book
-    (is (references? [::sm/query 1 1 :book-id] [::book :b1 :id] tree))
+                   (lat/add-attr :todo :type :ent-type)
+                   (lat/add-attr :t0 :type :ent)
+                   (lat/add-attr :t0 :index 0)
+                   (lat/add-attr :t0 :ent-type :todo)
+                   (lat/add-attr :t0 :query-term [3 {:bind {:user :bloop}}])
 
-    (is (references? [::book :b1 :author-id] [::author :a1 :id] tree)))
+                   (lat/add-attr :todo :type :ent-type)
+                   (lat/add-attr :t1 :type :ent)
+                   (lat/add-attr :t1 :index 1)
+                   (lat/add-attr :t1 :ent-type :todo)
+                   (lat/add-attr :t1 :query-term [3 {:bind {:user :bloop}}])
 
-  ;; Test that nested ref attributes get merged. :book-name and
-  ;; :author-id are added in separate refs, but the result has them
-  ;; merged.
-  (let [tree (sm/gen-tree gen1 template-relations [[::chapter {:book-id [:b1 {} {:book-name "Nested Query Book Name"}]}]
-                                                   [::chapter {:book-id [:b1 {} {:author-id "Custom Author Id"}]}]
-                                                   [::chapter {:book-id [:b1 {} {}]}]])]
-    (is (= (select-keys (get-in tree [::book :b1]) [:book-name :author-id])
-           {:book-name "Nested Query Book Name" :author-id "Custom Author Id"}))))
+                   (lat/add-attr :todo :type :ent-type)
+                   (lat/add-attr :t2 :type :ent)
+                   (lat/add-attr :t2 :index 2)
+                   (lat/add-attr :t2 :ent-type :todo)
+                   (lat/add-attr :t2 :query-term [3 {:bind {:user :bloop}}])
 
-;; ---------
-;; Test binding
-;; ---------
+                   (lat/add-attr :todo-list :type :ent-type)
+                   (lat/add-attr :tl-bound-t-0 :type :ent)
+                   (lat/add-attr :tl-bound-t-0 :index 0)
+                   (lat/add-attr :tl-bound-t-0 :ent-type :todo-list)
+                   (lat/add-attr :tl-bound-t-0 :query-term [:_ {:bind {:user :bloop}}])
 
-(s/def ::site-tag-group (s/keys :req-un [::id]))
+                   (lat/add-attr :t0 :bloop :relation-attrs #{:created-by-id :updated-by-id})
+                   (lat/add-attr :t0 :tl-bound-t-0 :relation-attrs #{:todo-list-id})
 
-(s/def ::site-name #{"Site"})
-(s/def ::site (s/keys :req-un [::id ::site-name]))
+                   (lat/add-attr :t1 :bloop :relation-attrs #{:created-by-id :updated-by-id})
+                   (lat/add-attr :t1 :tl-bound-t-0 :relation-attrs #{:todo-list-id})
 
-(s/def ::site-foo (s/keys :req-un [::id]))
+                   (lat/add-attr :t2 :bloop :relation-attrs #{:created-by-id :updated-by-id})
+                   (lat/add-attr :t2 :tl-bound-t-0 :relation-attrs #{:todo-list-id})
 
-(s/def ::site-tag-name #{"Taggity"})
-(s/def ::site-foo-id ::id)
-(s/def ::site-tag (s/keys :req-un [::id ::site-tag-name ::site-foo-id]))
+                   (lat/add-attr :tl-bound-t-0 :bloop :relation-attrs #{:created-by-id :updated-by-id})))))
 
-(s/def ::site-user-name #{"Flamantha"})
-(s/def ::site-user-tag-id ::id)
-(s/def ::site-user (s/keys :req-un [::id ::site-user-name ::site-user-tag-id]))
+(deftest test-build-ent-db-bound-and-uniq
+  (testing "create uniq bound todo lists per todo-list-watch uniq constraint"
+    (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list-watch [[2 {:bind {:user :bloop}}]]}))
+               (-> (lg/digraph [:user :bloop]
+                               [:todo-list :tl-bound-tlw-0]
+                               [:tl-bound-tlw-0 :bloop]
+                               [:todo-list :tl-bound-tlw-1]
+                               [:tl-bound-tlw-1 :bloop]
+                               [:todo-list-watch :tlw0]
+                               [:tlw0 :bloop]
+                               [:tlw0 :tl-bound-tlw-0]
+                               [:todo-list-watch :tlw1]
+                               [:tlw1 :bloop]
+                               [:tlw1 :tl-bound-tlw-1])
+                   
+                   (lat/add-attr :user :type :ent-type)
+                   (lat/add-attr :bloop :type :ent)
+                   (lat/add-attr :bloop :index 0)
+                   (lat/add-attr :bloop :ent-type :user)
+                   (lat/add-attr :bloop :query-term [:_ {:bind {:user :bloop}}])
 
-(def binding-relation-template
-  {::site-tag-group []
-   ::site []
-   ::site-tag [{:site-id [::site :id]
-                :site-tag-group-id [::site-tag-group :id]
-                :site-foo-id [::site-foo :id]}]
-   ::site-user [{:site-id [::site :id]
-                 :site-user-tag-id [::site-tag :id]}]})
+                   (lat/add-attr :todo-list-watch :type :ent-type)
+                   (lat/add-attr :tlw0 :type :ent)
+                   (lat/add-attr :tlw0 :index 0)
+                   (lat/add-attr :tlw0 :ent-type :todo-list-watch)
+                   (lat/add-attr :tlw0 :query-term [2 {:bind {:user :bloop}}])
 
-(def binding-template-relations (sm/expand-relation-template binding-relation-template))
-(defn rename-generated-keys
-  "Renames random name generated by spec to something deterministic"
-  [key-prefixes xs]
-  (let [counter (atom (into {} (map (fn [prefix] [prefix 0]) key-prefixes)))
-        key-prefixes (set key-prefixes)
-        matches? (fn [kw]
-                   (some (fn [prefix]
-                           (and (re-matches (re-pattern (str "^" prefix "\\d+")) (str kw))
-                                prefix))
-                         key-prefixes))]
-    (walk/postwalk (fn [x]
-                     (if-let [prefix (and (keyword? x) (matches? x))]
-                       (if (x @counter)
-                         (x @counter)
-                         (let [new-name (keyword (str (name prefix) "-" (prefix @counter)))]
-                           (swap! counter (fn [c]
-                                            (-> (update c prefix inc)
-                                                (assoc x new-name))))
-                           new-name))
-                       x))
-                   xs)))
+                   (lat/add-attr :todo-list-watch :type :ent-type)
+                   (lat/add-attr :tlw1 :type :ent)
+                   (lat/add-attr :tlw1 :index 1)
+                   (lat/add-attr :tlw1 :ent-type :todo-list-watch)
+                   (lat/add-attr :tlw1 :query-term [2 {:bind {:user :bloop}}])
 
-(deftest bind-term-relations
-  (testing "binds entire tree when ref key is a vector"
-    ;; test helper renames :site-tag434154 to :site-tag-0
-    (is (= (->> (#'sm/bind-term-relations binding-template-relations [::site-user {:site-id :s1
-                                                                                   [::site-foo :id] :sf1}])
-                (rename-generated-keys [:site-tag]))
-           [::site-user {:site-id :s1
-                         :site-user-tag-id [:site-tag-0 {:site-id :s1
-                                                         :site-foo-id :sf1} {}]} nil]))
-    (is (= (->> (#'sm/bind-term-relations binding-template-relations [::site-user {[::site-tag :id] :st1
-                                                                                   [::site-foo :id] :sf1}])
-                (rename-generated-keys [:site-tag]))
-           [::site-user {:site-user-tag-id [:st1 {:site-foo-id :sf1} {}]} nil]))))
+                   (lat/add-attr :todo-list :type :ent-type)
+                   (lat/add-attr :tl-bound-tlw-0 :type :ent)
+                   (lat/add-attr :tl-bound-tlw-0 :index 0)
+                   (lat/add-attr :tl-bound-tlw-0 :ent-type :todo-list)
+                   (lat/add-attr :tl-bound-tlw-0 :query-term [:_ {:bind {:user :bloop}}])
 
-(deftest gen-tree-with-bindings
-  (testing "generates tree with bindings"
-    ;; test helper renames :site-tag434154 to :site-tag-0
-    (is (= (->> (sm/gen-tree gen1 binding-template-relations [[::site-user {[::site-foo :id] :sf1}]])
-                (rename-generated-keys [:site-tag]))
-           {::site-tag-group {::sm/template {:id 1}}
-            ::site {::sm/template {:id 2 :site-name "Site"}}
-            ::site-foo {:sf1 {:id 3}}
-            ::site-tag {:site-tag-0 {:id 4
-                                     :site-tag-name "Taggity"
-                                     :site-foo-id 3
-                                     :site-id 2
-                                     :site-tag-group-id 1}}
-            ::sm/query [[::site-user {:id 6,
-                                      :site-user-name "Flamantha"
-                                      :site-user-tag-id 4
-                                      :site-id 2}]]
-            ::sm/order [[::site-tag-group ::sm/template]
-                        [::site ::sm/template]
-                        [::site-foo :sf1]
-                        [::site-tag :site-tag-0]]}))))
+                   (lat/add-attr :todo-list :type :ent-type)
+                   (lat/add-attr :tl-bound-tlw-1 :type :ent)
+                   (lat/add-attr :tl-bound-tlw-1 :index 1)
+                   (lat/add-attr :tl-bound-tlw-1 :ent-type :todo-list)
+                   (lat/add-attr :tl-bound-tlw-1 :query-term [:_ {:bind {:user :bloop}}])
 
-(deftest gen-tree-with-bind-relations-helper
-  (testing "bind-relations helper"
-    (is (= (->> (sm/gen-tree
-                  gen1
-                  binding-template-relations
-                  [(sm/bind-relations [[::site-tag :id] :st1
-                                       [::site-foo :id] :sf1]
-                     [::site-user]
-                     [::site-user])]))
-           {::site-tag-group {::sm/template {:id 1}}
-            ::site {::sm/template {:id 2, :site-name "Site"}},
-            ::site-foo {:sf1 {:id 3}},
-            ::site-tag {:st1 {:id 4
-                              :site-tag-name "Taggity"
-                              :site-foo-id 3
-                              :site-tag-group-id 1
-                              :site-id 2}}
-            ::sm/query [[::site-user {:id 6,
-                                      :site-user-name "Flamantha",
-                                      :site-user-tag-id 4,
-                                      :site-id 2}]
-                        [::site-user {:id 8,
-                                      :site-user-name "Flamantha",
-                                      :site-user-tag-id 4,
-                                      :site-id 2}]],
-            ::sm/order [[::site-tag-group ::sm/template]
-                        [::site ::sm/template]
-                        [::site-foo :sf1]
-                        [::site-tag :st1]]}))))
+                   (lat/add-attr :tlw0 :bloop :relation-attrs #{:watcher-id})
+                   (lat/add-attr :tlw0 :tl-bound-tlw-0 :relation-attrs #{:todo-list-id})
 
-(deftest gen-tree-with-bind-relations-nested
-  (testing "bind-relations helper merges the binding with user-defined relations"
-    (let [tree (->> (sm/gen-tree
-                      gen1
-                      binding-template-relations
-                      [(sm/bind-relations [[::site-tag-group :id] :stg1]
-                         [::site-user {:site-user-tag-id [:st1 {:site-foo-id :sf1}]}])])
-                    (rename-generated-keys [:site-tag]))
-          order (::sm/order tree)]
-      (is (references? tree [::site-tag :st1 :site-foo-id]       [::site-foo :sf1 :id]))
-      (is (references? tree [::site-tag :st1 :site-id]           [::site ::sm/template :id]))
-      (is (references? tree [::site-tag :st1 :site-tag-group-id] [::site-tag-group :stg1 :id]))
-      (is (references? tree [::sm/query 0 1 :site-user-tag-id]   [::site-tag :st1 :id]))
+                   (lat/add-attr :tlw1 :bloop :relation-attrs #{:watcher-id})
+                   (lat/add-attr :tlw1 :tl-bound-tlw-1 :relation-attrs #{:todo-list-id})
 
-      (is (= (set order)
-             #{[::site ::sm/template]
-               [::site-foo :sf1]
-               [::site-tag-group :stg1]
-               [::site-tag :st1]}))
-      (is (before? [::site-tag-group :stg1] [::site-tag :st1] order))
-      (is (before? [::site ::sm/template] [::site-foo :sf1] order)))))
+                   (lat/add-attr :tl-bound-tlw-0 :bloop :relation-attrs #{:created-by-id :updated-by-id})
+                   (lat/add-attr :tl-bound-tlw-1 :bloop :relation-attrs #{:created-by-id :updated-by-id})))))
 
+(deftest test-build-ent-db-three-level-relation-binding
+  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:attachment [[:_ {:bind {:user :bloop}}]]}))
+             (-> (lg/digraph [:user :bloop]
+                             [:attachment :a0]
+                             [:todo :t-bound-a-0]
+                             [:todo-list :tl-bound-a-0]
+                             [:a0 :bloop]
+                             [:a0 :t-bound-a-0]
+                             [:t-bound-a-0 :bloop]
+                             [:t-bound-a-0 :tl-bound-a-0]
+                             [:tl-bound-a-0 :bloop])
+                 
+                 (lat/add-attr :user :type :ent-type)
+                 (lat/add-attr :bloop :type :ent)
+                 (lat/add-attr :bloop :index 0)
+                 (lat/add-attr :bloop :ent-type :user)
+                 (lat/add-attr :bloop :query-term [:_ {:bind {:user :bloop}}])
 
+                 (lat/add-attr :todo :type :ent-type)
+                 (lat/add-attr :t-bound-a-0 :type :ent)
+                 (lat/add-attr :t-bound-a-0 :index 0)
+                 (lat/add-attr :t-bound-a-0 :ent-type :todo)
+                 (lat/add-attr :t-bound-a-0 :query-term [:_ {:bind {:user :bloop}}])
 
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl-bound-a-0 :type :ent)
+                 (lat/add-attr :tl-bound-a-0 :index 0)
+                 (lat/add-attr :tl-bound-a-0 :ent-type :todo-list)
+                 (lat/add-attr :tl-bound-a-0 :query-term [:_ {:bind {:user :bloop}}])
 
-;; ---------
-;; Test nonexistent relation handling
-;; ---------
+                 (lat/add-attr :attachment :type :ent-type)
+                 (lat/add-attr :a0 :type :ent)
+                 (lat/add-attr :a0 :index 0)
+                 (lat/add-attr :a0 :ent-type :attachment)
+                 (lat/add-attr :a0 :query-term [:_ {:bind {:user :bloop}}])
 
-(deftest handles-nonexistent-relation
-  (is (thrown-with-msg?
-        #?(:clj clojure.lang.ExceptionInfo
-           :cljs cljs.core.ExceptionInfo)
-        #"The relation :.*? for :.*? does not exist"
-        (sm/gen-tree gen1 template-relations [[::chapter {:nonexistent-id :n1}]]))))
+                 (lat/add-attr :a0 :bloop :relation-attrs #{:created-by-id :updated-by-id})
+                 (lat/add-attr :a0 :t-bound-a-0 :relation-attrs #{:todo-id})
 
-(def default-attr-relation-template
-  {::author [{} {:author-name "default"}]
-   ::book [{:author-id [::author :id]}]})
+                 (lat/add-attr :t-bound-a-0 :bloop :relation-attrs #{:created-by-id :updated-by-id})
+                 (lat/add-attr :t-bound-a-0 :tl-bound-a-0 :relation-attrs #{:todo-list-id})
 
-(def default-attr-relations (sm/expand-relation-template default-attr-relation-template))
+                 (lat/add-attr :tl-bound-a-0 :bloop :relation-attrs #{:created-by-id :updated-by-id}))))
+=
+(deftest test-build-ent-db-uniq-constraint
+  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list-watch [[2]]}))
+             (-> (lg/digraph [:user :u0]
+                             [:todo-list :tl0]
+                             [:tl0 :u0]
+                             [:todo-list :tl1]
+                             [:tl1 :u0]
+                             [:todo-list-watch :tlw0]
+                             [:tlw0 :tl0]
+                             [:tlw0 :u0]
+                             [:todo-list-watch :tlw1]
+                             [:tlw1 :tl1]
+                             [:tlw1 :u0])
+                 (lat/add-attr :user :type :ent-type)
+                 (lat/add-attr :u0 :type :ent)
+                 (lat/add-attr :u0 :index 0)
+                 (lat/add-attr :u0 :ent-type :user)
+                 (lat/add-attr :u0 :query-term [:_])
+                 
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl0 :type :ent)
+                 (lat/add-attr :tl0 :index 0)
+                 (lat/add-attr :tl0 :ent-type :todo-list)
+                 (lat/add-attr :tl0 :query-term [:_])
 
-(deftest uses-default-attrs
-  (is (= (sm/gen-tree gen1 default-attr-relations [::book])
-         {::author {::sm/template {:id 1 :author-name "default"}}
-          ::sm/query [[::book {:id 2 :book-name "The Book" :author-id 1}]]
-          ::sm/order [[::author ::sm/template]]}))
+                 (lat/add-attr :todo-list :type :ent-type)
+                 (lat/add-attr :tl1 :type :ent)
+                 (lat/add-attr :tl1 :index 1)
+                 (lat/add-attr :tl1 :ent-type :todo-list)
+                 (lat/add-attr :tl1 :query-term [:_])
+                 
+                 (lat/add-attr :todo-list-watch :type :ent-type)
+                 (lat/add-attr :tlw0 :type :ent)
+                 (lat/add-attr :tlw0 :index 0)
+                 (lat/add-attr :tlw0 :ent-type :todo-list-watch)
+                 (lat/add-attr :tlw0 :query-term [2])
 
-  (is (= (sm/gen-tree gen1 default-attr-relations [[::book {:author-id [:a1 {} {:id 10}]}]])
-         {::author {:a1 {:id 10 :author-name "default"}}
-          ::sm/query [[::book {:id 4 :book-name "The Book" :author-id 10}]]
-          ::sm/order [[::author :a1]]})))
+                 (lat/add-attr :todo-list-watch :type :ent-type)
+                 (lat/add-attr :tlw1 :type :ent)
+                 (lat/add-attr :tlw1 :index 1)
+                 (lat/add-attr :tlw1 :ent-type :todo-list-watch)
+                 (lat/add-attr :tlw1 :query-term [2])
+                 
+                 (lat/add-attr :tl0 :u0 :relation-attrs #{:updated-by-id :created-by-id})
+                 (lat/add-attr :tl1 :u0 :relation-attrs #{:updated-by-id :created-by-id})
+
+                 (lat/add-attr :tlw0 :tl0 :relation-attrs #{:todo-list-id})
+                 (lat/add-attr :tlw0 :u0 :relation-attrs #{:watcher-id})
+                 (lat/add-attr :tlw1 :tl1 :relation-attrs #{:todo-list-id})
+                 (lat/add-attr :tlw1 :u0 :relation-attrs #{:watcher-id}))))
+
+(deftest test-bound-descendants?
+  (is (sm/bound-descendants? (sm/init-db {:schema td/schema} {}) {:user :bibbity} :attachment))
+  (is (not (sm/bound-descendants? (sm/init-db {:schema td/schema} {}) {:user :bibbity} :user)))
+  (is (not (sm/bound-descendants? (sm/init-db {:schema td/schema} {}) {:attachment :bibbity} :user))))
+
+(deftest queries-can-have-anon-names
+  (is (= (:data (sm/build-ent-db {:schema td/schema} {:user [[:_] [:_]]}))
+         (-> (lg/digraph [:user :u0] [:user :u1] )
+             (lat/add-attr :user :type :ent-type)
+             (lat/add-attr :u0 :type :ent)
+             (lat/add-attr :u0 :index 0)
+             (lat/add-attr :u0 :query-term [:_])
+             (lat/add-attr :u0 :ent-type :user)
+             (lat/add-attr :u1 :type :ent)
+             (lat/add-attr :u1 :index 1)
+             (lat/add-attr :u1 :query-term [:_])
+             (lat/add-attr :u1 :ent-type :user)))))
+
+(deftest handles-A->A-cycles
+  (testing "Handle cycles where two entities of the same type reference each other"
+    (is-graph= (:data (sm/build-ent-db {:schema td/cycle-schema} {:user [[:u0 {:refs {:updated-by-id :u1}}]
+                                                                         [:u1 {:refs {:updated-by-id :u0}}]]}))
+               (-> (lg/digraph [:user :u0] [:user :u1] [:u0 :u1] [:u1 :u0])
+                   (lat/add-attr :user :type :ent-type)
+                   (lat/add-attr :u0 :type :ent)
+                   (lat/add-attr :u0 :index 0)
+                   (lat/add-attr :u0 :query-term [:u0 {:refs {:updated-by-id :u1}}])
+                   (lat/add-attr :u0 :ent-type :user)
+                   (lat/add-attr :u0 :u1 :relation-attrs #{:updated-by-id})
+
+                   (lat/add-attr :u1 :type :ent)
+                   (lat/add-attr :u1 :index 1)
+                   (lat/add-attr :u1 :query-term [:u1 {:refs {:updated-by-id :u0}}])
+                   (lat/add-attr :u1 :ent-type :user)
+                   (lat/add-attr :u1 :u0 :relation-attrs #{:updated-by-id})))))
+
+(deftest handles-A->B-cycles
+  (testing "Handle cycles where two entities of the different types reference each other"
+    (is-graph= (:data (sm/build-ent-db {:schema td/cycle-schema} {:todo      [[:t0 {:refs {:todo-list-id :tl0}}]]
+                                                                  :todo-list [[:tl0 {:refs {:first-todo-id :t0}}]]}))
+               (-> (lg/digraph [:todo :t0] [:todo-list :tl0] [:tl0 :t0] [:t0 :tl0])
+                   (lat/add-attr :todo :type :ent-type)
+                   (lat/add-attr :t0 :type :ent)
+                   (lat/add-attr :t0 :index 0)
+                   (lat/add-attr :t0 :query-term [:t0 {:refs {:todo-list-id :tl0}}])
+                   (lat/add-attr :t0 :ent-type :todo)
+                   (lat/add-attr :t0 :tl0 :relation-attrs #{:todo-list-id})
+                   
+                   (lat/add-attr :todo-list :type :ent-type)
+                   (lat/add-attr :tl0 :type :ent)
+                   (lat/add-attr :tl0 :index 0)
+                   (lat/add-attr :tl0 :query-term [:tl0 {:refs {:first-todo-id :t0}}])
+                   (lat/add-attr :tl0 :ent-type :todo-list)
+                   (lat/add-attr :tl0 :t0 :relation-attrs #{:first-todo-id})))))
+
+;; view tests
+
+(deftest test-attr-map
+  (let [db (sm/build-ent-db {:schema td/schema} {:todo [[1]]})]
+    (is (= {:tl0 :todo-list
+            :t0  :todo
+            :u0  :user}
+           (sm/attr-map db :ent-type)))
+    (is (= {:u0  :user}
+           (sm/attr-map db :ent-type [:u0])))))
+
+(deftest test-query-ents
+  (is (= [:t0]
+         (sm/query-ents (sm/build-ent-db {:schema td/schema} {:todo [[1]]}))))
+
+  (is (= #{:t0 :u0}
+         (set (sm/query-ents (sm/build-ent-db {:schema td/schema} {:user [[1]]
+                                                                   :todo [[1]]}))))))
+
+(deftest test-build-ent-db-throws-exception-on-invalid-db
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                           :cljs js/Object)
+                        #"db is invalid"
+                        (sm/build-ent-db {:schema []} {})))
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                           :cljs js/Object)
+                        #"query is invalid"
+                        (sm/build-ent-db {:schema td/schema} {:user [[]]}))))
+
+(deftest updates-node-attrs
+  (let [db (-> (sm/build-ent-db {:schema td/schema} {:user [[:_]]})
+               (sm/visit-ents-once :custom-attr-key (constantly "yaaaaay a key")))]
+    (is (= (lat/attr (:data db) :u0 :custom-attr-key)
+           "yaaaaay a key"))))
+
+(deftest does-not-override-node-attr
+  (testing "If node already has attr, subsequent invocations of visit-ents-once will not overwrite it"
+    (let [db (-> (sm/build-ent-db {:schema td/schema} {:user [[:_]]})
+                 (sm/visit-ents-once :custom-attr-key (constantly "yaaaaay a key"))
+                 (sm/visit-ents-once :custom-attr-key (constantly "overwrite!")))]
+      (is (= (lat/attr (:data db) :u0 :custom-attr-key)
+             "yaaaaay a key")))))
+
+(deftest test-related-ents-by-attr
+  (let [db (sm/build-ent-db {:schema td/schema} {:todo [[1]]
+                                                 :project [[1 {:refs {:todo-list-ids [:tl0 :tl1]}}]]})]
+    (is (= (sm/related-ents-by-attr db :t0 :todo-list-id)
+           :tl0))
+    (is (= (sm/related-ents-by-attr db :t0 :created-by-id)
+           :u0))
+    (is (= (sm/related-ents-by-attr db :p0 :todo-list-ids)
+           [:tl0 :tl1]))))
+
+(deftest polymorphic-refs
+  (is-graph= (:data (sm/build-ent-db {:schema td/polymorphic-schema}
+                                     {:watch [[1 {:refs      {:watched-id :tc0}
+                                                  :ref-types {:watched-id :topic-category}}]]}))
+             (-> (lg/digraph [:topic-category :tc0] [:watch :w0] [:w0 :tc0])
+                 (lat/add-attr :topic-category :type :ent-type)
+                 (lat/add-attr :tc0 :type :ent)
+                 (lat/add-attr :tc0 :index 0)
+                 (lat/add-attr :tc0 :query-term [:_])
+                 (lat/add-attr :tc0 :ent-type :topic-category)
+                 
+                 (lat/add-attr :watch :type :ent-type)
+                 (lat/add-attr :w0 :type :ent)
+                 (lat/add-attr :w0 :index 0)
+                 (lat/add-attr :w0 :query-term [1 {:refs      {:watched-id :tc0}
+                                                   :ref-types {:watched-id :topic-category}}])
+                 (lat/add-attr :w0 :ent-type :watch)
+                 (lat/add-attr :w0 :tc0 :relation-attrs #{:watched-id}))))
+
+(deftest polymorphic-refs-with-ref-name-unspecified
+  ;; differs from above in that we leave out {:refs {:watched-id :tc0}}
+  (is-graph= (:data (sm/build-ent-db {:schema td/polymorphic-schema}
+                                     {:watch [[1 {:ref-types {:watched-id :topic-category}}]]}))
+             (-> (lg/digraph [:topic-category :tc0] [:watch :w0] [:w0 :tc0])
+                 (lat/add-attr :topic-category :type :ent-type)
+                 (lat/add-attr :tc0 :type :ent)
+                 (lat/add-attr :tc0 :index 0)
+                 (lat/add-attr :tc0 :query-term [:_])
+                 (lat/add-attr :tc0 :ent-type :topic-category)
+                 
+                 (lat/add-attr :watch :type :ent-type)
+                 (lat/add-attr :w0 :type :ent)
+                 (lat/add-attr :w0 :index 0)
+                 (lat/add-attr :w0 :query-term [1 {:ref-types {:watched-id :topic-category}}])
+                 (lat/add-attr :w0 :ent-type :watch)
+                 (lat/add-attr :w0 :tc0 :relation-attrs #{:watched-id}))))
+
+(deftest polymorphic-refs-nested
+  ;; refer to topic instead of topic-category
+  ;; topic depends on topic-category and will create one
+  (is-graph= (:data (sm/build-ent-db {:schema td/polymorphic-schema}
+                                     {:watch [[1 {:refs      {:watched-id :t0}
+                                                  :ref-types {:watched-id :topic}}]]}))
+             (-> (lg/digraph [:topic-category :tc0]
+                             [:topic :t0]
+                             [:watch :w0]
+                             [:w0 :t0]
+                             [:t0 :tc0])
+                 (lat/add-attr :topic-category :type :ent-type)
+                 (lat/add-attr :tc0 :type :ent)
+                 (lat/add-attr :tc0 :index 0)
+                 (lat/add-attr :tc0 :query-term [:_])
+                 (lat/add-attr :tc0 :ent-type :topic-category)
+
+                 (lat/add-attr :topic :type :ent-type)
+                 (lat/add-attr :t0 :type :ent)
+                 (lat/add-attr :t0 :index 0)
+                 (lat/add-attr :t0 :query-term [:_])
+                 (lat/add-attr :t0 :ent-type :topic)
+                 (lat/add-attr :t0 :tc0 :relation-attrs #{:topic-category-id})
+                 
+                 (lat/add-attr :watch :type :ent-type)
+                 (lat/add-attr :w0 :type :ent)
+                 (lat/add-attr :w0 :index 0)
+                 (lat/add-attr :w0 :query-term [1 {:refs      {:watched-id :t0}
+                                                   :ref-types {:watched-id :topic}}])
+                 (lat/add-attr :w0 :ent-type :watch)
+                 (lat/add-attr :w0 :t0 :relation-attrs #{:watched-id}))))
+
+(deftest polymorphic-refs-with-binding
+  ;; refer to topic instead of topic-category
+  ;; topic depends on topic-category and will create one
+  (is-graph= (:data (sm/build-ent-db {:schema td/polymorphic-schema}
+                                     {:watch [[1 {:refs      {:watched-id :t0}
+                                                  :bind      {:topic-category :tc100}
+                                                  :ref-types {:watched-id :topic}}]]}))
+             (-> (lg/digraph [:topic-category :tc100]
+                             [:topic :t0]
+                             [:watch :w0]
+                             [:w0 :t0]
+                             [:t0 :tc100])
+                 (lat/add-attr :topic-category :type :ent-type)
+                 (lat/add-attr :tc100 :type :ent)
+                 (lat/add-attr :tc100 :index 0)
+                 (lat/add-attr :tc100 :query-term [:_ {:bind {:topic-category :tc100}}])
+                 (lat/add-attr :tc100 :ent-type :topic-category)
+
+                 (lat/add-attr :topic :type :ent-type)
+                 (lat/add-attr :t0 :type :ent)
+                 (lat/add-attr :t0 :index 0)
+                 (lat/add-attr :t0 :query-term [:_ {:bind {:topic-category :tc100}}])
+                 (lat/add-attr :t0 :ent-type :topic)
+                 (lat/add-attr :t0 :tc100 :relation-attrs #{:topic-category-id})
+                 
+                 (lat/add-attr :watch :type :ent-type)
+                 (lat/add-attr :w0 :type :ent)
+                 (lat/add-attr :w0 :index 0)
+                 (lat/add-attr :w0 :query-term [1 {:refs      {:watched-id :t0}
+                                                   :bind      {:topic-category :tc100}
+                                                   :ref-types {:watched-id :topic}}])
+                 (lat/add-attr :w0 :ent-type :watch)
+                 (lat/add-attr :w0 :t0 :relation-attrs #{:watched-id}))))
+
+(deftest test-coll-relation-attr?
+  (let [db (sm/build-ent-db {:schema td/schema} {:project [[1]]})]
+    (is (sm/coll-relation-attr? db :p0 :todo-list-ids))
+    (is (not (sm/coll-relation-attr? db :p0 :created-by-id)))))
+
+(deftest test-ents-by-type
+  (let [db (sm/build-ent-db {:schema td/schema} {:project [[1]]})]
+    (is (= {:user #{:u0}
+            :todo-list #{:tl0}
+            :project #{:p0}}
+           (sm/ents-by-type db)))
+    (is (= {:user #{:u0}}
+           (sm/ents-by-type db [:u0])))))
+
+(deftest test-ent-relations
+  (let [db (sm/build-ent-db {:schema td/schema}
+                            {:project [[:p0 {:refs {:todo-list-ids 2}}]]
+                             :todo    [[1]]})]
+    (is (= {:created-by-id :u0
+            :updated-by-id :u0
+            :todo-list-ids #{:tl0 :tl1}}
+           (sm/ent-relations db :p0)))
+    (is (= {:created-by-id :u0
+            :updated-by-id :u0
+            :todo-list-id  :tl0}
+           (sm/ent-relations db :t0)))))
+
+(deftest test-all-ent-relations
+  (let [db (sm/build-ent-db {:schema td/schema}
+                            {:project [[:p0 {:refs {:todo-list-ids 2}}]]})]
+    (is (= {:project   {:p0 {:created-by-id :u0
+                             :updated-by-id :u0
+                             :todo-list-ids #{:tl0 :tl1}}}
+            :user      {:u0 {}}
+            :todo-list {:tl0 {:created-by-id :u0
+                              :updated-by-id :u0}
+                        :tl1 {:created-by-id :u0
+                              :updated-by-id :u0}}}
+           (sm/all-ent-relations db)))
+    (is (= {:project   {:p0 {:created-by-id :u0
+                             :updated-by-id :u0
+                             :todo-list-ids #{:tl0 :tl1}}}
+            :todo-list {:tl0 {:created-by-id :u0
+                              :updated-by-id :u0}}}
+           (sm/all-ent-relations db [:p0 :tl0])))
+    (is (= {:project   {:p0 {:created-by-id :u0
+                             :updated-by-id :u0
+                             :todo-list-ids #{:tl0 :tl1}}}}
+           (sm/all-ent-relations db [:p0])))))
+
+(deftest assert-schema-refs-must-exist
+  (is (thrown-with-msg? #?(:clj java.lang.AssertionError
+                           :cljs js/Error)
+                        #"Your schema relations reference nonexistent types: "
+                        (sm/build-ent-db {:schema {:user {:relations {:u1 [:circle :circle-id]}}}} {}))))
+
+(deftest assert-no-dupe-prefixes
+  (is (thrown-with-msg? #?(:clj java.lang.AssertionError
+                           :cljs js/Error)
+                        #"You have used the same prefix for multiple entity types: "
+                        (sm/build-ent-db {:schema {:user  {:prefix :u}
+                                                   :user2 {:prefix :u}}} {}))))
+
+(deftest assert-constraints-must-ref-existing-relations
+  (is (thrown-with-msg? #?(:clj java.lang.AssertionError
+                           :cljs js/Error)
+                        #"Schema constraints reference nonexistent relation attrs: "
+                        (sm/build-ent-db {:schema {:user  {:prefix :u
+                                                           :constraints {:blarb :coll}}}} {}))))
+
+(deftest enforces-coll-schema-constraints
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                           :cljs js/Object)
+                        #"Query-relations for coll attrs must be a number or vector"
+                        (sm/build-ent-db {:schema td/schema} {:project [[:_ {:refs {:todo-list-ids :tl0}}]]}))))
+
+(deftest enforces-unary-schema-constraints
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                           :cljs js/Object)
+                        #"Query-relations for unary attrs must be a keyword"
+                        (sm/build-ent-db {:schema td/schema} {:attachment [[:_ {:refs {:todo-id [:t0 :t1]}}]]}))))
