@@ -21,7 +21,7 @@
          '[adzerk.boot-test :refer :all]
          '[crisptrutski.boot-cljs-test :refer [test-cljs]])
 
-(def +version+ "2.0.0-alpha")
+(def +version+ "2.0.0-alpha-1")
 (bootlaces! +version+)
 
 (task-options!
