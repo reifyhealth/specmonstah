@@ -178,7 +178,7 @@ automatically generate unique Users if you specify multiple Likes:
 ```
 
 Three Likes, Three different Users, and we're not violating the
-uniqueness constraaint. With just one line of code. I think this
+uniqueness constraint. With just one line of code. I think this
 feature's particularly cool.
 
 ### Polymorphic relations
@@ -189,7 +189,7 @@ that can reference any entity at all. You might want to use this in
 your forum so that users can like either Topics or Posts. Specmonstah
 handles this use case.
 
-There are two snippets below. In teh first, you say you want to create
+There are two snippets below. In the first, you say you want to create
 three `:polymorphic-like`s with `{:ref-types {:liked-id
 :post}}`. Specmonstah generates 3 likes that refer to a post. The
 second snippet includes `{:ref-types {:liked-id :topic}}`, so the
