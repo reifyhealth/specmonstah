@@ -1,0 +1,57 @@
+version: 2
+jobs:
+  test-and-build:
+    docker:
+      - image: circleci/openjdk:8-jdk-node
+    steps:
+      - checkout
+      - run:
+          name: Download boot
+          command: sudo curl -L https://github.com/boot-clj/boot-bin/releases/download/latest/boot.sh -o /usr/bin/boot
+      - run:
+          name: Change boot permissions
+          command: sudo chmod +x /usr/bin/boot
+      - run:
+          name: Check deps
+          command: boot show -d
+      - run:
+          name: Run tests
+          command: boot test-all
+      - run:
+          name: Build
+          command: boot make  # Validate the namespaces are correct
+      - save-cache:
+          paths:
+            - ~/bin
+            - ~/.m2
+            - ~/.boot/cache/bin
+            - ~/.boot/cache/lib
+          key: specmonstah-{{ checksum "build.boot" }}
+      - persist_to_workspace:
+          root: ./
+          paths:
+            - ./
+  deploy:
+    docker:
+      - image: circleci/openjdk:8-jdk-node
+    steps:
+      - checkout
+      - restore_cache:
+          key: specmonstah-{{ checksum "build.boot" }}
+      - attach_workspace:
+          at: ./
+      - run:
+          name: Deploy to clojars
+          command: boot make push-release-without-gpg
+
+workflows:
+  version: 2
+  deploy:
+    jobs:
+      - test-and-build
+      - deploy:
+          filters:
+            branches:
+              only: /(master)/
+          requires:
+            - test-and-build
