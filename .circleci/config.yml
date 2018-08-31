@@ -7,7 +7,10 @@ jobs:
       - checkout
       - run:
           name: Download boot
-          command: sudo curl -L https://github.com/boot-clj/boot-bin/releases/download/latest/boot.sh -o /usr/bin/boot && sudo chmod +x /usr/bin/boot
+          command: sudo curl -L https://github.com/boot-clj/boot-bin/releases/download/latest/boot.sh -o /usr/bin/boot
+      - run:
+          name: Change boot permissions
+          command: sudo chmod +x /usr/bin/boot
       - run:
           name: Check deps
           command: boot show -d
