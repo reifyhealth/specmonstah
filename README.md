@@ -6,6 +6,12 @@
 * [Usage Reference](#usage-reference)
 * [Glossary](#glossary)
 
+## Deps
+
+```clojure
+[reifyhealth/specmonstah "2.0.0-alpha-1"]
+```
+
 ## Introduction
 
 Specmonstah (Boston for "Specmonster") lets you generate and
