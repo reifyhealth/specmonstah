@@ -236,7 +236,7 @@
   (contains? (ent-relation-constraints db ent relation-attr) :coll))
 
 (s/fdef coll-relation-attr?
-  :args (s/tuple ::db ::ent-name ::ent-attr)
+  :args (s/cat :db ::db :name ::ent-name :attr ::ent-attr)
   :ret boolean?)
 
 (defn uniq-relation-attr?
@@ -246,7 +246,7 @@
   (contains? (ent-relation-constraints db ent relation-attr) :uniq))
 
 (s/fdef uniq-relation-attr?
-  :args (s/tuple ::db ::ent-name ::ent-attr)
+  :args (s/cat :db ::db :entity ::ent-name :attr ::ent-attr)
   :ret boolean?)
 
 (defn add-edge-with-id
@@ -660,8 +660,9 @@
               (select-keys (attr-map db :ent-type) ents))))
 
 (s/fdef ents-by-type
-  :args (s/tuple ::db)
-  :ret (s/map-of ::ent-type (s/coll-of ::ent-name)))
+  :args (s/or :arity1 (s/cat :db ::db)
+              :arity2 (s/cat :db ::db :entities (s/coll-of ::ent-name)))
+        :ret (s/map-of ::ent-type (s/coll-of ::ent-name)))
 
 (defn ent-relations
   "Given a db and an ent, returns a map of relation attr to ent-name."
@@ -676,7 +677,7 @@
                               #{ref-ent} ref-ent)}))))
 
 (s/fdef ent-relations
-  :args (s/tuple ::db ::ent-name)
+  :args (s/cat :db ::db :entity ::ent-name)
   :ret (s/map-of ::ent-attr (s/or :unary ::ent-name
                                   :coll (s/coll-of ::ent-name))))
 
@@ -701,7 +702,8 @@
               (ents-by-type db ents))))
 
 (s/fdef all-ent-relations
-  :args (s/tuple ::db)
-  :ret (s/map-of ::ent-type
+  :args (s/or :arity1 (s/cat :db ::db)
+              :arity2 (s/cat :db ::db :entities (s/coll-of ::ent-name)))
+        :ret (s/map-of ::ent-type
                  (s/map-of ::ent-name
                            (s/map-of ::ent-attr ::ent-name))))
