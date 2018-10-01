@@ -1260,7 +1260,7 @@ like this:
 Each ent is inserted in dependency order: `:user` first, then
 `:todo-list`, then `:todo`.
 
-Now let's revisit ``(when-not (visit-key attrs) ...)`. You want to
+Now let's revisit `(when-not (visit-key attrs) ...)`. You want to
 perform this check because of Specmonstah's progressive construction
 feature: as we covered in [05: Progressive
 construction](#05-progressive-construction), it's possible to pass an
