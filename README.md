@@ -1004,6 +1004,37 @@ You can override the values produces by `ent-db-spec-gen` in the
 query:
 
 ```clojure
+(ns reifyhealth.specmonstah-tutorial.07
+  (:require [reifyhealth.specmonstah.core :as sm]
+            [loom.io :as lio]
+            [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as gen]
+            [reifyhealth.specmonstah.spec-gen :as sg]))
+
+(s/def ::id (s/and pos-int? #(< % 100)))
+(s/def ::not-empty-string (s/and string? not-empty #(< (count %) 20)))
+
+(s/def ::username ::not-empty-string)
+(s/def ::user (s/keys :req-un [::id ::username]))
+
+(s/def ::name ::not-empty-string)
+(s/def ::owner-id ::id)
+(s/def ::todo-list (s/keys :req-un [::id ::name ::owner-id]))
+
+(s/def ::details ::not-empty-string)
+(s/def ::todo-list-id ::id)
+(s/def ::todo (s/keys :req-un [::id ::details ::todo-list-id]))
+
+(def schema
+  {:user      {:prefix :u
+               :spec   ::user}
+   :todo-list {:prefix    :tl
+               :spec      ::todo-list
+               :relations {:owner-id [:user :id]}}
+   :todo      {:prefix    :t
+               :spec     ::todo
+               :relations {:todo-list-id [:todo-list :id]}}})
+
 (defn ex-01
   []
   (sg/ent-db-spec-gen-attr {:schema schema}
