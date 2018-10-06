@@ -476,7 +476,7 @@ as their first argument and return an ent db. The ent db is
 conceptually similar to the databases you're familiar with. Its
 `:schema` key refers to an entity schema, just as an RDBMS includes
 schema information. In this case, the schema is `{:user {:prefix
-:u}}`, which is as simple a schema as possible. In later ssections,
+:u}}`, which is as simple a schema as possible. In later sections,
 you'll learn more about schemas and how they're used to define
 relationships and constraints among ents.
 
@@ -862,7 +862,7 @@ clojure.org](https://clojure.org/guides/spec). It's very well-written.
 Our code:
 
 ```clojure
-(ns reifyhealth.specmonstah-tutorial.05
+(ns reifyhealth.specmonstah-tutorial.06
   (:require [reifyhealth.specmonstah.core :as sm]
             [loom.io :as lio]
             [clojure.spec.alpha :as s]
