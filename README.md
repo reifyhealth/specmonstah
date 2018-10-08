@@ -476,7 +476,7 @@ as their first argument and return an ent db. The ent db is
 conceptually similar to the databases you're familiar with. Its
 `:schema` key refers to an entity schema, just as an RDBMS includes
 schema information. In this case, the schema is `{:user {:prefix
-:u}}`, which is as simple a schema as possible. In later ssections,
+:u}}`, which is as simple a schema as possible. In later sections,
 you'll learn more about schemas and how they're used to define
 relationships and constraints among ents.
 
@@ -862,7 +862,7 @@ clojure.org](https://clojure.org/guides/spec). It's very well-written.
 Our code:
 
 ```clojure
-(ns reifyhealth.specmonstah-tutorial.05
+(ns reifyhealth.specmonstah-tutorial.06
   (:require [reifyhealth.specmonstah.core :as sm]
             [loom.io :as lio]
             [clojure.spec.alpha :as s]
@@ -873,7 +873,7 @@ Our code:
 (s/def ::not-empty-string (s/and string? not-empty #(< (count %) 20)))
 
 (s/def ::username ::not-empty-string)
-(s/def ::user (s/keys :req-un [::id ::not-empty-string]))
+(s/def ::user (s/keys :req-un [::id ::username]))
 
 (s/def ::name ::not-empty-string)
 (s/def ::owner-id ::id)
@@ -905,7 +905,7 @@ what the raw generated data looks like:
 
 ```clojure
 (ex-01) ;=>
-{:user      {:id 2, :not-empty-string "qI0iNgiy"}
+{:user      {:id 2, :username "qI0iNgiy"}
  :todo-list {:id 4, :name "etIZ3l6jDO7m9UR5P", :owner-id 11}
  :todo      {:id 1, :details "1K85jiEU3L366NTx1", :todo-list-id 2}}
 ```
@@ -951,7 +951,7 @@ generate data and then assign the foreign keys:
               :index 0,
               :ent-type :user,
               :query-term [:_],
-              :spec-gen {:id 42, :not-empty-string "abrfR4s1I15"}}}}
+              :spec-gen {:id 42, :username "abrfR4s1I15"}}}}
 ```
 
 Oh wow, OK. That's a lot to look at. Let's step through it.
@@ -978,7 +978,7 @@ generated. To make that easier, Specmonstah has the
 ;; => 
 {:tl0 {:id 21, :name "0N2xKMNwM8uO", :owner-id 19}
  :t0  {:id 4, :details "PGf92", :todo-list-id 21}
- :u0  {:id 19, :not-empty-string "fz774"}}
+ :u0  {:id 19, :username "fz774"}}
 ```
 
 `attr-map` returns a map where the keys are ent names and the values
@@ -995,7 +995,7 @@ and `sm/attr-map`, `sg/ent-db-spec-gen-attr`:
 ;; =>
 {:tl0 {:id 51, :name "VO1161Id66DJRftxq", :owner-id 90}
  :t0 {:id 91, :details "qaQ0e5Bfa6B", :todo-list-id 51}
- :u0 {:id 90, :not-empty-string "82d71j551NVMFj4"}}
+ :u0 {:id 90, :username "82d71j551NVMFj4"}}
  ```
 
 ### 07: spec gen customization and omission
@@ -1004,6 +1004,37 @@ You can override the values produces by `ent-db-spec-gen` in the
 query:
 
 ```clojure
+(ns reifyhealth.specmonstah-tutorial.07
+  (:require [reifyhealth.specmonstah.core :as sm]
+            [loom.io :as lio]
+            [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as gen]
+            [reifyhealth.specmonstah.spec-gen :as sg]))
+
+(s/def ::id (s/and pos-int? #(< % 100)))
+(s/def ::not-empty-string (s/and string? not-empty #(< (count %) 20)))
+
+(s/def ::username ::not-empty-string)
+(s/def ::user (s/keys :req-un [::id ::username]))
+
+(s/def ::name ::not-empty-string)
+(s/def ::owner-id ::id)
+(s/def ::todo-list (s/keys :req-un [::id ::name ::owner-id]))
+
+(s/def ::details ::not-empty-string)
+(s/def ::todo-list-id ::id)
+(s/def ::todo (s/keys :req-un [::id ::details ::todo-list-id]))
+
+(def schema
+  {:user      {:prefix :u
+               :spec   ::user}
+   :todo-list {:prefix    :tl
+               :spec      ::todo-list
+               :relations {:owner-id [:user :id]}}
+   :todo      {:prefix    :t
+               :spec     ::todo
+               :relations {:todo-list-id [:todo-list :id]}}})
+
 (defn ex-01
   []
   (sg/ent-db-spec-gen-attr {:schema schema}
