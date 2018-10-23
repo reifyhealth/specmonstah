@@ -116,10 +116,16 @@
       (is (= [:id :created-by-id] (keys (:tl0 gen))))))
   
   (testing "Overwriting value of omitted ref with custom value"
-    (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[:_ {:refs {:updated-by-id ::sm/omit}
+    (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[:_ {:refs     {:updated-by-id ::sm/omit}
                                                                              :spec-gen {:updated-by-id 42}}]]})]
       (is (ids-present? gen))
-      (is (= 42 (-> gen :tl0 :updated-by-id))))))
+      (is (= 42 (-> gen :tl0 :updated-by-id)))))
+
+  (testing "Overwriting value of omitted ref with nil"
+    (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[:_ {:refs     {:updated-by-id ::sm/omit}
+                                                                             :spec-gen {:updated-by-id nil}}]]})]
+      (is (ids-present? gen))
+      (is (= nil (-> gen :tl0 :updated-by-id))))))
 
 (deftest test-idempotency
   (testing "Gen traversal won't replace already generated data with newly generated data"
