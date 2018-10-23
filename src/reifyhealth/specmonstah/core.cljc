@@ -14,7 +14,6 @@
   [x]
   (= x ::omit))
 
-(s/def ::any (constantly true))
 (s/def ::ent-type keyword?)
 (s/def ::ent-name (s/and keyword? (complement omit?)))
 (s/def ::ent-attr keyword?)
@@ -38,7 +37,7 @@
 
 ;; A relation is the description of how ents of type A reference ents
 ;; of type B
-(s/def ::relation-path (s/+ ::any))
+(s/def ::relation-path (s/+ any?))
 
 (s/def ::conformed-relation
   (s/map-of :ent-type ::ent-type
