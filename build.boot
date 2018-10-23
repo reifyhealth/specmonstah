@@ -49,11 +49,14 @@
 (deftask push-release-without-gpg
   "Deploy release version to Clojars without gpg signature."
   [f file PATH str "The jar file to deploy."]
-  (comp
-    (#'adzerk.bootlaces/collect-clojars-credentials)
-    (push
-      :file           file
-      :tag            (boolean #'adzerk.bootlaces/+last-commit+)
-      :gpg-sign       false
-      :ensure-release true
-      :repo           "deploy-clojars")))
+  (if (System/getenv "CI")
+    (comp
+      (#'adzerk.bootlaces/collect-clojars-credentials)
+      (push
+        :file           file
+        :tag            (boolean #'adzerk.bootlaces/+last-commit+)
+        :gpg-sign       false
+        :ensure-release true
+        :repo           "deploy-clojars"))
+    (do (println "Only CI is allowed to push a release")
+        (System/exit 1))))
