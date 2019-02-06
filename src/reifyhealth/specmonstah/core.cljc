@@ -498,8 +498,9 @@
                                           (set (keys (:relations ent-schema))))))
        (medley/filter-vals not-empty)))
 
-(defn build-ent-db
-  "Produce a new db that contains all ents specified by query"
+(defn gen-ent-graph
+  "Produce a new db with an ent graph that contains all ents specified
+  by query"
   [{:keys [schema] :as db} query]
   (let [isr (invalid-schema-relations schema)]
     (assert (empty? isr) (str "Your schema relations reference nonexistent types: " isr)))

@@ -8,5 +8,5 @@
                :relations {:owner-id [:user :id]}}})
 (defn ex-01
   []
-  (sm/build-ent-db {:schema schema} {:todo-list [[2]]}))
+  (sm/gen-ent-graph {:schema schema} {:todo-list [[2]]}))
 

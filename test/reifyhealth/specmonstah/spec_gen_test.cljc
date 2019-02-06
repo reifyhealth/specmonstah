@@ -221,13 +221,13 @@
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
                              :cljs js/Object)
                           #"Can't order ents: check for a :required cycle"
-                          (-> (sm/build-ent-db {:schema {:todo      {:spec        ::todo
-                                                                     :relations   {:todo-list-id [:todo-list :id]}
-                                                                     :constraints {:todo-list-id #{:required}}
-                                                                     :prefix      :t}
-                                                         :todo-list {:spec        ::todo-list
-                                                                     :relations   {:first-todo-id [:todo :id]}
-                                                                     :constraints {:first-todo-id #{:required}}
-                                                                     :prefix      :tl}}}
-                                               {:todo [[1]]})
+                          (-> (sm/gen-ent-graph {:schema {:todo      {:spec        ::todo
+                                                                      :relations   {:todo-list-id [:todo-list :id]}
+                                                                      :constraints {:todo-list-id #{:required}}
+                                                                      :prefix      :t}
+                                                          :todo-list {:spec        ::todo-list
+                                                                      :relations   {:first-todo-id [:todo :id]}
+                                                                      :constraints {:first-todo-id #{:required}}
+                                                                      :prefix      :tl}}}
+                                                {:todo [[1]]})
                               (sm/visit-ents :insert-cycle insert-cycle))))))

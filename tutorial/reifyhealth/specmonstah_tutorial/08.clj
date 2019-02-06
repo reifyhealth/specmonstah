@@ -15,7 +15,7 @@
 
 (defn ex-01
   []
-  (-> (sm/build-ent-db {:schema schema} {:todo [[1]]})
+  (-> (sm/gen-ent-graph {:schema schema} {:todo [[1]]})
       (sm/visit-ents :announce announce)
       (get-in [:data :attrs])))
 
