@@ -519,6 +519,11 @@
                  (:types db))
          (add-ref-ents))))
 
+(defn build-ent-db
+  [db query]
+  (println "This was deprecated in 2.0.0-alpha-2 and will be removed in 2.0.0")
+  (add-ents db query))
+
 ;; -----------------
 ;; visiting
 ;; -----------------
