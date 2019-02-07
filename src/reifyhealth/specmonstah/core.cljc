@@ -119,9 +119,8 @@
 ;; -----------------
 
 (s/def ::query-term
-  (s/or :n-1 (s/cat :ent-id ::ent-id)
-        :n-2 (s/cat :ent-id ::ent-id
-                    :query-opts ::query-opts)))
+  (s/cat :ent-id ::ent-id
+         :query-opts (s/? ::query-opts)))
 
 (s/def ::query
   (s/map-of ::ent-type (s/coll-of ::query-term)))
@@ -235,7 +234,7 @@
   (contains? (ent-relation-constraints db ent relation-attr) :coll))
 
 (s/fdef coll-relation-attr?
-  :args (s/tuple ::db ::ent-name ::ent-attr)
+  :args (s/cat :db ::db :ent-name ::ent-name :ent-attr ::ent-attr)
   :ret boolean?)
 
 (defn uniq-relation-attr?
@@ -245,7 +244,7 @@
   (contains? (ent-relation-constraints db ent relation-attr) :uniq))
 
 (s/fdef uniq-relation-attr?
-  :args (s/tuple ::db ::ent-name ::ent-attr)
+  :args (s/cat :db ::db :ent-name ::ent-name :ent-attr ::ent-attr)
   :ret boolean?)
 
 (defn add-edge-with-id
@@ -424,7 +423,7 @@
             ;; top-level meta is used to track which ents are
             ;; specified explicitly in a query
             (let [query-term               (with-meta query-term {:top-level true})
-                  [query-term-type ent-id] (:ent-id (second (s/conform ::query-term query-term)))]
+                  [query-term-type ent-id] (:ent-id (s/conform ::query-term query-term))]
               (case query-term-type
                 :ent-count (add-n-ents db ent-type ent-id query-term)
                 :ent-name  (add-ent db ent-id ent-type query-term))))
@@ -659,7 +658,8 @@
               (select-keys (attr-map db :ent-type) ents))))
 
 (s/fdef ents-by-type
-  :args (s/tuple ::db)
+  :args (s/or :n-1 (s/cat :db ::db)
+              :n-2 (s/cat :db ::db :ent-names (s/coll-of ::ent-name)))
   :ret (s/map-of ::ent-type (s/coll-of ::ent-name)))
 
 (defn ent-relations
@@ -675,9 +675,9 @@
                               #{ref-ent} ref-ent)}))))
 
 (s/fdef ent-relations
-  :args (s/tuple ::db ::ent-name)
-  :ret (s/map-of ::ent-attr (s/or :unary ::ent-name
-                                  :coll (s/coll-of ::ent-name))))
+  :args (s/cat :db ::db :ent-name ::ent-name)
+  :ret  (s/map-of ::ent-attr (s/or :unary ::ent-name
+                                   :coll (s/coll-of ::ent-name))))
 
 (defn all-ent-relations
   "Given a db, returns a map of ent-type to map of entity relations.
@@ -688,7 +688,8 @@
              :p1 {:created-by :u0
                   :updated-by :u2}}
    :user {:u0 {:friends-with :u0}}}"
-  ([db] (all-ent-relations db (ents db)))
+  ([db]
+   (all-ent-relations db (ents db)))
   ([db ents]
    (reduce-kv (fn [ents-by-type ent-type ents]
                 (assoc ents-by-type ent-type
@@ -700,7 +701,7 @@
               (ents-by-type db ents))))
 
 (s/fdef all-ent-relations
-  :args (s/tuple ::db)
-  :ret (s/map-of ::ent-type
-                 (s/map-of ::ent-name
-                           (s/map-of ::ent-attr ::ent-name))))
+  :args (s/cat :db ::db :ent-names (s/? (s/coll-of ::ent-name)))
+  :ret  (s/map-of ::ent-type
+                  (s/map-of ::ent-name
+                            (s/map-of ::ent-attr ::ent-name))))
