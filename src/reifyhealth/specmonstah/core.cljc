@@ -119,9 +119,8 @@
 ;; -----------------
 
 (s/def ::query-term
-  (s/or :n-1 (s/cat :ent-id ::ent-id)
-        :n-2 (s/cat :ent-id ::ent-id
-                    :query-opts ::query-opts)))
+  (s/cat :ent-id ::ent-id
+         :query-opts (s/? ::query-opts)))
 
 (s/def ::query
   (s/map-of ::ent-type (s/coll-of ::query-term)))
@@ -424,7 +423,7 @@
             ;; top-level meta is used to track which ents are
             ;; specified explicitly in a query
             (let [query-term               (with-meta query-term {:top-level true})
-                  [query-term-type ent-id] (:ent-id (second (s/conform ::query-term query-term)))]
+                  [query-term-type ent-id] (:ent-id (s/conform ::query-term query-term))]
               (case query-term-type
                 :ent-count (add-n-ents db ent-type ent-id query-term)
                 :ent-name  (add-ent db ent-id ent-type query-term))))
