@@ -2,6 +2,7 @@
   (:require #?(:clj [clojure.test :refer [deftest is are use-fixtures testing]]
                :cljs [cljs.test :include-macros true :refer [deftest is are use-fixtures testing]])
             [clojure.spec.alpha :as s]
+            [clojure.spec.test.alpha :as stest]
             [clojure.test.check.generators :as gen :include-macros true]
             [reifyhealth.specmonstah.test-data :as td]
             [reifyhealth.specmonstah.core :as sm]
@@ -11,6 +12,7 @@
             [loom.attr :as lat]))
 
 (use-fixtures :each td/test-fixture)
+(use-fixtures :once (fn [t] (stest/instrument) (t)))
 
 (defmacro is-graph=
   "Breaks graph equality test into comparisons on graph keys to
