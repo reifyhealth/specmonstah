@@ -497,7 +497,7 @@
                                           (set (keys (:relations ent-schema))))))
        (medley/filter-vals not-empty)))
 
-(defn gen-ent-graph
+(defn add-ents
   "Produce a new db with an ent graph that contains all ents specified
   by query"
   [{:keys [schema] :as db} query]

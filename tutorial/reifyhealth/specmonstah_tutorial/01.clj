@@ -7,7 +7,7 @@
 
 (defn ex-01
   []
-  (sm/gen-ent-graph {:schema schema} {:user [[3]]}))
+  (sm/add-ents {:schema schema} {:user [[3]]}))
 
 (comment
   ;; evaluating this:

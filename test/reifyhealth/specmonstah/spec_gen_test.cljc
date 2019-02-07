@@ -221,7 +221,7 @@
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
                              :cljs js/Object)
                           #"Can't order ents: check for a :required cycle"
-                          (-> (sm/gen-ent-graph {:schema {:todo      {:spec        ::todo
+                          (-> (sm/add-ents {:schema {:todo      {:spec        ::todo
                                                                       :relations   {:todo-list-id [:todo-list :id]}
                                                                       :constraints {:todo-list-id #{:required}}
                                                                       :prefix      :t}
