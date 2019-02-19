@@ -107,9 +107,11 @@ dependency order:
  [:post {:id 9 :topic-id 5 :created-by-id 1 :updated-by-id 1}]]
 ```
 
-The `insert` function simulates inserting records in a db by conjing
-entities on the `ent-db` atom. The maps were generated using
-`clojure.spec`. Notice that all the foreign keys line up.
+The `insert` function is an example of code you might write to manage
+the relationship between specmonstah-generated data and your own
+database. In this case, `insert` simulates inserting records in a db
+by conjing entities on an `ent-db` atom. The maps were generated
+using `clojure.spec`. Notice that all the foreign keys line up.
 
 ### Specify different users
 
@@ -239,7 +241,7 @@ contraints, so three users are created, just like in the previous snippet.
 
 ### Visualization
 
-Sometimes you want to inspect aall the work that Specmonstah is doing
+Sometimes you want to inspect all the work that Specmonstah is doing
 for you. One way to do that is to produce an image of the entities
 Specmonstah produces, and their relationships:
 
@@ -270,8 +272,7 @@ tool's purpose, then getting a high-level overview of the architecture
 and how it achieves the tool's purpose. With those concepts in place,
 concrete examples and exercises will help you understand how to use
 the tool. If you think that approach is bazonkers because you're a
-hands-on type purpose, you can skip to [01: schema, query,
-ent-db](#01-schema-query-ent-db).
+hands-on type purpose, you can skip to [01: ent-db](#01-ent-db).
 
 ### Purpose & Architecture Overview
 
@@ -310,7 +311,7 @@ correspond to ent types, and the rest correspond to ents.
 We're going to be using the terms _ent_ and _ent type_ a lot, and
 you'll see them all throughout the source code, so let's define them:
 
-**Ent type.** An ent type analogous to a relation in a relational
+**Ent type.** An ent type is analogous to a relation in a relational
 database, or a class in object-oriented programming. It differs in
 that relations and classes define all the attributes of their
 instances, whereas ent types don't. Ent types define how instances are
@@ -321,10 +322,11 @@ related to each other. For example, a Todo schema might include a
 ent types.
 
 Ent types are represented as nodes in the Specmonstah graph (let's
-abbreviate that with _SG_). Ent types have directed edges to their
-instances. It's rare that you'll interact with ent types directly.
+abbreviate that with _SG_), with directed edges going from ent types
+to their instances. It's rare that you'll interact with ent types
+directly.
 
-**Ent.** An ent is an instance of an ent type. They have a name (`:t0,
+**Ent.** An ent is an instance of an ent type. Ents have names (`:t0,
 :u0`, etc), and reference other ents. They're represented as nodes in
 the SG, with directed edges going from ents to the ents they
 reference; there's a directed edge from `:tl0` to `:u0` because `:tl0`
@@ -353,7 +355,7 @@ single user:
 ```
 
 Conspicuously absent are the business `:user` attributes you'd expect,
-like `:username` or `:email`. 
+like `:username` or `:email`.
 
 How does Specmonstah generate this graph? You'll be learning about
 that in the upcoming sections.
@@ -599,7 +601,7 @@ Queries are used to specify what ents should get generated. The term
 _query_ might throw you off because usually it's used to refer to the
 language for _retrieving_ records from a database. In Specmonstah, I
 think of queries as allowing you to express, _generate the minimal
-ent-db necessary for me to retrieve the ents I've specified_. I
+ent-db necessary for me to retrieve the ents I've specified_.
 
 In `ex-01`, the query passed to `sm/build-ent-db` is `{:todo-list
 [[2]]}`. This is like saying, _I want two `:todo-list`s. Create an
@@ -680,7 +682,7 @@ want them to belong to different users? Here's how you could do that:
   []
   (sm/build-ent-db {:schema schema} {:todo-list [[2 {:refs {:owner-id :my-own-sweet-user}}]
                                                  [1]]}))
-                                                 
+
 (lio/view (:data (ex-01)))
 ```
 
@@ -833,7 +835,7 @@ existing ents, and will only add new ents. The first call,
 
 That ent db is passed to the next call, `(sm/build-ent-db ent-db-1
 {:todo-list [[1] [1 {:refs {:owner-id :hamburglar}}]]})`. This creates
-two more todo lists: 
+two more todo lists:
 
 ![progressive generation](docs/05/progressive.png)
 
@@ -1193,8 +1195,8 @@ arguments and see if your guess was correct.
 ### 09: An insertion visiting function
 
 In this section you'll look at how you could insert the data
-Specmonstah has generated into a database. We'll be addimg the data to
-an atom, but you can apply idea to your own database. The code:
+Specmonstah has generated into a database. We'll be adding the data to
+an atom, but you can apply the idea to your own database. The code:
 
 ```clojure
 (ns reifyhealth.specmonstah-tutorial.09
