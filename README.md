@@ -272,7 +272,7 @@ tool's purpose, then getting a high-level overview of the architecture
 and how it achieves the tool's purpose. With those concepts in place,
 concrete examples and exercises will help you understand how to use
 the tool. If you think that approach is bazonkers because you're a
-hands-on type purpose, you can skip to [01: ent-db](#01-ent-db).
+hands-on type person, you can skip to [01: ent-db](#01-ent-db).
 
 ### Purpose & Architecture Overview
 
