@@ -187,7 +187,7 @@ automatically generate unique Users if you specify multiple Likes:
 
 Three Likes, Three different Users, and we're not violating the
 uniqueness constraint. With just one line of code. I think this
-feature's particularly cool.
+feature is particularly cool.
 
 ### Polymorphic relations
 
@@ -202,7 +202,7 @@ three `:polymorphic-like`s with `{:ref-types {:liked-id
 :post}}`. Specmonstah generates 3 likes that refer to a post. The
 second snippet includes `{:ref-types {:liked-id :topic}}`, so the
 likes refer to a topic. Polymorphic references compose with uniqueness
-contraints, so three users are created, just like in the previous snippet.
+constraints, so three users are created, just like in the previous snippet.
 
 ```clojure
 (insert {:polymorphic-like [[3 {:ref-types {:liked-id :post}}]]})
@@ -292,7 +292,7 @@ summarized here, with detailed explanations below.
 2. **Ent visitation.** Once the graph is generated, you perform
    functions on each node. One function will use clojure.spec to
    generate a map of data to be inserted, and another function will
-   perform the insertation.
+   perform the insertion.
 3. **Viewing.** SM generates a lot of data, so much so that it can be
    difficult to visually parse in a REPL. SM provides functions that
    get subsets of the data for writing tests and developing in the
@@ -608,7 +608,7 @@ In `ex-01`, the query passed to `sm/build-ent-db` is `{:todo-list
 ent-db with the minimum ents needed so that I can retrieve them._
 Because `:todo-list` ents must refer to a `:user`, Specmonstah
 generates the `:user` ent `:u0`. Specmonstah only generates one
-`:user`, not two, because that's the mininum needed to satisfy the
+`:user`, not two, because that's the minimum needed to satisfy the
 query.
 
 Queries are maps, where each key is the name of an ent type, and each
@@ -977,7 +977,7 @@ generated. To make that easier, Specmonstah has the
       (sm/attr-map :spec-gen)))
 
 (ex-03)
-;; => 
+;; =>
 {:tl0 {:id 21, :name "0N2xKMNwM8uO", :owner-id 19}
  :t0  {:id 4, :details "PGf92", :todo-list-id 21}
  :u0  {:id 19, :username "fz774"}}
