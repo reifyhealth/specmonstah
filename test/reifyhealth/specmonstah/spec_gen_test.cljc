@@ -127,6 +127,31 @@
       (is (ids-present? gen))
       (is (= nil (-> gen :tl0 :updated-by-id))))))
 
+(deftest overwriting
+  (testing "Overwriting generated value with query map"
+    (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[:_ {:spec-gen {:updated-by-id 42}}]]})]
+      (is (ids-present? gen))
+      (is (= 42 (-> gen :tl0 :updated-by-id)))))
+
+  (testing "Overwriting generated value with query fn"
+    (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[:_ {:spec-gen #(assoc % :updated-by-id :foo)}]]})]
+      (is (ids-present? gen))
+      (is (= :foo (-> gen :tl0 :updated-by-id)))))
+
+  (testing "Overwriting generated value with schema map"
+    (let [gen (sg/ent-db-spec-gen-attr
+                {:schema (assoc-in td/schema [:todo :spec-gen :todo-title] "schema title")}
+                {:todo [[:_ {:spec-gen #(assoc % :updated-by-id :foo)}]]})]
+      (is (ids-present? gen))
+      (is (= "schema title" (-> gen :t0 :todo-title)))))
+
+  (testing "Overwriting generated value with schema fn"
+    (let [gen (sg/ent-db-spec-gen-attr
+                {:schema (assoc-in td/schema [:todo :spec-gen] #(assoc % :todo-title "boop whooop"))}
+                {:todo [[:_ {:spec-gen #(assoc % :updated-by-id :foo)}]]})]
+      (is (ids-present? gen))
+      (is (= "boop whooop" (-> gen :t0 :todo-title))))))
+
 (deftest test-idempotency
   (testing "Gen traversal won't replace already generated data with newly generated data"
     (let [gen-fn     #(sg/ent-db-spec-gen % {:todo [[:t0 {:spec-gen {:todo-title "pet the dog"}}]]})
@@ -222,12 +247,12 @@
                              :cljs js/Object)
                           #"Can't order ents: check for a :required cycle"
                           (-> (sm/add-ents {:schema {:todo      {:spec        ::todo
-                                                                      :relations   {:todo-list-id [:todo-list :id]}
-                                                                      :constraints {:todo-list-id #{:required}}
-                                                                      :prefix      :t}
-                                                          :todo-list {:spec        ::todo-list
-                                                                      :relations   {:first-todo-id [:todo :id]}
-                                                                      :constraints {:first-todo-id #{:required}}
-                                                                      :prefix      :tl}}}
-                                                {:todo [[1]]})
+                                                                 :relations   {:todo-list-id [:todo-list :id]}
+                                                                 :constraints {:todo-list-id #{:required}}
+                                                                 :prefix      :t}
+                                                     :todo-list {:spec        ::todo-list
+                                                                 :relations   {:first-todo-id [:todo :id]}
+                                                                 :constraints {:first-todo-id #{:required}}
+                                                                 :prefix      :tl}}}
+                                           {:todo [[1]]})
                               (sm/visit-ents :insert-cycle insert-cycle))))))
