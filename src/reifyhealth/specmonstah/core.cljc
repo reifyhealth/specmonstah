@@ -497,8 +497,9 @@
                                           (set (keys (:relations ent-schema))))))
        (medley/filter-vals not-empty)))
 
-(defn build-ent-db
-  "Produce a new db that contains all ents specified by query"
+(defn add-ents
+  "Produce a new db with an ent graph that contains all ents specified
+  by query"
   [{:keys [schema] :as db} query]
   (let [isr (invalid-schema-relations schema)]
     (assert (empty? isr) (str "Your schema relations reference nonexistent types: " isr)))
@@ -517,6 +518,12 @@
                  db
                  (:types db))
          (add-ref-ents))))
+
+(defn ^{:deprecated "2.0.0-alpha-2"} build-ent-db
+  [db query]
+  (binding [*out* *err*]
+    (println "`r.s.core/build-ent-db` was deprecated in 2.0.0-alpha-2 in favor of `r.s.core/add-ents` and will be removed in 2.0.0"))
+  (add-ents db query))
 
 ;; -----------------
 ;; visiting

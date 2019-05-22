@@ -11,7 +11,7 @@
 
 (defn ex-01
   []
-  (let [ent-db-1 (sm/build-ent-db {:schema schema} {:todo-list [[1]]})
-        ent-db-2 (sm/build-ent-db ent-db-1 {:todo-list [[1] [1 {:refs {:owner-id :hamburglar}}]]})]
+  (let [ent-db-1 (sm/add-ents {:schema schema} {:todo-list [[1]]})
+        ent-db-2 (sm/add-ents ent-db-1 {:todo-list [[1] [1 {:refs {:owner-id :hamburglar}}]]})]
     (lio/view (:data ent-db-1))
     (lio/view (:data ent-db-2))))

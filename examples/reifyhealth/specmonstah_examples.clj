@@ -20,12 +20,12 @@
                                  :updated-by-id [:user :id]}
                      :prefix    :tl}})
 
-(def view (comp lio/view :data #(sm/build-ent-db {:schema td/schema})))
+(def view (comp lio/view :data #(sm/add-ents {:schema td/schema})))
 
 (defn view
   "Extract common bits so people can focus on just the query"
   [query]
-  (-> (sm/build-ent-db {:schema td/schema} query)
+  (-> (sm/add-ents {:schema td/schema} query)
       :data
       lio/view))
 

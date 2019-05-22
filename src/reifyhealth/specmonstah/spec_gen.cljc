@@ -73,7 +73,7 @@
   "Convenience function to build a new db using the spec-gen mapper
   and the default attr-key"
   [db query]
-  (-> (sm/build-ent-db db query)
+  (-> (sm/add-ents db query)
       (sm/visit-ents-once spec-gen-ent-attr-key spec-gen)))
 
 (defn ent-db-spec-gen-attr

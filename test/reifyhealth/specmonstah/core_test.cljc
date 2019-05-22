@@ -44,17 +44,17 @@
   [db]
   (dissoc db :relation-graph :types :type-order))
 
-(deftest test-build-ent-db-empty
-  (is-graph= (strip-db (sm/build-ent-db {:schema td/schema} {}))
+(deftest test-add-ents-empty
+  (is-graph= (strip-db (sm/add-ents {:schema td/schema} {}))
              {:schema td/schema
               :data   (lg/digraph)}))
 
 (deftest test-bound-relation-attr-name
-  (is (= (sm/bound-relation-attr-name (sm/build-ent-db {:schema td/schema} {}) :tl-bound-p-0 :todo 1)
+  (is (= (sm/bound-relation-attr-name (sm/add-ents {:schema td/schema} {}) :tl-bound-p-0 :todo 1)
          :t-bound-p-1)))
 
-(deftest test-build-ent-db-relationless-ent
-  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:user [[:u1]]}))
+(deftest test-add-ents-relationless-ent
+  (is-graph= (:data (sm/add-ents {:schema td/schema} {:user [[:u1]]}))
              (-> (lg/digraph [:user :u1])
                  (lat/add-attr :user :type :ent-type)
                  (lat/add-attr :u1 :type :ent)
@@ -62,8 +62,8 @@
                  (lat/add-attr :u1 :query-term [:u1])
                  (lat/add-attr :u1 :ent-type :user))))
 
-(deftest test-build-ent-db-mult-relationless-ents
-  (is-graph= (:data (strip-db (sm/build-ent-db {:schema td/schema} {:user [[3]]})))
+(deftest test-add-ents-mult-relationless-ents
+  (is-graph= (:data (strip-db (sm/add-ents {:schema td/schema} {:user [[3]]})))
              (-> (lg/digraph [:user :u0] [:user :u1] [:user :u2])
                  (lat/add-attr :user :type :ent-type)
                  (lat/add-attr :u0 :type :ent)
@@ -81,8 +81,8 @@
                  (lat/add-attr :u2 :query-term [3])
                  (lat/add-attr :u2 :ent-type :user))))
 
-(deftest test-build-ent-db-one-level-relation
-  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list [[1]]}))
+(deftest test-add-ents-one-level-relation
+  (is-graph= (:data (sm/add-ents {:schema td/schema} {:todo-list [[1]]}))
              (-> (lg/digraph [:user :u0] [:todo-list :tl0] [:tl0 :u0])
                  
                  (lat/add-attr :user :type :ent-type)
@@ -99,9 +99,9 @@
                  
                  (lat/add-attr :tl0 :u0 :relation-attrs #{:created-by-id :updated-by-id}))))
 
-(deftest test-build-ent-db-one-level-relation-with-omit
-  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list [[1 {:refs {:created-by-id ::sm/omit
-                                                                                 :updated-by-id ::sm/omit}}]]}))
+(deftest test-add-ents-one-level-relation-with-omit
+  (is-graph= (:data (sm/add-ents {:schema td/schema} {:todo-list [[1 {:refs {:created-by-id ::sm/omit
+                                                                                  :updated-by-id ::sm/omit}}]]}))
              (-> (lg/digraph [:todo-list :tl0])
 
                  (lat/add-attr :todo-list :type :ent-type)
@@ -111,8 +111,8 @@
                  (lat/add-attr :tl0 :query-term [1 {:refs {:created-by-id ::sm/omit
                                                            :updated-by-id ::sm/omit}}]))))
 
-(deftest test-build-ent-db-mult-ents-w-extended-query
-  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list [[2 {:refs {:created-by-id :bloop :updated-by-id :bloop}}]]}))
+(deftest testadd-entsb-mult-ents-w-extended-query
+  (is-graph= (:data (sm/add-ents {:schema td/schema} {:todo-list [[2 {:refs {:created-by-id :bloop :updated-by-id :bloop}}]]}))
              (-> (lg/digraph [:user :bloop]
                              [:todo-list :tl0]
                              [:todo-list :tl1]
@@ -140,9 +140,9 @@
                  (lat/add-attr :tl0 :bloop :relation-attrs #{:created-by-id :updated-by-id})
                  (lat/add-attr :tl1 :bloop :relation-attrs #{:created-by-id :updated-by-id}))))
 
-(deftest test-build-ent-db-one-level-relation-custom-related
-  (is-graph= (:data (strip-db (sm/build-ent-db {:schema td/schema} {:todo-list [[:_ {:refs {:created-by-id :owner0
-                                                                                            :updated-by-id :owner0}}]]})))
+(deftest test-add-ents-one-level-relation-custom-related
+  (is-graph= (:data (strip-db (sm/add-ents {:schema td/schema} {:todo-list [[:_ {:refs {:created-by-id :owner0
+                                                                                             :updated-by-id :owner0}}]]})))
              (-> (lg/digraph [:user :owner0] [:todo-list :tl0] [:tl0 :owner0])
                  (lat/add-attr :user :type :ent-type)
                  (lat/add-attr :owner0 :type :ent)
@@ -157,9 +157,9 @@
                                                             :updated-by-id :owner0}}])
                  (lat/add-attr :tl0 :owner0 :relation-attrs #{:updated-by-id :created-by-id}))))
 
-(deftest test-build-ent-db-two-level-coll-relation
+(deftest testadd-entsb-two-level-coll-relation
   (testing "can specify how many ents to gen in a coll relationship"
-    (is-graph= (:data (strip-db (sm/build-ent-db {:schema td/schema} {:project [[:_ {:refs {:todo-list-ids 2}}]]})))
+    (is-graph= (:data (strip-db (sm/add-ents {:schema td/schema} {:project [[:_ {:refs {:todo-list-ids 2}}]]})))
                (-> (lg/digraph [:user :u0]
                                [:todo-list :tl0] [:todo-list :tl1]  [:tl0 :u0] [:tl1 :u0]
                                [:project :p0] [:p0 :u0] [:p0 :tl0] [:p0 :tl1] [:p0 :u0])
@@ -195,9 +195,9 @@
                    (lat/add-attr :tl0 :u0 :relation-attrs #{:created-by-id :updated-by-id})
                    (lat/add-attr :tl1 :u0 :relation-attrs #{:created-by-id :updated-by-id})))))
 
-(deftest test-build-ent-db-two-level-coll-relation-names
+(deftest test-add-ents-two-level-coll-relation-names
   (testing "can specify names in a coll relationship"
-    (is-graph= (:data (strip-db (sm/build-ent-db {:schema td/schema} {:project [[:_ {:refs {:todo-list-ids [:mario :luigi]}}]]})))
+    (is-graph= (:data (strip-db (sm/add-ents {:schema td/schema} {:project [[:_ {:refs {:todo-list-ids [:mario :luigi]}}]]})))
                (-> (lg/digraph [:user :u0]
                                [:todo-list :mario] [:todo-list :luigi]  [:mario :u0] [:luigi :u0]
                                [:project :p0] [:p0 :u0] [:p0 :mario] [:p0 :luigi] [:p0 :u0])
@@ -233,8 +233,8 @@
                    (lat/add-attr :mario :u0 :relation-attrs #{:created-by-id :updated-by-id})
                    (lat/add-attr :luigi :u0 :relation-attrs #{:created-by-id :updated-by-id})))))
 
-(deftest test-build-ent-db-one-level-relation-binding
-  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list [[:_ {:bind {:user :bloop}}]]}))
+(deftest test-add-ents-one-level-relation-binding
+  (is-graph= (:data (sm/add-ents {:schema td/schema} {:todo-list [[:_ {:bind {:user :bloop}}]]}))
              (-> (lg/digraph [:user :bloop] [:todo-list :tl0] [:tl0 :bloop])
                  (lat/add-attr :user :type :ent-type)
                  (lat/add-attr :bloop :type :ent)
@@ -248,8 +248,8 @@
                  (lat/add-attr :tl0 :query-term [:_ {:bind {:user :bloop}}])
                  (lat/add-attr :tl0 :bloop :relation-attrs #{:created-by-id :updated-by-id}))))
 
-(deftest test-build-ent-db-two-level-relation-binding
-  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo [[:_ {:bind {:user :bloop}}]]}))
+(deftest test-add-ents-two-level-relation-binding
+  (is-graph= (:data (sm/add-ents {:schema td/schema} {:todo [[:_ {:bind {:user :bloop}}]]}))
              (-> (lg/digraph [:user :bloop]
                              [:todo :t0]
                              [:todo-list :tl-bound-t-0]
@@ -280,9 +280,9 @@
 
                  (lat/add-attr :tl-bound-t-0 :bloop :relation-attrs #{:created-by-id :updated-by-id}))))
 
-(deftest test-build-ent-db-multiple-two-level-relation-binding
+(deftest test-add-ents-multiple-two-level-relation-binding
   (testing "only one bound todo list is created for the three todos"
-    (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo [[3 {:bind {:user :bloop}}]]}))
+    (is-graph= (:data (sm/add-ents {:schema td/schema} {:todo [[3 {:bind {:user :bloop}}]]}))
                (-> (lg/digraph [:user :bloop]
                                [:todo-list :tl-bound-t-0]
                                [:todo :t0]
@@ -337,9 +337,9 @@
 
                    (lat/add-attr :tl-bound-t-0 :bloop :relation-attrs #{:created-by-id :updated-by-id})))))
 
-(deftest test-build-ent-db-bound-and-uniq
+(deftest test-add-ents-bound-and-uniq
   (testing "create uniq bound todo lists per todo-list-watch uniq constraint"
-    (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list-watch [[2 {:bind {:user :bloop}}]]}))
+    (is-graph= (:data (sm/add-ents {:schema td/schema} {:todo-list-watch [[2 {:bind {:user :bloop}}]]}))
                (-> (lg/digraph [:user :bloop]
                                [:todo-list :tl-bound-tlw-0]
                                [:tl-bound-tlw-0 :bloop]
@@ -391,8 +391,8 @@
                    (lat/add-attr :tl-bound-tlw-0 :bloop :relation-attrs #{:created-by-id :updated-by-id})
                    (lat/add-attr :tl-bound-tlw-1 :bloop :relation-attrs #{:created-by-id :updated-by-id})))))
 
-(deftest test-build-ent-db-three-level-relation-binding
-  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:attachment [[:_ {:bind {:user :bloop}}]]}))
+(deftest test-add-ents-three-level-relation-binding
+  (is-graph= (:data (sm/add-ents {:schema td/schema} {:attachment [[:_ {:bind {:user :bloop}}]]}))
              (-> (lg/digraph [:user :bloop]
                              [:attachment :a0]
                              [:todo :t-bound-a-0]
@@ -435,8 +435,8 @@
 
                  (lat/add-attr :tl-bound-a-0 :bloop :relation-attrs #{:created-by-id :updated-by-id}))))
 =
-(deftest test-build-ent-db-uniq-constraint
-  (is-graph= (:data (sm/build-ent-db {:schema td/schema} {:todo-list-watch [[2]]}))
+(deftest test-add-ents-uniq-constraint
+  (is-graph= (:data (sm/add-ents {:schema td/schema} {:todo-list-watch [[2]]}))
              (-> (lg/digraph [:user :u0]
                              [:todo-list :tl0]
                              [:tl0 :u0]
@@ -492,7 +492,7 @@
   (is (not (sm/bound-descendants? (sm/init-db {:schema td/schema} {}) {:attachment :bibbity} :user))))
 
 (deftest queries-can-have-anon-names
-  (is (= (:data (sm/build-ent-db {:schema td/schema} {:user [[:_] [:_]]}))
+  (is (= (:data (sm/add-ents {:schema td/schema} {:user [[:_] [:_]]}))
          (-> (lg/digraph [:user :u0] [:user :u1] )
              (lat/add-attr :user :type :ent-type)
              (lat/add-attr :u0 :type :ent)
@@ -506,8 +506,8 @@
 
 (deftest handles-A->A-cycles
   (testing "Handle cycles where two entities of the same type reference each other"
-    (is-graph= (:data (sm/build-ent-db {:schema td/cycle-schema} {:user [[:u0 {:refs {:updated-by-id :u1}}]
-                                                                         [:u1 {:refs {:updated-by-id :u0}}]]}))
+    (is-graph= (:data (sm/add-ents {:schema td/cycle-schema} {:user [[:u0 {:refs {:updated-by-id :u1}}]
+                                                                          [:u1 {:refs {:updated-by-id :u0}}]]}))
                (-> (lg/digraph [:user :u0] [:user :u1] [:u0 :u1] [:u1 :u0])
                    (lat/add-attr :user :type :ent-type)
                    (lat/add-attr :u0 :type :ent)
@@ -524,8 +524,8 @@
 
 (deftest handles-A->B-cycles
   (testing "Handle cycles where two entities of the different types reference each other"
-    (is-graph= (:data (sm/build-ent-db {:schema td/cycle-schema} {:todo      [[:t0 {:refs {:todo-list-id :tl0}}]]
-                                                                  :todo-list [[:tl0 {:refs {:first-todo-id :t0}}]]}))
+    (is-graph= (:data (sm/add-ents {:schema td/cycle-schema} {:todo      [[:t0 {:refs {:todo-list-id :tl0}}]]
+                                                                   :todo-list [[:tl0 {:refs {:first-todo-id :t0}}]]}))
                (-> (lg/digraph [:todo :t0] [:todo-list :tl0] [:tl0 :t0] [:t0 :tl0])
                    (lat/add-attr :todo :type :ent-type)
                    (lat/add-attr :t0 :type :ent)
@@ -544,7 +544,7 @@
 ;; view tests
 
 (deftest test-attr-map
-  (let [db (sm/build-ent-db {:schema td/schema} {:todo [[1]]})]
+  (let [db (sm/add-ents {:schema td/schema} {:todo [[1]]})]
     (is (= {:tl0 :todo-list
             :t0  :todo
             :u0  :user}
@@ -554,39 +554,39 @@
 
 (deftest test-query-ents
   (is (= [:t0]
-         (sm/query-ents (sm/build-ent-db {:schema td/schema} {:todo [[1]]}))))
+         (sm/query-ents (sm/add-ents {:schema td/schema} {:todo [[1]]}))))
 
   (is (= #{:t0 :u0}
-         (set (sm/query-ents (sm/build-ent-db {:schema td/schema} {:user [[1]]
-                                                                   :todo [[1]]}))))))
+         (set (sm/query-ents (sm/add-ents {:schema td/schema} {:user [[1]]
+                                                                    :todo [[1]]}))))))
 
-(deftest test-build-ent-db-throws-exception-on-invalid-db
+(deftest testadd-entsb-throws-exception-on-invalid-db
   (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
                            :cljs js/Object)
                         #"db is invalid"
-                        (sm/build-ent-db {:schema []} {})))
+                        (sm/add-ents {:schema []} {})))
   (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
                            :cljs js/Object)
                         #"query is invalid"
-                        (sm/build-ent-db {:schema td/schema} {:user [[]]}))))
+                        (sm/add-ents {:schema td/schema} {:user [[]]}))))
 
 (deftest updates-node-attrs
-  (let [db (-> (sm/build-ent-db {:schema td/schema} {:user [[:_]]})
+  (let [db (-> (sm/add-ents {:schema td/schema} {:user [[:_]]})
                (sm/visit-ents-once :custom-attr-key (constantly "yaaaaay a key")))]
     (is (= (lat/attr (:data db) :u0 :custom-attr-key)
            "yaaaaay a key"))))
 
 (deftest does-not-override-node-attr
   (testing "If node already has attr, subsequent invocations of visit-ents-once will not overwrite it"
-    (let [db (-> (sm/build-ent-db {:schema td/schema} {:user [[:_]]})
+    (let [db (-> (sm/add-ents {:schema td/schema} {:user [[:_]]})
                  (sm/visit-ents-once :custom-attr-key (constantly "yaaaaay a key"))
                  (sm/visit-ents-once :custom-attr-key (constantly "overwrite!")))]
       (is (= (lat/attr (:data db) :u0 :custom-attr-key)
              "yaaaaay a key")))))
 
 (deftest test-related-ents-by-attr
-  (let [db (sm/build-ent-db {:schema td/schema} {:todo [[1]]
-                                                 :project [[1 {:refs {:todo-list-ids [:tl0 :tl1]}}]]})]
+  (let [db (sm/add-ents {:schema td/schema} {:todo [[1]]
+                                                  :project [[1 {:refs {:todo-list-ids [:tl0 :tl1]}}]]})]
     (is (= (sm/related-ents-by-attr db :t0 :todo-list-id)
            :tl0))
     (is (= (sm/related-ents-by-attr db :t0 :created-by-id)
@@ -595,9 +595,9 @@
            [:tl0 :tl1]))))
 
 (deftest polymorphic-refs
-  (is-graph= (:data (sm/build-ent-db {:schema td/polymorphic-schema}
-                                     {:watch [[1 {:refs      {:watched-id :tc0}
-                                                  :ref-types {:watched-id :topic-category}}]]}))
+  (is-graph= (:data (sm/add-ents {:schema td/polymorphic-schema}
+                                      {:watch [[1 {:refs      {:watched-id :tc0}
+                                                   :ref-types {:watched-id :topic-category}}]]}))
              (-> (lg/digraph [:topic-category :tc0] [:watch :w0] [:w0 :tc0])
                  (lat/add-attr :topic-category :type :ent-type)
                  (lat/add-attr :tc0 :type :ent)
@@ -615,8 +615,8 @@
 
 (deftest polymorphic-refs-with-ref-name-unspecified
   ;; differs from above in that we leave out {:refs {:watched-id :tc0}}
-  (is-graph= (:data (sm/build-ent-db {:schema td/polymorphic-schema}
-                                     {:watch [[1 {:ref-types {:watched-id :topic-category}}]]}))
+  (is-graph= (:data (sm/add-ents {:schema td/polymorphic-schema}
+                                      {:watch [[1 {:ref-types {:watched-id :topic-category}}]]}))
              (-> (lg/digraph [:topic-category :tc0] [:watch :w0] [:w0 :tc0])
                  (lat/add-attr :topic-category :type :ent-type)
                  (lat/add-attr :tc0 :type :ent)
@@ -634,9 +634,9 @@
 (deftest polymorphic-refs-nested
   ;; refer to topic instead of topic-category
   ;; topic depends on topic-category and will create one
-  (is-graph= (:data (sm/build-ent-db {:schema td/polymorphic-schema}
-                                     {:watch [[1 {:refs      {:watched-id :t0}
-                                                  :ref-types {:watched-id :topic}}]]}))
+  (is-graph= (:data (sm/add-ents {:schema td/polymorphic-schema}
+                                      {:watch [[1 {:refs      {:watched-id :t0}
+                                                   :ref-types {:watched-id :topic}}]]}))
              (-> (lg/digraph [:topic-category :tc0]
                              [:topic :t0]
                              [:watch :w0]
@@ -666,10 +666,10 @@
 (deftest polymorphic-refs-with-binding
   ;; refer to topic instead of topic-category
   ;; topic depends on topic-category and will create one
-  (is-graph= (:data (sm/build-ent-db {:schema td/polymorphic-schema}
-                                     {:watch [[1 {:refs      {:watched-id :t0}
-                                                  :bind      {:topic-category :tc100}
-                                                  :ref-types {:watched-id :topic}}]]}))
+  (is-graph= (:data (sm/add-ents {:schema td/polymorphic-schema}
+                                      {:watch [[1 {:refs      {:watched-id :t0}
+                                                   :bind      {:topic-category :tc100}
+                                                   :ref-types {:watched-id :topic}}]]}))
              (-> (lg/digraph [:topic-category :tc100]
                              [:topic :t0]
                              [:watch :w0]
@@ -698,12 +698,12 @@
                  (lat/add-attr :w0 :t0 :relation-attrs #{:watched-id}))))
 
 (deftest test-coll-relation-attr?
-  (let [db (sm/build-ent-db {:schema td/schema} {:project [[1]]})]
+  (let [db (sm/add-ents {:schema td/schema} {:project [[1]]})]
     (is (sm/coll-relation-attr? db :p0 :todo-list-ids))
     (is (not (sm/coll-relation-attr? db :p0 :created-by-id)))))
 
 (deftest test-ents-by-type
-  (let [db (sm/build-ent-db {:schema td/schema} {:project [[1]]})]
+  (let [db (sm/add-ents {:schema td/schema} {:project [[1]]})]
     (is (= {:user #{:u0}
             :todo-list #{:tl0}
             :project #{:p0}}
@@ -712,9 +712,9 @@
            (sm/ents-by-type db [:u0])))))
 
 (deftest test-ent-relations
-  (let [db (sm/build-ent-db {:schema td/schema}
-                            {:project [[:p0 {:refs {:todo-list-ids 2}}]]
-                             :todo    [[1]]})]
+  (let [db (sm/add-ents {:schema td/schema}
+                             {:project [[:p0 {:refs {:todo-list-ids 2}}]]
+                              :todo    [[1]]})]
     (is (= {:created-by-id :u0
             :updated-by-id :u0
             :todo-list-ids #{:tl0 :tl1}}
@@ -725,8 +725,8 @@
            (sm/ent-relations db :t0)))))
 
 (deftest test-all-ent-relations
-  (let [db (sm/build-ent-db {:schema td/schema}
-                            {:project [[:p0 {:refs {:todo-list-ids 2}}]]})]
+  (let [db (sm/add-ents {:schema td/schema}
+                             {:project [[:p0 {:refs {:todo-list-ids 2}}]]})]
     (is (= {:project   {:p0 {:created-by-id :u0
                              :updated-by-id :u0
                              :todo-list-ids #{:tl0 :tl1}}}
@@ -751,30 +751,30 @@
   (is (thrown-with-msg? #?(:clj java.lang.AssertionError
                            :cljs js/Error)
                         #"Your schema relations reference nonexistent types: "
-                        (sm/build-ent-db {:schema {:user {:relations {:u1 [:circle :circle-id]}}}} {}))))
+                        (sm/add-ents {:schema {:user {:relations {:u1 [:circle :circle-id]}}}} {}))))
 
 (deftest assert-no-dupe-prefixes
   (is (thrown-with-msg? #?(:clj java.lang.AssertionError
                            :cljs js/Error)
                         #"You have used the same prefix for multiple entity types: "
-                        (sm/build-ent-db {:schema {:user  {:prefix :u}
-                                                   :user2 {:prefix :u}}} {}))))
+                        (sm/add-ents {:schema {:user  {:prefix :u}
+                                                    :user2 {:prefix :u}}} {}))))
 
 (deftest assert-constraints-must-ref-existing-relations
   (is (thrown-with-msg? #?(:clj java.lang.AssertionError
                            :cljs js/Error)
                         #"Schema constraints reference nonexistent relation attrs: "
-                        (sm/build-ent-db {:schema {:user  {:prefix :u
-                                                           :constraints {:blarb :coll}}}} {}))))
+                        (sm/add-ents {:schema {:user  {:prefix :u
+                                                            :constraints {:blarb :coll}}}} {}))))
 
 (deftest enforces-coll-schema-constraints
   (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
                            :cljs js/Object)
                         #"Query-relations for coll attrs must be a number or vector"
-                        (sm/build-ent-db {:schema td/schema} {:project [[:_ {:refs {:todo-list-ids :tl0}}]]}))))
+                        (sm/add-ents {:schema td/schema} {:project [[:_ {:refs {:todo-list-ids :tl0}}]]}))))
 
 (deftest enforces-unary-schema-constraints
   (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
                            :cljs js/Object)
                         #"Query-relations for unary attrs must be a keyword"
-                        (sm/build-ent-db {:schema td/schema} {:attachment [[:_ {:refs {:todo-id [:t0 :t1]}}]]}))))
+                        (sm/add-ents {:schema td/schema} {:attachment [[:_ {:refs {:todo-id [:t0 :t1]}}]]}))))

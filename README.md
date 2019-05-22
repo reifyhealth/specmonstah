@@ -246,7 +246,7 @@ for you. One way to do that is to produce an image of the entities
 Specmonstah produces, and their relationships:
 
 ```clojure
-(lio/view (:data (sm/build-ent-db {:schema schema} {:like [[2]]})))
+(lio/view (:data (sm/add-ents {:schema schema} {:like [[2]]})))
 ```
 
 ![like graph](docs/like-graph.png)
@@ -446,7 +446,7 @@ In this section you're going to learn about the _ent db_. Open
 
 (defn ex-01
   []
-  (sm/build-ent-db {:schema schema} {:user [[3]]}))
+  (sm/add-ents {:schema schema} {:user [[3]]}))
 ```
 
 Throughout the tutorial, I'll use functions named `ex-01`, `ex-02`,
@@ -468,10 +468,10 @@ etc, to illustrate some concept. When you call `(ex-01)`, it returns:
  :ref-ents []}
  ```
 
-`ex-01` invokes the function call `(sm/build-ent-db {:schema schema}
-{:user [[3]]})`. You'll always call `sm/build-ent-db` first whenever
-you use Specmonstah. It takes two arguments, a schema and a query, and
-returns an _ent db_.
+`ex-01` invokes the function call `(sm/add-ents {:schema schema}
+{:user [[3]]})`. You'll always call `sm/add-ents` first whenever
+you use Specmonstah. It takes two arguments, an _ent db_ and a
+_query_, and returns an ent db.
 
 ent db's are at the core of Specmonstah; most functions take an ent db
 as their first argument and return an ent db. The ent db is
@@ -538,7 +538,7 @@ Here's the source for this chapter:
 
 (defn ex-01
   []
-  (sm/build-ent-db {:schema schema} {:todo-list [[2]]}))
+  (sm/add-ents {:schema schema} {:todo-list [[2]]}))
 ```
 
 The ent db's schema defines ent types. It's implemented as a map where
@@ -547,14 +547,14 @@ code above, `schema` defines two ent types, `:user` and
 `:todo-list`. The ent type definitions include two keys, `:prefix` and
 `:relations`.
 
-`:prefix` is used by `build-ent-db` to name the ents it creates. For
+`:prefix` is used by `add-ents` to name the ents it creates. For
 example, in `ex-01`, we produce an ent db that has two todo-lists and
 a user:
 
 ```clojure
 (defn ex-01
   []
-  (sm/build-ent-db {:schema schema} {:todo-list [[2]]}))
+  (sm/add-ents {:schema schema} {:todo-list [[2]]}))
 
 (lio/view (:data (ex-01)))
 ```
@@ -593,7 +593,7 @@ Section 3's source file begins:
                :relations {:owner-id [:user :id]}}})
 (defn ex-01
   []
-  (sm/build-ent-db {:schema schema} {:todo-list [[2]]}))
+  (sm/add-ents {:schema schema} {:todo-list [[2]]}))
 ```
 
 
@@ -603,7 +603,7 @@ language for _retrieving_ records from a database. In Specmonstah, I
 think of queries as allowing you to express, _generate the minimal
 ent-db necessary for me to retrieve the ents I've specified_.
 
-In `ex-01`, the query passed to `sm/build-ent-db` is `{:todo-list
+In `ex-01`, the query passed to `sm/add-ents` is `{:todo-list
 [[2]]}`. This is like saying, _I want two `:todo-list`s. Create an
 ent-db with the minimum ents needed so that I can retrieve them._
 Because `:todo-list` ents must refer to a `:user`, Specmonstah
@@ -631,7 +631,7 @@ keyword as the first element in the query term, as in `ex-02`:
 ```clojure
 (defn ex-02
   []
-  (sm/build-ent-db {:schema schema} {:todo-list [[:my-todo-list]
+  (sm/add-ents {:schema schema} {:todo-list [[:my-todo-list]
                                                  [:my-todoodle-do-list]]}))
 
 (lio/view (:data (ex-02)))
@@ -648,7 +648,7 @@ numbers and ent names as you please:
 ```clojure
 (defn ex-03
   []
-  (sm/build-ent-db {:schema schema} {:todo-list [[1]
+  (sm/add-ents {:schema schema} {:todo-list [[1]
                                                  [:work]
                                                  [1]
                                                  [:cones-of-dunshire-club]]}))
@@ -680,7 +680,7 @@ want them to belong to different users? Here's how you could do that:
                :relations {:todo-list-id [:todo-list :id]}}})
 (defn ex-01
   []
-  (sm/build-ent-db {:schema schema} {:todo-list [[2 {:refs {:owner-id :my-own-sweet-user}}]
+  (sm/add-ents {:schema schema} {:todo-list [[2 {:refs {:owner-id :my-own-sweet-user}}]
                                                  [1]]}))
 
 (lio/view (:data (ex-01)))
@@ -702,7 +702,7 @@ In the `schema`, `:todo-list` includes this relations definition:
 This means, _`:todo-list`s refer to a user via the `:owner-id`
 attribute_. Remember that queries are essentially telling Specmonstah,
 _generate the minimal ent-db necessary for me to retrieve the ents
-I've specified_, so when you call the `build-ent-db` function and
+I've specified_, so when you call the `add-ents` function and
 instruct SM to generate a `:todo-list`, SM's default behavior is to
 satisfy this schema definition by creating a `:user` and naming it
 according to its default naming system. Internally, the ent db tracks
@@ -724,7 +724,7 @@ do that:
 ```clojure
 (defn ex-02
   []
-  (sm/build-ent-db {:schema schema} {:todo-list [[1]
+  (sm/add-ents {:schema schema} {:todo-list [[1]
                                                  [1 {:refs {:owner-id :hamburglar}}]]
                                      :todo      [[1]
                                                  [1 {:refs {:todo-list-id :tl1}}]]}))
@@ -776,7 +776,7 @@ explicitly:
 ```clojure
 (defn ex-03
   []
-  (sm/build-ent-db {:schema schema} {:todo-list [[:tl0]
+  (sm/add-ents {:schema schema} {:todo-list [[:tl0]
                                                  [:tl1 {:refs {:owner-id :hamburglar}}]]
                                      :todo      [[1 {:refs {:todo-list-id :tl0}}]
                                                  [1 {:refs {:todo-list-id :tl1}}]]}))
@@ -784,25 +784,25 @@ explicitly:
 
 ### 05: Progressive construction
 
-At the beginning of this tutorial, I told you that `build-ent-db` takes a
+At the beginning of this tutorial, I told you that `add-ents` takes a
 schema as an argument:
 
 ```clojure
-(sm/build-ent-db {:schema schema} {:todo [[1]]})
+(sm/add-ents {:schema schema} {:todo [[1]]})
 ```
 
 You may have wondered why the map `{:schema schema}` is used, rather
 than just directly passing in `schema`; why don't we just write this?
 
 ```clojure
-(sm/build-ent-db schema {:todo [[1]]})
+(sm/add-ents schema {:todo [[1]]})
 ```
 
-The reason is that `build-ent-db` actually takes an ent db as its
+The reason is that `add-ents` actually takes an ent db as its
 first argument. When you pass in `{:schema schema}`, you're passing in
 an ent db with no data. However, you can take the return value of
-`build-ent-db` and pass it in as the first argument to further calls
-to `build-ent-db`:
+`add-ents` and pass it in as the first argument to further calls
+to `add-ents`:
 
 ```clojure
 (ns reifyhealth.specmonstah-tutorial.05
@@ -818,22 +818,22 @@ to `build-ent-db`:
 
 (defn ex-01
   []
-  (let [ent-db-1 (sm/build-ent-db {:schema schema} {:todo-list [[1]]})
-        ent-db-2 (sm/build-ent-db ent-db-1 {:todo-list [[1] [1 {:refs {:owner-id :hamburglar}}]]})]
+  (let [ent-db-1 (sm/add-ents {:schema schema} {:todo-list [[1]]})
+        ent-db-2 (sm/add-ents ent-db-1 {:todo-list [[1] [1 {:refs {:owner-id :hamburglar}}]]})]
     (lio/view (:data ent-db-1))
     (lio/view (:data ent-db-2))))
 
 (ex-01)
 ```
 
-Additional calls to `build-ent-db` are additive; they will never alter
+Additional calls to `add-ents` are additive; they will never alter
 existing ents, and will only add new ents. The first call,
-`(sm/build-ent-db {:schema schema} {:todo-list [[1]]})`, produces a
+`(sm/add-ents {:schema schema} {:todo-list [[1]]})`, produces a
 `:todo-list` named `:tl0` referencing a `:user` named `:u0`:
 
 ![progressive generation 1](docs/05/progressive-1.png)
 
-That ent db is passed to the next call, `(sm/build-ent-db ent-db-1
+That ent db is passed to the next call, `(sm/add-ents ent-db-1
 {:todo-list [[1] [1 {:refs {:owner-id :hamburglar}}]]})`. This creates
 two more todo lists:
 
@@ -844,7 +844,7 @@ lists the names `:tl1` and `:tl2`. `:tl1` references the existing
 user, `:u0`, and `:tl2` references a new user from the `:refs`,
 `:hamburglar`. When progressively generating an ent-db, you can expect
 Specmonstah to behave as if all queries were passed as a single query
-to a single call of `build-ent-db`.
+to a single call of `add-ents`.
 
 ---
 
@@ -960,7 +960,7 @@ Oh wow, OK. That's a lot to look at. Let's step through it.
 
 We're looking at the value for the ent db's `:data` key. This is the
 loom graph that we've looked at in earlier sections, the graph
-returned by `build-ent-db` that captures ents and their
+returned by `add-ents` that captures ents and their
 relationships. Under the `:attrs` key, you can see that each ent
 (`:t0`, `:tl0`, and `:u0`) now has the attribute `:spec-gen`. Under
 `:spec-gen` is a map that's been generated using clojure.spec, except
@@ -1123,7 +1123,7 @@ our own visiting function so you can see how this works:
 
 (defn ex-01
   []
-  (-> (sm/build-ent-db {:schema schema} {:todo [[1]]})
+  (-> (sm/add-ents {:schema schema} {:todo [[1]]})
       (sm/visit-ents :announce announce)
       (get-in [:data :attrs])))
 
@@ -1163,12 +1163,12 @@ attribute with the key `:announce` and the value of
 function `ex-01`, whose body is:
 
 ```clojure
-(-> (sm/build-ent-db {:schema schema} {:todo [[1]]})
+(-> (sm/add-ents {:schema schema} {:todo [[1]]})
     (sm/visit-ents :announce announce)
     (get-in [:data :attrs]))
 ```
 
-`sm/build-ent-db` builds the ent db and passes it to `sm/visit-ents`.
+`sm/add-ents` builds the ent db and passes it to `sm/visit-ents`.
 `sm/visit-ents` takes three arguments: the ent db, a _visit key_, and
 a visiting function. Then, internally, `sm/visits-ents` iterates overs
 each ent in the ent db, passing the ent's name to the visiting
@@ -1297,7 +1297,7 @@ Now let's revisit `(when-not (visit-key attrs) ...)`. You want to
 perform this check because of Specmonstah's progressive construction
 feature: as we covered in [05: Progressive
 construction](#05-progressive-construction), it's possible to pass an
-ent-db to successive calls to `sm/build-ent-db`. If you added more
+ent-db to successive calls to `sm/add-ents`. If you added more
 ents and wanted to insert, you wouldn't want to re-insert previous
 ents. `ex-02` demonstrates this:
 
@@ -1325,7 +1325,7 @@ The `:user`, `:todo-list`, and `:todo` ents from the first call to
 by `insert` multiple times.
 
 In fact, recall that `ent-db-spec-gen` internally calls
-`sm/build-ent-db` and then calls the `sg/spec-gen` visiting
+`sm/add-ents` and then calls the `sg/spec-gen` visiting
 function. `sg/spec-gen` is written with this same principle in mind:
 it can visit the ent db multiple times, and won't overwrite any
 existing values. The pattern is common enough that Specmonstah
