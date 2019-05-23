@@ -63,7 +63,7 @@
   (let [{:keys [spec-gen]} (sm/ent-schema db ent-name)
         spec-generated-val (lat/attr data ent-name ent-attr-key)
         query-opts         (ent-attr-key (sm/query-opts db ent-name))]
-    (cond-> (lat/attr data ent-name ent-attr-key)
+    (cond-> spec-generated-val
       (fn? spec-gen)    spec-gen
       (map? spec-gen)   (merge spec-gen)
       (fn? query-opts)  query-opts
