@@ -71,7 +71,7 @@ In the time-honored tradition of infomercials everywhere, these
 snippets gloss over a lot of details to reveal the truest, purest
 essence of a product. If you want to go all FDA on me and validate the
 claims, check out [the full
-source](./examples/reifyhealth/infomercial.cljc).
+source][imcode].
 
 The code below will ~~shout at~~ show you how you can generate and
 insert data for a forum's database. Here's an entity relationship
@@ -84,6 +84,13 @@ there's a uniqueness constraint on `post-id` and
 `created-by-id`. Also, every instance of `created-by-id` and
 `updated-by-id` refers to a user, but including that in the diagram
 would just clutter it.
+
+(You will learn later how to [declare the entity schema](#02-schemas) 
+with relationship and other constraints to Specmonstah. You can also 
+have a look at the `(def schema ...)` in the 
+[infomercial source code][imcode].)
+
+[imcode]: ./examples/reifyhealth/infomercial.cljc
 
 ### Insert entity hierarchy in dependency order, with correct foreign keys
 
