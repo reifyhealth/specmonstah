@@ -540,7 +540,7 @@
        (reduce-kv (fn [grouping ent-type prefix]
                     (update grouping prefix (fn [x] (conj (or x #{}) ent-type))))
                   {})
-       (medley/filter-vals #(clojure.core/> (count %) 1))))
+       (medley/filter-vals #(> (count %) 1))))
 
 (defn invalid-schema-relations
   "Relations that reference nonexistent types"
@@ -602,6 +602,7 @@
 ;; -----------------
 
 (defn ents
+  "returns all ents in the ent db"
   [{:keys [data]}]
   (lg/nodes (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data)))
 
@@ -689,12 +690,16 @@
       (sort-by-required db (ents db))))
 
 (defn visit-fn-data
+  "When a visit fn is called, it's passed this map as its second argument"
   [db ent visit-key]
-  (let [attrs (ent-attrs db ent)]
-    {:ent-name  ent
-     :attrs     attrs
-     :visit-val (visit-key attrs)
-     :visit-key visit-key}))
+  (let [attrs  (ent-attrs db ent)
+        q-opts (query-opts db ent)]
+    {:ent-name         ent
+     :attrs            attrs
+     :visit-val        (visit-key attrs)
+     :visit-key        visit-key
+     :query-opts       q-opts
+     :visit-query-opts (visit-key q-opts)}))
 
 (defn visit-ents
   "Perform `visit-fns` on ents, storing return value as a graph
@@ -733,6 +738,9 @@
 ;; -----------------
 ;; views
 ;; -----------------
+
+;; convenience functions for getting projections of the ent db,
+;; considering the ent db has a lot of loom bookkeeping
 
 (defn query-ents
   "Get seq of nodes that are explicitly defined in the query"
