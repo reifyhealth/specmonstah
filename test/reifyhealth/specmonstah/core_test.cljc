@@ -101,7 +101,7 @@
 
 (deftest test-add-ents-one-level-relation-with-omit
   (is-graph= (:data (sm/add-ents {:schema td/schema} {:todo-list [[1 {:refs {:created-by-id ::sm/omit
-                                                                                  :updated-by-id ::sm/omit}}]]}))
+                                                                             :updated-by-id ::sm/omit}}]]}))
              (-> (lg/digraph [:todo-list :tl0])
 
                  (lat/add-attr :todo-list :type :ent-type)
@@ -142,7 +142,7 @@
 
 (deftest test-add-ents-one-level-relation-custom-related
   (is-graph= (:data (strip-db (sm/add-ents {:schema td/schema} {:todo-list [[:_ {:refs {:created-by-id :owner0
-                                                                                             :updated-by-id :owner0}}]]})))
+                                                                                        :updated-by-id :owner0}}]]})))
              (-> (lg/digraph [:user :owner0] [:todo-list :tl0] [:tl0 :owner0])
                  (lat/add-attr :user :type :ent-type)
                  (lat/add-attr :owner0 :type :ent)
@@ -507,7 +507,7 @@
 (deftest handles-A->A-cycles
   (testing "Handle cycles where two entities of the same type reference each other"
     (is-graph= (:data (sm/add-ents {:schema td/cycle-schema} {:user [[:u0 {:refs {:updated-by-id :u1}}]
-                                                                          [:u1 {:refs {:updated-by-id :u0}}]]}))
+                                                                     [:u1 {:refs {:updated-by-id :u0}}]]}))
                (-> (lg/digraph [:user :u0] [:user :u1] [:u0 :u1] [:u1 :u0])
                    (lat/add-attr :user :type :ent-type)
                    (lat/add-attr :u0 :type :ent)
@@ -525,7 +525,7 @@
 (deftest handles-A->B-cycles
   (testing "Handle cycles where two entities of the different types reference each other"
     (is-graph= (:data (sm/add-ents {:schema td/cycle-schema} {:todo      [[:t0 {:refs {:todo-list-id :tl0}}]]
-                                                                   :todo-list [[:tl0 {:refs {:first-todo-id :t0}}]]}))
+                                                              :todo-list [[:tl0 {:refs {:first-todo-id :t0}}]]}))
                (-> (lg/digraph [:todo :t0] [:todo-list :tl0] [:tl0 :t0] [:t0 :tl0])
                    (lat/add-attr :todo :type :ent-type)
                    (lat/add-attr :t0 :type :ent)
@@ -558,7 +558,7 @@
 
   (is (= #{:t0 :u0}
          (set (sm/query-ents (sm/add-ents {:schema td/schema} {:user [[1]]
-                                                                    :todo [[1]]}))))))
+                                                               :todo [[1]]}))))))
 
 (deftest testadd-entsb-throws-exception-on-invalid-db
   (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
@@ -586,7 +586,7 @@
 
 (deftest test-related-ents-by-attr
   (let [db (sm/add-ents {:schema td/schema} {:todo [[1]]
-                                                  :project [[1 {:refs {:todo-list-ids [:tl0 :tl1]}}]]})]
+                                             :project [[1 {:refs {:todo-list-ids [:tl0 :tl1]}}]]})]
     (is (= (sm/related-ents-by-attr db :t0 :todo-list-id)
            :tl0))
     (is (= (sm/related-ents-by-attr db :t0 :created-by-id)
@@ -596,8 +596,8 @@
 
 (deftest polymorphic-refs
   (is-graph= (:data (sm/add-ents {:schema td/polymorphic-schema}
-                                      {:watch [[1 {:refs      {:watched-id :tc0}
-                                                   :ref-types {:watched-id :topic-category}}]]}))
+                                 {:watch [[1 {:refs      {:watched-id :tc0}
+                                              :ref-types {:watched-id :topic-category}}]]}))
              (-> (lg/digraph [:topic-category :tc0] [:watch :w0] [:w0 :tc0])
                  (lat/add-attr :topic-category :type :ent-type)
                  (lat/add-attr :tc0 :type :ent)
@@ -616,7 +616,7 @@
 (deftest polymorphic-refs-with-ref-name-unspecified
   ;; differs from above in that we leave out {:refs {:watched-id :tc0}}
   (is-graph= (:data (sm/add-ents {:schema td/polymorphic-schema}
-                                      {:watch [[1 {:ref-types {:watched-id :topic-category}}]]}))
+                                 {:watch [[1 {:ref-types {:watched-id :topic-category}}]]}))
              (-> (lg/digraph [:topic-category :tc0] [:watch :w0] [:w0 :tc0])
                  (lat/add-attr :topic-category :type :ent-type)
                  (lat/add-attr :tc0 :type :ent)
@@ -635,8 +635,8 @@
   ;; refer to topic instead of topic-category
   ;; topic depends on topic-category and will create one
   (is-graph= (:data (sm/add-ents {:schema td/polymorphic-schema}
-                                      {:watch [[1 {:refs      {:watched-id :t0}
-                                                   :ref-types {:watched-id :topic}}]]}))
+                                 {:watch [[1 {:refs      {:watched-id :t0}
+                                              :ref-types {:watched-id :topic}}]]}))
              (-> (lg/digraph [:topic-category :tc0]
                              [:topic :t0]
                              [:watch :w0]
@@ -667,9 +667,9 @@
   ;; refer to topic instead of topic-category
   ;; topic depends on topic-category and will create one
   (is-graph= (:data (sm/add-ents {:schema td/polymorphic-schema}
-                                      {:watch [[1 {:refs      {:watched-id :t0}
-                                                   :bind      {:topic-category :tc100}
-                                                   :ref-types {:watched-id :topic}}]]}))
+                                 {:watch [[1 {:refs      {:watched-id :t0}
+                                              :bind      {:topic-category :tc100}
+                                              :ref-types {:watched-id :topic}}]]}))
              (-> (lg/digraph [:topic-category :tc100]
                              [:topic :t0]
                              [:watch :w0]
@@ -713,8 +713,8 @@
 
 (deftest test-ent-relations
   (let [db (sm/add-ents {:schema td/schema}
-                             {:project [[:p0 {:refs {:todo-list-ids 2}}]]
-                              :todo    [[1]]})]
+                        {:project [[:p0 {:refs {:todo-list-ids 2}}]]
+                         :todo    [[1]]})]
     (is (= {:created-by-id :u0
             :updated-by-id :u0
             :todo-list-ids #{:tl0 :tl1}}
@@ -726,7 +726,7 @@
 
 (deftest test-all-ent-relations
   (let [db (sm/add-ents {:schema td/schema}
-                             {:project [[:p0 {:refs {:todo-list-ids 2}}]]})]
+                        {:project [[:p0 {:refs {:todo-list-ids 2}}]]})]
     (is (= {:project   {:p0 {:created-by-id :u0
                              :updated-by-id :u0
                              :todo-list-ids #{:tl0 :tl1}}}
@@ -758,14 +758,14 @@
                            :cljs js/Error)
                         #"You have used the same prefix for multiple entity types: "
                         (sm/add-ents {:schema {:user  {:prefix :u}
-                                                    :user2 {:prefix :u}}} {}))))
+                                               :user2 {:prefix :u}}} {}))))
 
 (deftest assert-constraints-must-ref-existing-relations
   (is (thrown-with-msg? #?(:clj java.lang.AssertionError
                            :cljs js/Error)
                         #"Schema constraints reference nonexistent relation attrs: "
                         (sm/add-ents {:schema {:user  {:prefix :u
-                                                            :constraints {:blarb :coll}}}} {}))))
+                                                       :constraints {:blarb :coll}}}} {}))))
 
 (deftest enforces-coll-schema-constraints
   (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
