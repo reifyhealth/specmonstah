@@ -3,7 +3,7 @@
             [loom.attr :as lat]
             [loom.graph :as lg]
             [loom.derived :as ld]
-            [loom.io :as lio]
+            #?(:clj [loom.io :as lio])
             [medley.core :as medley]
             [better-cond.core :as b]
             [clojure.test.check.generators :as gen :include-macros true]
@@ -809,7 +809,8 @@
                   (s/map-of ::ent-name
                             (s/map-of ::ent-attr ::ent-name))))
 
-(defn view
-  "View with loom"
-  [{:keys [data]}]
-  (lio/view data))
+#?(:clj
+   (defn view
+     "View with loom"
+     [{:keys [data]}]
+     (lio/view data)))
