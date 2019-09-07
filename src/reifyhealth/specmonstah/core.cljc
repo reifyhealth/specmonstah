@@ -3,6 +3,7 @@
             [loom.attr :as lat]
             [loom.graph :as lg]
             [loom.derived :as ld]
+            [loom.io :as lio]
             [medley.core :as medley]
             [better-cond.core :as b]
             [clojure.test.check.generators :as gen :include-macros true]
@@ -611,9 +612,10 @@
   attr on that node"
   ([db attr] (attr-map db attr (ents db)))
   ([{:keys [data] :as db} attr ents]
-   (reduce (fn [m ent] (assoc m ent (lat/attr data ent attr)))
-           {}
-           ents)))
+   (->> ents
+        (reduce (fn [m ent] (assoc m ent (lat/attr data ent attr)))
+                {})
+        (into (sorted-map)))))
 
 (defn relation-attrs
   "Given an ent A and an ent it references B, return the set of attrs
@@ -693,13 +695,14 @@
   "When a visit fn is called, it's passed this map as its second argument"
   [db ent visit-key]
   (let [attrs  (ent-attrs db ent)
-        q-opts (query-opts db ent)]
-    {:ent-name         ent
-     :attrs            attrs
-     :visit-val        (visit-key attrs)
-     :visit-key        visit-key
-     :query-opts       q-opts
-     :visit-query-opts (visit-key q-opts)}))
+        q-opts (query-opts db ent)
+        base   {:ent-name         ent
+                :attrs            attrs
+                :visit-val        (visit-key attrs)
+                :visit-key        visit-key
+                :query-opts       q-opts
+                :visit-query-opts (visit-key q-opts)}]
+    (merge base (apply dissoc attrs (keys base)))))
 
 (defn visit-ents
   "Perform `visit-fns` on ents, storing return value as a graph
@@ -759,8 +762,7 @@
               (select-keys (attr-map db :ent-type) ents))))
 
 (s/fdef ents-by-type
-  :args (s/or :n-1 (s/cat :db ::db)
-              :n-2 (s/cat :db ::db :ent-names (s/coll-of ::ent-name)))
+  :args (s/cat :db ::db :ent-names (s/? (s/coll-of ::ent-name)))
   :ret (s/map-of ::ent-type (s/coll-of ::ent-name)))
 
 (defn ent-relations
@@ -806,3 +808,8 @@
   :ret  (s/map-of ::ent-type
                   (s/map-of ::ent-name
                             (s/map-of ::ent-attr ::ent-name))))
+
+(defn view
+  "View with loom"
+  [{:keys [data]}]
+  (lio/view data))

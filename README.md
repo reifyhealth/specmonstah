@@ -49,14 +49,28 @@ TodoList correctly references the User and the Todo correctly
 references the TodoList and user. Call me crazy, but I think the
 second snippet is preferable to the first.
 
-SM is a specialized tool that introduces new concepts and
-vocabulary. It will take an hour or two to get comfortable with it,
-but once you do, that investment will pay huge dividends over time as
-you use it to write code that is more clear, concise, and easy to
-maintain. This guide has four parts to get you there:
+## I know this README is hella long but read this part at least
 
-* The [Infomercial](#infomercial) is a quick tour of the cool stuff you can
-  do with Specmonstah, showing you why it's worth the investment
+This README is long af. Total bummer, I know. I'm sorry. If all this
+text makes you want to run screaming for the hills, then all I ask is
+that you first check out the [Short Sweet
+Example](#short-sweet-example). It's some code that you can play with
+in a REPL that demonstrates some of the power and fun of using
+Specmonstah.
+
+If that hooks you, then the rest of the README will walk you through
+Specmonstah's features and usage. SM is a specialized tool that
+introduces new concepts and vocabulary. It will take an hour or two to
+get comfortable with it, but once you do, that investment will pay
+huge dividends over time as you use it to write code that is more
+clear, concise, and easy to maintain. This guide has five parts to get
+you there:
+
+* The aforementioned [Short Sweet Working
+  Example](#short-sweet-working-example)
+* The [Infomercial](#infomercial) is a quick tour of the cool,
+  surprising stuff you can do with Specmonstah, showing you why it's
+  worth the investment
 * A detailed [Tutorial](#tutorial) walks you through the library. It's
   written so the first sections get you productive with the core
   concepts quickly, and later sections fill in more esoteric details.
@@ -64,6 +78,144 @@ maintain. This guide has four parts to get you there:
   snippets demonstrating the facets of Specmonstah usage
 * Because Specmonstah introduces new terms, we provide a
   [Glossary](#glossary)
+
+## Short Sweet Example
+
+To get started with the example, clone this repo:
+
+```
+git clone https://github.com/reifyhealth/specmonstah.git
+```
+
+Open `examples/short-sweet/src/short_sweet.clj` in your favorite
+editor and start a REPL. I've also included the code below in case for
+example you don't have access to a REPL because, say, you're in some
+kind of _Taken_ situation and you only have access to a phone and
+you're using your precious battery life to go through this README.
+
+The first ~70 lines of code include all the setup necessary for the
+examples to run, followed by snippets to try out with example
+output. Def play with the snippets :) Can you generate multiple todos
+or todo lists?
+
+```clojure
+(ns short-sweet
+  (:require [reifyhealth.specmonstah.core :as sm]
+            [reifyhealth.specmonstah.spec-gen :as sg]
+            [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as gen]
+            [loom.io :as lio]))
+
+;;-------
+;; Begin example setup
+;;-------
+
+;; ---
+;; Define specs for our domain entities
+
+;; The ::id should be a positive int, and to generate it we increment
+;; the number stored in `id-seq`. This ensures unique ids and produces
+;; values that are easier for humans to understand
+(def id-seq (atom 0))
+(s/def ::id (s/with-gen pos-int? #(gen/fmap (fn [_] (swap! id-seq inc)) (gen/return nil))))
+
+(s/def ::username string?)
+
+(s/def ::user (s/keys :req-un [::id ::username]))
+
+(s/def ::title string?)
+(s/def ::todo-list-id ::id)
+(s/def ::assigned-id ::id)
+(s/def ::todo (s/keys :req-un [::id ::title ::todo-list-id ::assigned-id]))
+
+(s/def ::owner-id ::id)
+(s/def ::todo-list (s/keys :req-un [::id ::owner-id ::title]))
+
+
+;; ---
+;; The schema defines specmonstah `ent-types`, which roughly
+;; correspond to db tables. It also defines the `:spec` for generting
+;; ents of that type, and defines ent `relations`
+(def schema
+  {:user      {:spec   ::user
+               :prefix :u}
+   :todo-list {:spec      ::todo-list
+               :relations {:owner-id [:user :id]}
+               :prefix    :tl}
+   :todo      {:spec      ::todo
+               
+               :relations {:assigned-id  [:user :id]
+                           :todo-list-id [:todo-list :id]}
+               :spec-gen  {:title "default todo title"}
+               :prefix    :t}})
+
+;; A vector of inserted records we can use to show that entities are
+;; inserted in the correct order
+(def example-db (atom []))
+
+(defn insert*
+  "Simulates inserting records in a db by conjing values onto an atom"
+  [{:keys [data] :as db} {:keys [ent-type spec-gen]}]
+  (swap! example-db conj [ent-type spec-gen]))
+
+(defn insert [query]
+  (reset! id-seq 0)
+  (reset! example-db [])
+  (-> (sg/ent-db-spec-gen {:schema schema} query)
+      (sm/visit-ents-once :inserted-data insert*))
+  ;; normally you'd return the expression above, but return nil for
+  ;; the example to not produce overwhelming output
+  nil)
+
+
+;;-------
+;; Begin snippets to try in REPL
+;;-------
+
+;; Return a map of user entities and their spec-generated data
+(-> (sg/ent-db-spec-gen {:schema schema} {:user [[3]]})
+    (sm/attr-map :spec-gen))
+;; =>
+{:u0 {:id 8, :username "9wkka4XFJC0"},
+ :u1 {:id 7, :username "3cy8TV0L3yWm5GWQrjT6a"},
+ :u2 {:id 9, :username "59RDV1qIm6y3ya189Ut2fkFu48"}}
+
+;; You can specify a username and id
+(-> (sg/ent-db-spec-gen {:schema schema} {:user [[1 {:spec-gen {:username "Meeghan"
+                                                                :id       100}}]]})
+    (sm/attr-map :spec-gen))
+;; =>
+{:u0 {:id 100, :username "Meeghan"}}
+
+;; Generating a todo-list generates the user the todo-list belongs,
+;; with foreign keys correct
+(-> (sg/ent-db-spec-gen {:schema schema} {:todo-list [[1]]})
+    (sm/attr-map :spec-gen))
+;; =>
+{:tl0 {:id 15, :owner-id 14, :title "Ew"},
+ :u0  {:id 14, :username "sxk0t6r7tU4j3p924"}}
+    
+;; Generating a todo also generates a todo list and user
+(-> (sg/ent-db-spec-gen {:schema schema} {:todo [[3]]})
+    (sm/attr-map :spec-gen))
+{:t0  {:id           32,
+       :title        "default todo title",
+       :todo-list-id 30,
+       :assigned-id  29},
+ :tl0 {:id 30, :owner-id 29, :title "PeLGbe7geh7NZUoZ045r0F6uRXDSY"},
+ :u0  {:id 29, :username "0we6EsNgFZN5U9009P2Av3E5Y0d64X"}}
+
+;; The `insert` function shows that records are inserted into the
+;; simulate "database" (`example-db`) in correct dependency order:
+(insert {:todo [[1]]})
+@example-db
+[[:user {:id 1, :username "k8NmZ27QV5p08db624Y2Vk0H"}]
+ [:todo-list {:id 2, :owner-id 1, :title "zhMNFuoQ2lhalrp00mv2I38"}]
+ [:todo {:id           4,
+         :title        "default todo title",
+         :todo-list-id 2,
+         :assigned-id  1}]]
+```
 
 ## Infomercial
 
@@ -95,7 +247,7 @@ dependency order:
 
 ```clojure
 (insert {:post [[1]]})
-@ent-db
+@mock-db
 ; =>
 [[:user {:id 1 :username "K7X5r6UVs9Mm2Eks"}]
  [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
@@ -110,7 +262,7 @@ dependency order:
 The `insert` function is an example of code you might write to manage
 the relationship between specmonstah-generated data and your own
 database. In this case, `insert` simulates inserting records in a db
-by conjing entities on an `ent-db` atom. The maps were generated
+by conjing entities on an `mock-db` atom. The maps were generated
 using `clojure.spec`. Notice that all the foreign keys line up.
 
 ### Specify different users
@@ -121,7 +273,7 @@ this one, the Topic's `created-by-id` will reference a new user:
 ```clojure
 (insert {:topic [[:t0 {:refs {:created-by-id :custom-user}}]]
          :post [[1]]})
-@ent-db
+@mock-db
 ; =>
 [[:user {:id 1 :username "gMKGTwBnOvB0xt"}]
  [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
@@ -144,7 +296,7 @@ What if you want to insert 2 or 3 or more posts?
 
 ```clojure
 (insert {:post [[3]]})
-@ent-db
+@mock-db
 ; =>
 [[:user {:id 1 :username "yB96fd"}]
  [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
@@ -168,7 +320,7 @@ automatically generate unique Users if you specify multiple Likes:
 
 ```clojure
 (insert {:like [[3]]})
-@ent-db
+@mock-db
 ; =>
 [[:user {:id 1 :username "T2TD3pAB79X5"}]
  [:user {:id 2 :username "ziJ9GnvNMOHcaUz"}]
@@ -206,7 +358,7 @@ constraints, so three users are created, just like in the previous snippet.
 
 ```clojure
 (insert {:polymorphic-like [[3 {:ref-types {:liked-id :post}}]]})
-@ent-db
+@mock-db
 [[:user {:id 1 :username "gI3q3Y6HR1uwc"}]
  [:user {:id 2 :username "klKs7"}]
  [:topic-category {:id 3 :created-by-id 2 :updated-by-id 2}]
@@ -223,7 +375,7 @@ constraints, so three users are created, just like in the previous snippet.
 
 
 (insert {:polymorphic-like [[3 {:ref-types {:liked-id :topic}}]]})
-@ent-db
+@mock-db
 [[:user {:id 1 :username "5Z382YCNrJB"}]
  [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
  [:topic {:id 5
