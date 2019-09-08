@@ -702,7 +702,7 @@
                 :visit-key        visit-key
                 :query-opts       q-opts
                 :visit-query-opts (visit-key q-opts)}]
-    (merge base (apply dissoc attrs (keys base)))))
+    (merge attrs base)))
 
 (defn visit-ents
   "Perform `visit-fns` on ents, storing return value as a graph
