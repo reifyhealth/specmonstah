@@ -9,13 +9,10 @@
            :modules
            {:main {:entries [specmonstah-demo.core]}}
 
-           ;; start a development http server on http://localhost:8020
            :devtools
            {:http-root   "frontend-target/dev/public"
             :http-port   3000
-            :preloads    [day8.re-frame-10x.preload]
-            :before-load grateful-place.frontend.core/stop
-            :after-load  grateful-place.frontend.core/-main}}
+            :preloads    [day8.re-frame-10x.preload]}}
 
           :gh-pages
           {:target     :browser
