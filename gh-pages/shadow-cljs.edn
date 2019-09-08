@@ -1,0 +1,29 @@
+;; shadow-cljs configuration
+{:deps   true
+ :builds {:dev
+          {:target           :browser
+           :output-dir       "frontend-target/dev/public/js"
+           :asset-path       "/js"
+           :compiler-options {:closure-defines {"re_frame.trace.trace_enabled_QMARK_" true}}
+
+           :modules
+           {:main {:entries [specmonstah-demo.core]}}
+
+           ;; start a development http server on http://localhost:8020
+           :devtools
+           {:http-root   "frontend-target/dev/public"
+            :http-port   3000
+            :preloads    [day8.re-frame-10x.preload]
+            :before-load grateful-place.frontend.core/stop
+            :after-load  grateful-place.frontend.core/-main}}
+
+          :gh-pages
+          {:target     :browser
+           :output-dir "frontend-target/gh-pages"
+           :asset-path "/js"
+
+           :modules
+           {:main {:entries [specmonstah-demo.core]}}
+
+           :release {:compiler-options {:source-map true}}}}
+ :nrepl {:middleware [refactor-nrepl.middleware/wrap-refactor]}}
