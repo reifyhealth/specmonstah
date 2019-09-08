@@ -10,3 +10,8 @@
   []
   (sm/add-ents {:schema schema} {:todo-list [[2]]}))
 
+(-> (ex-01) (sm/ents-by-type))
+
+(-> (ex-01) (sm/ent-relations :u0))
+
+(-> (ex-01) (sm/all-ent-relations))

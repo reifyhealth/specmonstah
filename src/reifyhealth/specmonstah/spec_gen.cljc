@@ -55,14 +55,13 @@
 
 (defn spec-gen-merge-overwrites
   "Finally, merge any overwrites specified in the schema or query"
-  [db {:keys [ent-name visit-val visit-key]}]
-  (let [{:keys [spec-gen]} (sm/ent-schema db ent-name)
-        query-opts         (visit-key (sm/query-opts db ent-name))]
+  [db {:keys [ent-name visit-val visit-key visit-query-opts]}]
+  (let [{:keys [spec-gen]} (sm/ent-schema db ent-name)]
     (cond-> visit-val
-      (fn? spec-gen)    spec-gen
-      (map? spec-gen)   (merge spec-gen)
-      (fn? query-opts)  query-opts
-      (map? query-opts) (merge query-opts))))
+      (fn? spec-gen)          spec-gen
+      (map? spec-gen)         (merge spec-gen)
+      (fn? visit-query-opts)  visit-query-opts
+      (map? visit-query-opts) (merge visit-query-opts))))
 
 (def spec-gen [spec-gen-generate-ent-val
                spec-gen-assoc-relations

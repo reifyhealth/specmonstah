@@ -49,14 +49,28 @@ TodoList correctly references the User and the Todo correctly
 references the TodoList and user. Call me crazy, but I think the
 second snippet is preferable to the first.
 
-SM is a specialized tool that introduces new concepts and
-vocabulary. It will take an hour or two to get comfortable with it,
-but once you do, that investment will pay huge dividends over time as
-you use it to write code that is more clear, concise, and easy to
-maintain. This guide has four parts to get you there:
+## I know this README is hella long but read this part at least
 
-* The [Infomercial](#infomercial) is a quick tour of the cool stuff you can
-  do with Specmonstah, showing you why it's worth the investment
+This README is long af. Total bummer, I know. I'm sorry. If all this
+text makes you want to run screaming for the hills, then all I ask is
+that you first check out the [Short Sweet
+Example](#short-sweet-example). It's some code that you can play with
+in a REPL that demonstrates some of the power and fun of using
+Specmonstah.
+
+If that hooks you, then the rest of the README will walk you through
+Specmonstah's features and usage. SM is a specialized tool that
+introduces new concepts and vocabulary. It will take an hour or two to
+get comfortable with it, but once you do, that investment will pay
+huge dividends over time as you use it to write code that is more
+clear, concise, and easy to maintain. This guide has five parts to get
+you there:
+
+* The aforementioned [Short Sweet Working
+  Example](#short-sweet-working-example)
+* The [Infomercial](#infomercial) is a quick tour of the cool,
+  surprising stuff you can do with Specmonstah, showing you why it's
+  worth the investment
 * A detailed [Tutorial](#tutorial) walks you through the library. It's
   written so the first sections get you productive with the core
   concepts quickly, and later sections fill in more esoteric details.
@@ -64,6 +78,144 @@ maintain. This guide has four parts to get you there:
   snippets demonstrating the facets of Specmonstah usage
 * Because Specmonstah introduces new terms, we provide a
   [Glossary](#glossary)
+
+## Short Sweet Example
+
+To get started with the example, clone this repo:
+
+```
+git clone https://github.com/reifyhealth/specmonstah.git
+```
+
+Open `examples/short-sweet/src/short_sweet.clj` in your favorite
+editor and start a REPL. I've also included the code below in case for
+example you don't have access to a REPL because, say, you're in some
+kind of _Taken_ situation and you only have access to a phone and
+you're using your precious battery life to go through this README.
+
+The first ~70 lines of code include all the setup necessary for the
+examples to run, followed by snippets to try out with example
+output. Def play with the snippets :) Can you generate multiple todos
+or todo lists?
+
+```clojure
+(ns short-sweet
+  (:require [reifyhealth.specmonstah.core :as sm]
+            [reifyhealth.specmonstah.spec-gen :as sg]
+            [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as gen]
+            [loom.io :as lio]))
+
+;;-------
+;; Begin example setup
+;;-------
+
+;; ---
+;; Define specs for our domain entities
+
+;; The ::id should be a positive int, and to generate it we increment
+;; the number stored in `id-seq`. This ensures unique ids and produces
+;; values that are easier for humans to understand
+(def id-seq (atom 0))
+(s/def ::id (s/with-gen pos-int? #(gen/fmap (fn [_] (swap! id-seq inc)) (gen/return nil))))
+
+(s/def ::username string?)
+
+(s/def ::user (s/keys :req-un [::id ::username]))
+
+(s/def ::title string?)
+(s/def ::todo-list-id ::id)
+(s/def ::assigned-id ::id)
+(s/def ::todo (s/keys :req-un [::id ::title ::todo-list-id ::assigned-id]))
+
+(s/def ::owner-id ::id)
+(s/def ::todo-list (s/keys :req-un [::id ::owner-id ::title]))
+
+
+;; ---
+;; The schema defines specmonstah `ent-types`, which roughly
+;; correspond to db tables. It also defines the `:spec` for generting
+;; ents of that type, and defines ent `relations`
+(def schema
+  {:user      {:spec   ::user
+               :prefix :u}
+   :todo-list {:spec      ::todo-list
+               :relations {:owner-id [:user :id]}
+               :prefix    :tl}
+   :todo      {:spec      ::todo
+               
+               :relations {:assigned-id  [:user :id]
+                           :todo-list-id [:todo-list :id]}
+               :spec-gen  {:title "default todo title"}
+               :prefix    :t}})
+
+;; A vector of inserted records we can use to show that entities are
+;; inserted in the correct order
+(def example-db (atom []))
+
+(defn insert*
+  "Simulates inserting records in a db by conjing values onto an atom"
+  [{:keys [data] :as db} {:keys [ent-type spec-gen]}]
+  (swap! example-db conj [ent-type spec-gen]))
+
+(defn insert [query]
+  (reset! id-seq 0)
+  (reset! example-db [])
+  (-> (sg/ent-db-spec-gen {:schema schema} query)
+      (sm/visit-ents-once :inserted-data insert*))
+  ;; normally you'd return the expression above, but return nil for
+  ;; the example to not produce overwhelming output
+  nil)
+
+
+;;-------
+;; Begin snippets to try in REPL
+;;-------
+
+;; Return a map of user entities and their spec-generated data
+(-> (sg/ent-db-spec-gen {:schema schema} {:user [[3]]})
+    (sm/attr-map :spec-gen))
+;; =>
+{:u0 {:id 8, :username "9wkka4XFJC0"},
+ :u1 {:id 7, :username "3cy8TV0L3yWm5GWQrjT6a"},
+ :u2 {:id 9, :username "59RDV1qIm6y3ya189Ut2fkFu48"}}
+
+;; You can specify a username and id
+(-> (sg/ent-db-spec-gen {:schema schema} {:user [[1 {:spec-gen {:username "Meeghan"
+                                                                :id       100}}]]})
+    (sm/attr-map :spec-gen))
+;; =>
+{:u0 {:id 100, :username "Meeghan"}}
+
+;; Generating a todo-list generates the user the todo-list belongs,
+;; with foreign keys correct
+(-> (sg/ent-db-spec-gen {:schema schema} {:todo-list [[1]]})
+    (sm/attr-map :spec-gen))
+;; =>
+{:tl0 {:id 15, :owner-id 14, :title "Ew"},
+ :u0  {:id 14, :username "sxk0t6r7tU4j3p924"}}
+    
+;; Generating a todo also generates a todo list and user
+(-> (sg/ent-db-spec-gen {:schema schema} {:todo [[3]]})
+    (sm/attr-map :spec-gen))
+{:t0  {:id           32,
+       :title        "default todo title",
+       :todo-list-id 30,
+       :assigned-id  29},
+ :tl0 {:id 30, :owner-id 29, :title "PeLGbe7geh7NZUoZ045r0F6uRXDSY"},
+ :u0  {:id 29, :username "0we6EsNgFZN5U9009P2Av3E5Y0d64X"}}
+
+;; The `insert` function shows that records are inserted into the
+;; simulate "database" (`example-db`) in correct dependency order:
+(insert {:todo [[1]]})
+@example-db
+[[:user {:id 1, :username "k8NmZ27QV5p08db624Y2Vk0H"}]
+ [:todo-list {:id 2, :owner-id 1, :title "zhMNFuoQ2lhalrp00mv2I38"}]
+ [:todo {:id           4,
+         :title        "default todo title",
+         :todo-list-id 2,
+         :assigned-id  1}]]
+```
 
 ## Infomercial
 
@@ -95,7 +247,7 @@ dependency order:
 
 ```clojure
 (insert {:post [[1]]})
-@ent-db
+@mock-db
 ; =>
 [[:user {:id 1 :username "K7X5r6UVs9Mm2Eks"}]
  [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
@@ -110,7 +262,7 @@ dependency order:
 The `insert` function is an example of code you might write to manage
 the relationship between specmonstah-generated data and your own
 database. In this case, `insert` simulates inserting records in a db
-by conjing entities on an `ent-db` atom. The maps were generated
+by conjing entities on an `mock-db` atom. The maps were generated
 using `clojure.spec`. Notice that all the foreign keys line up.
 
 ### Specify different users
@@ -121,7 +273,7 @@ this one, the Topic's `created-by-id` will reference a new user:
 ```clojure
 (insert {:topic [[:t0 {:refs {:created-by-id :custom-user}}]]
          :post [[1]]})
-@ent-db
+@mock-db
 ; =>
 [[:user {:id 1 :username "gMKGTwBnOvB0xt"}]
  [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
@@ -144,7 +296,7 @@ What if you want to insert 2 or 3 or more posts?
 
 ```clojure
 (insert {:post [[3]]})
-@ent-db
+@mock-db
 ; =>
 [[:user {:id 1 :username "yB96fd"}]
  [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
@@ -168,7 +320,7 @@ automatically generate unique Users if you specify multiple Likes:
 
 ```clojure
 (insert {:like [[3]]})
-@ent-db
+@mock-db
 ; =>
 [[:user {:id 1 :username "T2TD3pAB79X5"}]
  [:user {:id 2 :username "ziJ9GnvNMOHcaUz"}]
@@ -206,7 +358,7 @@ constraints, so three users are created, just like in the previous snippet.
 
 ```clojure
 (insert {:polymorphic-like [[3 {:ref-types {:liked-id :post}}]]})
-@ent-db
+@mock-db
 [[:user {:id 1 :username "gI3q3Y6HR1uwc"}]
  [:user {:id 2 :username "klKs7"}]
  [:topic-category {:id 3 :created-by-id 2 :updated-by-id 2}]
@@ -223,7 +375,7 @@ constraints, so three users are created, just like in the previous snippet.
 
 
 (insert {:polymorphic-like [[3 {:ref-types {:liked-id :topic}}]]})
-@ent-db
+@mock-db
 [[:user {:id 1 :username "5Z382YCNrJB"}]
  [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
  [:topic {:id 5
@@ -267,49 +419,54 @@ Specmonstah by understanding how it's not implemented to support
 writing unit tests per se, but to support the more fundamental
 operations of generating and manipulating entity graphs.
 
-In learning any new tool, I think it's useful to begin by learning the
-tool's purpose, then getting a high-level overview of the architecture
-and how it achieves the tool's purpose. With those concepts in place,
-concrete examples and exercises will help you understand how to use
-the tool. If you think that approach is bazonkers because you're a
-hands-on type person, you can skip to [01: ent-db](#01-ent-db).
+In trying to figure out how to explain this I had the thought,
+"Specmonstah is all about _data_ and _the stuff you can do with that
+data_. It felt super profound, like I had gotten a direct glimpse of
+the underlying structure of the cosmos. Real "shower thoughts" moment.
 
-### Purpose & Architecture Overview
+We'll start with a high-level overview of how Specmonstah's `data` and
+`operations` support the overall goal of aiding testing by generating
+and inserting records in a database in dependency order.
 
-Specmonstah was built to aid testing by generating and inserting
-records in a database in dependency order. For example, if you want to
-test the insertion of a Todo, but that Todo depends on the existence
-of a TodoList, and the TodoList depends on a User, then Specmonstah
-will generate User and TodoList records and insert them without your
-having to clutter your test with code related to Users and TodoLists.
+### Data & Operations
 
-Specmonstah accomplishes this work in three phases. The phases are
-summarized here, with detailed explanations below.
+Specmonstah's data and operations can be summarized as:
 
-1. **Graph generation.** SM uses the
-   [loom](https://github.com/aysylu/loom) graph library to create a
-   graph that represents the entities (ents) to insert.
-2. **Ent visitation.** Once the graph is generated, you perform
-   functions on each node. One function will use clojure.spec to
-   generate a map of data to be inserted, and another function will
-   perform the insertion.
-3. **Viewing.** SM generates a lot of data, so much so that it can be
-   difficult to visually parse in a REPL. SM provides functions that
-   get subsets of the data for writing tests and developing in the
-   REPL.
+* Data
+  * ent db
+    * schema
+    * ent graph
+    * ent attrs
+* Operations
+  * add ents
+  * add ent attrs (ent visitation)
+  * create views of the ent graph
 
-#### 1. Graph generation (and ent/ent type definitions)
+To explain each of these bullets, we'll work through the following
+questions:
 
-It generates a graph whose nodes correspond to _entity types_ (or _ent
-types_) and _entities_ (or just _ents_):
+* How does Specmonstah generate data for database insertion?
+* How does Specmonstah insert records in the correct order?
+
+Data generation happens in two phases:
+
+1. You _add ents_ to an _ent db_'s _ent graph_
+2. You add the data generated by clojure.spec to each ent as an _ent
+   attr_
+
+Let's unpack this.
+
+Specmonstah works by generating an _ent graph_. Say you want to
+generate and insert three `todo`s that references a `todo-list`, where
+the `todo`s and the `todo-list` all reference a `user`.  Specmonstah
+accomplishes this by first creating a graph like this:
 
 ![Simple todo example](docs/todo-example.png)
 
-In the graph above, the `:todo`, `:todo-list`, and `:user` nodes
-correspond to ent types, and the rest correspond to ents.
-
-We're going to be using the terms _ent_ and _ent type_ a lot, and
-you'll see them all throughout the source code, so let's define them:
+In the graph above, we call the `:todo`, `:todo-list`, and `:user`
+nodes _ent types_ and the rest _ents_. We use these names in
+Specmonstah to indicate that these graph nodes take on a particular
+meaning in Specmonstah:
 
 **Ent type.** An ent type is analogous to a relation in a relational
 database, or a class in object-oriented programming. It differs in
@@ -318,111 +475,84 @@ instances, whereas ent types don't. Ent types define how instances are
 related to each other. For example, a Todo schema might include a
 `:description` attribute, but the `:todo` ent type doesn't. The
 `:todo` ent type _does_ specify that a `:todo` instances reference
-`:todo-list` instances. In the next section you'll learn how to define
-ent types.
+`:todo-list` instances.
 
-Ent types are represented as nodes in the Specmonstah graph (let's
-abbreviate that with _SG_), with directed edges going from ent types
-to their instances. It's rare that you'll interact with ent types
-directly.
+Ent types are represented as nodes in the ent graph (let's abbreviate
+that with _EG_), with directed edges going from ent types to their
+instances. It's rare that you'll interact with ent types directly.
 
 **Ent.** An ent is an instance of an ent type. Ents have names (`:t0,
 :u0`, etc), and reference other ents. They're represented as nodes in
-the SG, with directed edges going from ents to the ents they
+the EG, with directed edges going from ents to the ents they
 reference; there's a directed edge from `:tl0` to `:u0` because `:tl0`
-references `:u0`.
+references `:u0`. The graph's topology is used to ensure that `:u0`
+gets inserted before `:tl0`.
 
-Ents can be associated with additional data - for example, a user ent
-can be associated with a map of user data generated by
-clojure.spec. An ent can also be associated with a value indicating
-whether or not its spec data has been inserted in a database.
+In creating the above graph, we would say that we _add ents_ to an
+_ent db_. An ent db is a map that contains an ent graph.
 
-It's important to stress that ents themselves aren't db records, but
-ents can be (and are) associated with data that ends up getting
-inserted in a database. This is why we represent ents as nodes: nodes
-capture the relationships among ents and serve as a flexible base
-layer that we can add data to.
+The ent db also contains a _schema_. The schema describes how ents of
+different types refer to each other, and it's used to construct the
+directed edges between ents.
 
-For example, here's the graph that's returned when you generate a
-single user:
+So that's the first step of data generation: You _add ents_ to an _ent
+db_'s _ent graph_. After that, you add the data generated by
+clojure.spec to each ent as an _ent attr_.
 
-```clojure
-{:nodeset #{:u0 :user}
- :adj     {:user #{:u0}}
- :in      {:u0 #{:user}}
- :attrs   {:user {:type :ent-type}
-           :u0   {:type :ent :index 0 :ent-type :user :query-term [1]}}}
+For example, the ents `:u0` and `:tl0` are not maps. They're just a
+graph node, and as such they cannot be inserted in a
+database. Specmonstah uses clojure.spec to generate data for `:u0` and
+`:tl0` and then associates the data with `:u0` and `:tl0` as an _ent
+attr_. You can think of this as being represented using a map like
+this, with `:spec-gen` as the ent attr:
+
+```
+{:u0  {:spec-gen {:username "billy"
+                  :id       1}}
+ :tl0 {:spec-gen {:id       2
+                  :owner-id 1
+                  :title    "my todaloo list"}}}
 ```
 
-Conspicuously absent are the business `:user` attributes you'd expect,
-like `:username` or `:email`.
+The process of adding ent attrs is called _visitation_. Visiting ent
+nodes is kind of like mapping: when you call `map` on a seq, you apply
+a mapping function to each element, creating a new seq from the
+mapping function's return values. By the same token, when you visit
+ents you apply a visiting function to each ent. The visiting
+function's return value is stored as an attribute on the ent - in this
+case, `:spec-gen`.
 
-How does Specmonstah generate this graph? You'll be learning about
-that in the upcoming sections.
+Visitation happens in reverse topologically sorted order, meaning that
+since `:tl0` has directed edge pointing to `:u0`, the visiting
+function is applied to `:u0` before `:tl0`. This is how the spec data
+generating visiting function is able to correctly set `:owner-id` to
+`1`:
 
-#### 2. Ent visitation
+1. The visiting function is applied to `:u0`, generating the `:id` `1`
+2. The visiting function is applied to `:tl0`. It's able to use the
+   edge from `:tl0` to `:u0` to look up `:u0`'s `:id` and setting that
+   as the value for `:owner-id`.
 
-Specmonstah provides functions for _visiting_ the ent nodes in the
-graph it generates. Visiting ent nodes is kind of like mapping: when
-you call `map` on a seq, you apply a mapping function to each element,
-creating a new seq from the mapping function's return values. When you
-visit ents, you apply a visiting function to each ent. The visiting
-function's return value is stored as an attribute on the ent (remember
-that ents are implemented as graph nodes, and nodes can have
-attributes).
+This visitation process is used to insert records in a database. The
+insertions happen in the correct order, satisfying foreign key
+constraints.
 
-For example, there's a `spec-gen` visiting function that takes each
-ent as input and uses clojure.spec to return a value. For the `:u0`
-ent, whose ent type is `:user`, `spec-gen` would use clojure.spec to
-return a new `:user` map, complete with name, email address, favorite
-flower, whatever. That map would get assigned to the `:spec-gen`
-attribute of `:u0`.
+One more note: When you play with Specmonstah in a REPL, you'll notice
+that it generates a lot of data. Specmonstah provides a bunch of
+functions that project different views of the ent db so that you can
+focus just on whatever's relevant for you.
 
-In your own application, you could implement an `insert` visiting
-function that looks up the values produced by the `spec-gen` visiting
-function and uses those to insert records in a database.
+That covers the main data structures and operations:
 
-Below is an example graph that's been visited with the `spec-gen`
-function:
-
-```clojure
-{:nodeset #{:u0 :user}
- :adj     {:user #{:u0}}
- :in      {:u0 #{:user}}
- :attrs   {:user {:type :ent-type}
-           :u0   {:type     :ent :index 0 :ent-type :user :query-term [1]
-                  :spec-gen {:id 2 :user-name "Luigi"}}}}
-```
-
-The last line, `:spec-gen {:id 2 :user-name "Luigi"}`, shows that the
-`:u0` ent has a new attribute, `:spec-gen`, which points to a map
-generated by clojure.spec.
-
-#### 3. Viewing
-
-When you're writing a test, it's important to be able to a) concisely
-express the values you're testing and b) easily figure out why a test
-is failing.
-
-At odds with these requirements is the fact that Specmonstah returns
-rich data structures under the philosophy that it's better to have
-information and not need it than need it and not have it. This can be
-overwhelming; picture two or three screens of output when you try to
-view a raw Specmonstah value in the REPL. But fear not: Specmonstah
-comes equipped with several useful _view functions_ that narrow down
-its return values so that you can focus on only the information you
-care about. For example, you could use the `attr-map` function to
-return a map of entities and their spec-generated data. If you called
-it on the data shown in the previous snippet, you'd get:
-
-```clojure
-{:u0 {:id 2 :user-name "Luigi"}}
-```
-
-So that's a bird's-eye view of Specmonstah: it's built to generate,
-insert, and inspect test data. Architecturally this corresponds to
-tools for generating an ent graph, visiting ents, and viewing the
-slices of the result that you care about.
+* Data
+  * ent db
+    * schema
+    * ent graph
+    * ent attrs
+* Operations
+  * add ents
+  * add ent attrs (ent visitation)
+  * create views of the ent graph
 
 Now that you have the broad picture of how Specmonstah works, let's
 start exploring the details with source code. The rest of the tutorial
@@ -512,11 +642,32 @@ image. Try this in your REPL:
 (lio/view (:data (ex-01)))
 ```
 
-The rest of the keys (`:queries`, `:relation-graph`, `:types`,
-`:ref-ents`) are used internally to generate the ent db, and can
-safely be ignored.
+At the same time, viewing the full loom graph is often overwhelming
+and unnecessary. The following functions help you project a more
+useful view of the ent db:
 
-Building an ent db is the first step whenever you're using
+```clojure
+(-> (ex-01)
+    (sm/ents-by-type))
+
+(-> (ex-01)
+    (sm/ent-relations :u0))
+
+(-> (ex-01)
+    (sm/all-ent-relations))
+```
+
+I encourage you to try these functions out in the REPL. Some of them
+reveal information about ent relationships and so will only be useful
+when we're working with more than one ent type; try those functions
+out in the next section as well as you can get a better idea of what
+they do.
+
+Back to the ent db: The rest of the keys (`:queries`,
+`:relation-graph`, `:types`, `:ref-ents`) are used internally to
+generate the ent db, and can safely be ignored.
+
+Adding ents to an ent db is the first step whenever you're using
 Specmonstah. The two main ingredients for building an ent db are the
 _query_ and _schema_. In the next section, we'll explain how schemas
 work, and section 3 will explain queries.
@@ -557,6 +708,12 @@ a user:
   (sm/add-ents {:schema schema} {:todo-list [[2]]}))
 
 (lio/view (:data (ex-01)))
+
+(-> (ex-01) (sm/ents-by-type))
+
+(-> (ex-01) (sm/ent-relations :u0))
+
+(-> (ex-01) (sm/all-ent-relations))
 ```
 
 ![prefixes](docs/02/prefixes.png)
