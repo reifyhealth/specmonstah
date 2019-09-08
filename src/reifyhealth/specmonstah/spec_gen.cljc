@@ -1,10 +1,6 @@
 (ns reifyhealth.specmonstah.spec-gen
-  (:require [loom.attr :as lat]
-            [loom.graph :as lg]
-            [clojure.set :as set]
-            [clojure.spec.alpha :as s]
+  (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
-            [medley.core :as medley]
             [reifyhealth.specmonstah.core :as sm]))
 
 (def spec-gen-ent-attr-key :spec-gen)
@@ -39,31 +35,30 @@
 
 (defn spec-gen-generate-ent-val
   "First pass function, uses spec to generate a val for every entity"
-  [db ent-name _ent-attr-key]
+  [db {:keys [ent-name]}]
   (let [{:keys [spec]} (sm/ent-schema db ent-name)]
     (->> (gen/generate (s/gen spec))
          (reset-relations db ent-name))))
 
 (defn spec-gen-assoc-relations
   "Next, look up referenced attributes and assign them"
-  [{:keys [data] :as db} ent-name ent-attr-key]
+  [db {:keys [ent-name visit-key visit-val]}]
   (let [{:keys [constraints]} (sm/ent-schema db ent-name)]
     (reduce (fn [ent-data [referenced-ent relation-attr]]
               (assoc-relation ent-data
                               relation-attr
-                              (get-in (lat/attr data referenced-ent ent-attr-key)
+                              (get-in (sm/ent-attr db referenced-ent visit-key)
                                       (:path (sm/query-relation db ent-name relation-attr)))
                               constraints))
-            (lat/attr data ent-name ent-attr-key)
+            visit-val
             (sm/referenced-ent-attrs db ent-name))))
 
 (defn spec-gen-merge-overwrites
   "Finally, merge any overwrites specified in the schema or query"
-  [{:keys [data] :as db} ent-name ent-attr-key]
+  [db {:keys [ent-name visit-val visit-key]}]
   (let [{:keys [spec-gen]} (sm/ent-schema db ent-name)
-        spec-generated-val (lat/attr data ent-name ent-attr-key)
-        query-opts         (ent-attr-key (sm/query-opts db ent-name))]
-    (cond-> spec-generated-val
+        query-opts         (visit-key (sm/query-opts db ent-name))]
+    (cond-> visit-val
       (fn? spec-gen)    spec-gen
       (map? spec-gen)   (merge spec-gen)
       (fn? query-opts)  query-opts

@@ -155,6 +155,10 @@
   [{:keys [data]} ent-name]
   (get-in data [:attrs ent-name]))
 
+(defn ent-attr
+  [{:keys [data]} ent-name attr]
+  (get-in data [:attrs ent-name attr]))
+
 (defn query-opts
   [{:keys [data]} ent-name]
   (second (lat/attr data ent-name :query-term)))
@@ -607,6 +611,14 @@
   [{:keys [data]}]
   (la/topsort (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data)))
 
+(defn visit-fn-data
+  [db ent visit-key]
+  (let [attrs (ent-attrs db ent)]
+    {:ent-name  ent
+     :attrs     attrs
+     :visit-val (visit-key attrs)
+     :visit-key visit-key}))
+
 (defn visit-ents
   "Perform `visit-fns` on ents, storing return value as a graph
   attribute under `visit-key`"
@@ -616,7 +628,7 @@
   ([db visit-key visit-fns ents]
    (let [visit-fns (if (sequential? visit-fns) visit-fns [visit-fns])]
      (reduce (fn [db [visit-fn ent]]
-               (update db :data lat/add-attr ent visit-key (visit-fn db ent visit-key)))
+               (update db :data lat/add-attr ent visit-key (visit-fn db (visit-fn-data db ent visit-key))))
              db
              (for [visit-fn visit-fns ent ents] [visit-fn ent])))))
 
@@ -632,17 +644,16 @@
                                   (let [ent-attrs (get-in db [:data :attrs ent])]
                                     (contains? ent-attrs visit-key))))
                         (set))
-         visit-fns (if (vector? visit-fns) visit-fns [visit-fns])]
+         visit-fns (if (sequential? visit-fns) visit-fns [visit-fns])]
      (visit-ents db
                  visit-key
                  (mapv (fn [visit-fn]
-                         (fn [db ent visit-key]
-                           (if (skip-ents ent)
-                             (lat/attr (:data db) ent visit-key)
-                             (visit-fn db ent visit-key))))
+                         (fn [db {:keys [ent-name visit-val] :as visit-data}]
+                           (if (skip-ents ent-name)
+                             visit-val
+                             (visit-fn db visit-data))))
                        visit-fns)
                  ents))))
-
 
 ;; -----------------
 ;; views
