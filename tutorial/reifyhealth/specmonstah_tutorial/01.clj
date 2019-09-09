@@ -9,6 +9,12 @@
   []
   (sm/add-ents {:schema schema} {:user [[3]]}))
 
+(-> (ex-01) (sm/ents-by-type))
+
+(-> (ex-01) (sm/ent-relations :u0))
+
+(-> (ex-01) (sm/all-ent-relations))
+
 (comment
   ;; evaluating this:
   (ex-01)

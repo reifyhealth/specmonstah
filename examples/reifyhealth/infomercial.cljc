@@ -62,22 +62,21 @@
                                     :created-by-id [:user :id]}
                       :constraints {:created-by-id #{:uniq}}}})
 
-(def ent-db (atom []))
+(def mock-db (atom []))
 
 
 (defn insert*
-  [{:keys [data] :as db} ent-name ent-attr-key]
-  (swap! ent-db conj [(lat/attr data ent-name :ent-type)
-                      (lat/attr data ent-name sg/spec-gen-ent-attr-key)]))
+  [{:keys [data] :as db} {:keys [ent-type spec-gen]}]
+  (swap! mock-db conj [ent-type spec-gen]))
 
 (defn insert [query]
   (reset! id-seq 0)
-  (reset! ent-db [])
-  (-> (sg/ent-db-spec-gen {:schema schema} query)
+  (reset! mock-db [])
+  (-> (sg/mock-db-spec-gen {:schema schema} query)
       (sm/visit-ents-once :inserted-data insert*)))
 
 (insert {:post [[1]]})
-@ent-db
+@mock-db
 
 [[:user {:id 1 :username "K7X5r6UVs9Mm2Eks"}]
  [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
@@ -91,7 +90,7 @@
 
 (insert {:topic [[:t0 {:refs {:created-by-id :custom-user}}]]
          :post [[1]]})
-@ent-db
+@mock-db
 
 [[:user {:id 1 :username "gMKGTwBnOvB0xt"}]
  [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
@@ -105,7 +104,7 @@
 
 
 (insert {:post [[3]]})
-@ent-db
+@mock-db
 [[:user {:id 1 :username "yB96fd"}]
  [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
  [:topic {:id 5
@@ -119,7 +118,7 @@
 
 
 (insert {:like [[3]]})
-@ent-db
+@mock-db
 [[:user {:id 1 :username "T2TD3pAB79X5"}]
  [:user {:id 2 :username "ziJ9GnvNMOHcaUz"}]
  [:topic-category {:id 3 :created-by-id 2 :updated-by-id 2}]
@@ -136,7 +135,7 @@
 
 
 (insert {:polymorphic-like [[3 {:ref-types {:liked-id :post}}]]})
-@ent-db
+@mock-db
 [[:user {:id 1 :username "gI3q3Y6HR1uwc"}]
  [:user {:id 2 :username "klKs7"}]
  [:topic-category {:id 3 :created-by-id 2 :updated-by-id 2}]
@@ -153,7 +152,7 @@
 
 
 (insert {:polymorphic-like [[3 {:ref-types {:liked-id :topic}}]]})
-@ent-db
+@mock-db
 [[:user {:id 1 :username "5Z382YCNrJB"}]
  [:topic-category {:id 2 :created-by-id 1 :updated-by-id 1}]
  [:topic {:id 5

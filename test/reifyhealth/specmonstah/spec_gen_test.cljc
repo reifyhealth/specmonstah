@@ -6,10 +6,7 @@
             [reifyhealth.specmonstah.test-data :as td]
             [reifyhealth.specmonstah.core :as sm]
             [reifyhealth.specmonstah.spec-gen :as sg]
-            [medley.core :as medley]
-            [loom.graph :as lg]
-            [loom.alg :as la]
-            [loom.attr :as lat]))
+            [medley.core :as medley]))
 
 (def gen-data-db (atom []))
 (def gen-data-cycle-db (atom []))
@@ -160,10 +157,8 @@
              (:data (gen-fn first-pass)))))))
 
 (defn insert
-  [{:keys [data] :as db} ent-name ent-attr-key]
-  (swap! gen-data-db conj [(lat/attr data ent-name :ent-type)
-                           ent-name
-                           (lat/attr data ent-name sg/spec-gen-ent-attr-key)]))
+  [{:keys [data] :as db} {:keys [ent-name visit-key attrs]}]
+  (swap! gen-data-db conj [(:ent-type attrs) ent-name (sg/spec-gen-ent-attr-key attrs)]))
 
 
 
@@ -189,7 +184,7 @@
     (let [ent-map (into {} (map #(vec (drop 1 %)) gen-data))]
       (is (td/submap? {:u0 {:user-name "Luigi"}
                        :t0 {:todo-title "write unit tests"}}
-                       ent-map))
+                      ent-map))
       (is (ids-present? ent-map))
       (is (ids-match? ent-map
                       {:tl0 {:created-by-id [:u0 :id]
@@ -230,9 +225,9 @@
                                  :todo-list-id  [:tl0 :id]}})))))))
 
 (defn insert-cycle
-  [{:keys [data] :as db} ent-name ent-attr-key]
+  [db {:keys [ent-name visit-key]}]
   (do (swap! gen-data-cycle-db conj ent-name)
-      (lat/attr data ent-name sg/spec-gen-ent-attr-key)))
+      (sm/ent-attr db ent-name sg/spec-gen-ent-attr-key)))
 
 (deftest handle-cycles-with-constraints-and-reordering
   (testing "todo-list is inserted before todo because todo requires todo-list"

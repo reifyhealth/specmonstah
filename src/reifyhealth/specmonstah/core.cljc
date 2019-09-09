@@ -3,6 +3,7 @@
             [loom.attr :as lat]
             [loom.graph :as lg]
             [loom.derived :as ld]
+            #?(:clj [loom.io :as lio])
             [medley.core :as medley]
             [better-cond.core :as b]
             [clojure.test.check.generators :as gen :include-macros true]
@@ -10,16 +11,23 @@
             [clojure.set :as set]
             [clojure.spec.alpha :as s]))
 
-(defn omit?
-  [x]
-  (= x ::omit))
+;; specifies that a ref ent should *not* be automatically generated
+(defn omit? [x] (= x ::omit))
 
+;; ent type is specified in the schema, e.g. in this:
+;; {:user {:prefix :u}}
+;; `:user` is the ent-type
 (s/def ::ent-type keyword?)
+
+;; every ent has an ent-name. ent name's are used for query references
+;; and to manage the auto-generation of ents to ensure that the same
+;; ent isn't generated twice.
 (s/def ::ent-name (s/and keyword? (complement omit?)))
+
+;; an ent-attr roughly corresponds to a field in a database
 (s/def ::ent-attr keyword?)
-(s/def ::ent-count pos-int?)
-(s/def ::prefix keyword?)
-(s/def ::constraint keyword?)
+
+;; the clojure.spec spec for a type
 (s/def ::spec (s/or :keyword (s/and keyword? namespace)
                     :spec    s/spec?))
 
@@ -28,25 +36,61 @@
 ;; schema specs
 ;; -----------------
 
+;; The schema defines entity types, their specs, and their
+;; relationships to each other
+
 
 ;; relations
 ;; -----------------
 
+;; About relations:
 ;; In these comments I'll use capital letters like A and B to refer to
 ;; types.
 
 ;; A relation is the description of how ents of type A reference ents
-;; of type B
+;; of type B. For example, in this:
+;; 
+;; {:user {}
+;;  :todo {:relations {:created-by-id [:user :id]}}}
+;;
+;; a Todo's `:created-by-id` key references a User, such that
+;; :created-by-id should equal the User's `:id`
+;;
+;; /end About relations
+
+
+;; In the following schema:
+;;
+;; {:user {}
+;;  :todo {:relations {:created-by-id [:user :id]}}}
+;;
+;; the relation-path is `[:user :id]`
 (s/def ::relation-path (s/+ any?))
 
+;; Used to validate the return value of the function `query-relation`
 (s/def ::conformed-relation
   (s/map-of :ent-type ::ent-type
             :path ::relation-path))
 
+
+{:watch {:relations {:watched-id #{[:topic-category :id]
+                                   [:topic :id]}}}}
+
+;; in monotype relations, there is only one type of referred ent. most
+;; relations are monotype relations. example:
+;;
+;; {:topic {:relations {:topic-category-id [:topic-category :id]}}}
+;; 
+;; `[:topic-category-id :id]` is a monotype relation
 (s/def ::monotype-relation
   (s/cat :ent-type ::ent-type
          :path ::relation-path))
 
+
+;; In this example:
+;; {:watch {:relations {:watched-id #{[:topic-category :id]
+;;                                    [:topic :id]}}}}
+;; the set `#{[:topic-category :id] [:topic :id]}` is a polymorphic relation
 (s/def ::polymorphic-relation
   (s/coll-of ::relation))
 
@@ -65,12 +109,23 @@
 (s/def ::core-constraints
   #{:coll :uniq :required})
 
+(s/def ::constraint keyword?)
+
 (s/def ::constraints
   (s/map-of ::ent-attr (s/coll-of ::constraint)))
 
 
 ;; schema
 ;; -----------------
+
+;; the prefix is used for ent auto-generation to uniquely identify
+;; ents. Given this schema:
+;; 
+;; {:user {:prefix :u}}
+;; 
+;; the query `{:user [[2]]}` would produce ents with `ent-name` `:u0`
+;; and `:u1`
+(s/def ::prefix keyword?)
 
 (s/def ::ent-type-schema
   (s/keys :req-un [::prefix]
@@ -87,6 +142,9 @@
 ;; query refs / relations
 ;; -----------------
 
+;; how many ents to create
+(s/def ::ent-count pos-int?)
+
 (s/def ::coll-query-relations
   (s/or :ent-names (s/coll-of ::ent-name)
         :ent-count ::ent-count))
@@ -94,6 +152,9 @@
 (s/def ::unary-query-relations
   (s/or :ent-name ::ent-name))
 
+;; by default, specmonstah uses a default naming system to determine
+;; which ents to refer to. you can specify a `:refs` value to override
+;; the default names.
 (s/def ::refs
   (s/map-of ::ent-attr (s/or :coll  ::coll-query-relations
                              :unary ::unary-query-relations
@@ -105,6 +166,8 @@
 (s/def ::ref-types
   (s/map-of ::ent-attr ::ent-type))
 
+;; all references to ents of type `:ent-type` should have name
+;; `:ent-name` throughout the entire subgraph
 (s/def ::bind
   (s/map-of ::ent-type ::ent-name))
 
@@ -118,6 +181,12 @@
 ;; queries
 ;; -----------------
 
+;; examples:
+;; generate 5 of a thing
+;; [[5]] 
+;;
+;; generate 1 of a thing, don't generate the ent corresponding to created-by-id:
+;; [[1 {:refs {:created-by-id ::omit}}]]
 (s/def ::query-term
   (s/cat :ent-id ::ent-id
          :query-opts (s/? ::query-opts)))
@@ -154,6 +223,10 @@
 (defn ent-attrs
   [{:keys [data]} ent-name]
   (get-in data [:attrs ent-name]))
+
+(defn ent-attr
+  [{:keys [data]} ent-name attr]
+  (get-in data [:attrs ent-name attr]))
 
 (defn query-opts
   [{:keys [data]} ent-name]
@@ -468,7 +541,7 @@
        (reduce-kv (fn [grouping ent-type prefix]
                     (update grouping prefix (fn [x] (conj (or x #{}) ent-type))))
                   {})
-       (medley/filter-vals #(clojure.core/> (count %) 1))))
+       (medley/filter-vals #(> (count %) 1))))
 
 (defn invalid-schema-relations
   "Relations that reference nonexistent types"
@@ -530,6 +603,7 @@
 ;; -----------------
 
 (defn ents
+  "returns all ents in the ent db"
   [{:keys [data]}]
   (lg/nodes (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data)))
 
@@ -538,9 +612,10 @@
   attr on that node"
   ([db attr] (attr-map db attr (ents db)))
   ([{:keys [data] :as db} attr ents]
-   (reduce (fn [m ent] (assoc m ent (lat/attr data ent attr)))
-           {}
-           ents)))
+   (->> ents
+        (reduce (fn [m ent] (assoc m ent (lat/attr data ent attr)))
+                {})
+        (into (sorted-map)))))
 
 (defn relation-attrs
   "Given an ent A and an ent it references B, return the set of attrs
@@ -577,7 +652,8 @@
   "For ent A, returns all the referenced ents that ent A requires as
   specified in the schema's constraints. Used to order ent sequences;
   ensures that required ents are positioned before the ents that
-  require them."
+  require them, resolving ambiguity when the reference graph has
+  cycles."
   [db ent-name]
   (let [{:keys [constraints]} (ent-schema db ent-name)]
     (->> (medley/filter-vals :required constraints)
@@ -586,12 +662,13 @@
          set)))
 
 (defn sort-by-required
-  "If :a0 depends on :b0, returns the vector [:b0 :a0]"
+  "If :a0 depends on :b0, returns the vector [:b0 :a0]. Used to sort
+  ents when ref cycles are present."
   [{:keys [schema data] :as db} ents]
   (loop [ordered           []
          tried             #{}
          [ent & remaining] ents]
-    (cond (nil? ent)  ordered
+    (cond (nil? ent) ordered
 
           (empty? (set/difference (required-ents db ent) (set ordered)))
           (recur (conj ordered ent) (conj tried ent) remaining)
@@ -607,16 +684,35 @@
   [{:keys [data]}]
   (la/topsort (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data)))
 
+(defn sort-ents
+  "Attempts to topsort ents. If that's not possible (cycles present),
+  uses `sort-by-required` to resolve ordering of ents in cycle"
+  [db]
+  (or (seq (reverse (topsort-ents db)))
+      (sort-by-required db (ents db))))
+
+(defn visit-fn-data
+  "When a visit fn is called, it's passed this map as its second argument"
+  [db ent visit-key]
+  (let [attrs  (ent-attrs db ent)
+        q-opts (query-opts db ent)
+        base   {:ent-name         ent
+                :attrs            attrs
+                :visit-val        (visit-key attrs)
+                :visit-key        visit-key
+                :query-opts       q-opts
+                :visit-query-opts (visit-key q-opts)}]
+    (merge attrs base)))
+
 (defn visit-ents
   "Perform `visit-fns` on ents, storing return value as a graph
   attribute under `visit-key`"
   ([db visit-key visit-fns]
-   (visit-ents db visit-key visit-fns (or (seq (reverse (topsort-ents db)))
-                                          (sort-by-required db (ents db)))))
+   (visit-ents db visit-key visit-fns (sort-ents db)))
   ([db visit-key visit-fns ents]
    (let [visit-fns (if (sequential? visit-fns) visit-fns [visit-fns])]
      (reduce (fn [db [visit-fn ent]]
-               (update db :data lat/add-attr ent visit-key (visit-fn db ent visit-key)))
+               (update db :data lat/add-attr ent visit-key (visit-fn db (visit-fn-data db ent visit-key))))
              db
              (for [visit-fn visit-fns ent ents] [visit-fn ent])))))
 
@@ -624,29 +720,30 @@
   "Like `visit-ents` but doesn't call `visit-fn` if the ent already
   has a `visit-key` attribute"
   ([db visit-key visit-fns]
-   (visit-ents-once db visit-key visit-fns (or (seq (reverse (topsort-ents db)))
-                                               (sort-by-required db (ents db)))))
+   (visit-ents-once db visit-key visit-fns (sort-ents db)))
   ([db visit-key visit-fns ents]
    (let [skip-ents (->> ents
                         (filter (fn [ent]
                                   (let [ent-attrs (get-in db [:data :attrs ent])]
                                     (contains? ent-attrs visit-key))))
                         (set))
-         visit-fns (if (vector? visit-fns) visit-fns [visit-fns])]
+         visit-fns (if (sequential? visit-fns) visit-fns [visit-fns])]
      (visit-ents db
                  visit-key
                  (mapv (fn [visit-fn]
-                         (fn [db ent visit-key]
-                           (if (skip-ents ent)
-                             (lat/attr (:data db) ent visit-key)
-                             (visit-fn db ent visit-key))))
+                         (fn [db {:keys [ent-name visit-val] :as visit-data}]
+                           (if (skip-ents ent-name)
+                             visit-val
+                             (visit-fn db visit-data))))
                        visit-fns)
                  ents))))
-
 
 ;; -----------------
 ;; views
 ;; -----------------
+
+;; convenience functions for getting projections of the ent db,
+;; considering the ent db has a lot of loom bookkeeping
 
 (defn query-ents
   "Get seq of nodes that are explicitly defined in the query"
@@ -665,8 +762,7 @@
               (select-keys (attr-map db :ent-type) ents))))
 
 (s/fdef ents-by-type
-  :args (s/or :n-1 (s/cat :db ::db)
-              :n-2 (s/cat :db ::db :ent-names (s/coll-of ::ent-name)))
+  :args (s/cat :db ::db :ent-names (s/? (s/coll-of ::ent-name)))
   :ret (s/map-of ::ent-type (s/coll-of ::ent-name)))
 
 (defn ent-relations
@@ -712,3 +808,9 @@
   :ret  (s/map-of ::ent-type
                   (s/map-of ::ent-name
                             (s/map-of ::ent-attr ::ent-name))))
+
+#?(:clj
+   (defn view
+     "View with loom"
+     [{:keys [data]}]
+     (lio/view data)))
