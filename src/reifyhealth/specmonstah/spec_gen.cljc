@@ -12,7 +12,7 @@
   attr. `:coll` relations will add value to a vector."
   [gen-data relation-attr relation-val constraints]
   (if (contains? (relation-attr constraints) :coll)
-    (update gen-data relation-attr #(conj % relation-val))
+    (update gen-data relation-attr #((fnil conj []) % relation-val))
     (assoc gen-data relation-attr relation-val)))
 
 (defn omit-relation?
