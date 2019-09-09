@@ -10,7 +10,7 @@
                :relations {:todo-list-id [:todo-list :id]}}})
 
 (defn announce
-  [db ent-name visit-key]
+  [db {:keys [ent-name]}]
   (str "announcing... " ent-name "!"))
 
 (defn ex-01

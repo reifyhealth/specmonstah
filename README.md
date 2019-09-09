@@ -1282,7 +1282,7 @@ our own visiting function so you can see how this works:
                :relations {:todo-list-id [:todo-list :id]}}})
 
 (defn announce
-  [db ent-name visit-key]
+  [db {:keys [ent-name]}]
   (str "announcing... " ent-name "!"))
 
 (defn ex-01
@@ -1395,11 +1395,9 @@ an atom, but you can apply the idea to your own database. The code:
 (def database (atom []))
 
 (defn insert
-  [db ent-name visit-key]
-  (let [{:keys [spec-gen ent-type] :as attrs} (sm/ent-attrs db ent-name)]
-    (when-not (visit-key attrs)
-      (swap! database conj [ent-type spec-gen])
-      true)))
+  [db {:keys [ent-type ent-val spec-gen]}]
+  (when-not ent-val
+    (swap! database conj [ent-type spec-gen])))
 
 (defn ex-01
   []
@@ -1498,8 +1496,8 @@ provides the `sm/visit-ents-once` which you can use instead of
 
 ```clojure
 (defn insert-once
-  [db ent-name visit-key]
-  (swap! database conj ((juxt :ent-type :spec-gen) (sm/ent-attrs db ent-name)))
+  [db {:keys [ent-type spec-gen]}]
+  (swap! database conj [ent-type spec-gen])
   true)
 
 (defn ex-03
