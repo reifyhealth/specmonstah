@@ -1431,20 +1431,26 @@ Let's go through `insert` line by line:
 
 ```clojure
 (defn insert
-  [db ent-name visit-key]
-  (let [{:keys [spec-gen ent-type] :as attrs} (sm/ent-attrs db ent-name)]
-    (when-not (visit-key attrs)
-      (swap! database conj [ent-type spec-gen])
-      true)))
+  [db {:keys [ent-type ent-val spec-gen]}]
+  (when-not ent-val
+    (swap! database conj [ent-type spec-gen])))
 ```
 
-In the `let` binding you get the ent's attributes with
-`sm/ent-attrs`. The next line, `(when-not (visit-key attrs) ...)`,
-checks whether `insert` has already visited this ent. (I'll explain
-why you want to perform this check soon.) If the ent hasn't been
-visited, the `database` gets updated by conjing a vector of the
-`ent-type` and `spec-gen`. The `database` atom ends up with a value
-like this:
+The second argument to all visiting functions is a map that includes:
+
+* All of the ent's attributes (like `:spec-gen`)
+* `:ent-val`, the value from previous visits if there have been any
+* `:visit-key` - when the visiting function returns, its value is
+  added as an ent attr using the key `:visit-key`
+* `:query-opts` - any query opts like `{:refs {} :spec-gen {}}` for
+  the ent
+* `:visit-query-opts` - any query opts meant for this visiting fn
+
+`(when-not ent-val ...)`, checks whether `insert` has already visited
+this ent. (I'll explain why you want to perform this check soon.) If
+the ent hasn't been visited, the `database` gets updated by conjing a
+vector of the `ent-type` and `spec-gen`. The `database` atom ends up
+with a value like this:
 
 ```clojure
 [[:user {:id 6, :username "Ov0zaH57lTk86bAh"}]
@@ -1455,12 +1461,12 @@ like this:
 Each ent is inserted in dependency order: `:user` first, then
 `:todo-list`, then `:todo`.
 
-Now let's revisit `(when-not (visit-key attrs) ...)`. You want to
-perform this check because of Specmonstah's progressive construction
-feature: as we covered in [05: Progressive
+Now let's revisit `(when-not ent-val ...)`. You want to perform this
+check because of Specmonstah's progressive construction feature: as we
+covered in [05: Progressive
 construction](#05-progressive-construction), it's possible to pass an
-ent-db to successive calls to `sm/add-ents`. If you added more
-ents and wanted to insert, you wouldn't want to re-insert previous
+ent-db to successive calls to `sm/add-ents`. If you added more ents
+and wanted to insert, you wouldn't want to re-insert previous
 ents. `ex-02` demonstrates this:
 
 ```clojure
@@ -1482,6 +1488,7 @@ ents. `ex-02` demonstrates this:
  [:todo {:id 8, :details "Ek065tC78bD9wEJwLa", :todo-list-id 16}]
  [:todo {:id 5, :details "9", :todo-list-id 16}]]
 ```
+
 The `:user`, `:todo-list`, and `:todo` ents from the first call to
 `ent-db-spec-gen` are only inserted once, even though they are visited
 by `insert` multiple times.
