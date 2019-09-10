@@ -41,8 +41,7 @@
    :todo-list {:spec      ::todo-list
                :relations {:owner-id [:user :id]}
                :prefix    :tl}
-   :todo      {:spec      ::todo
-               
+   :todo      {:spec      ::todo               
                :relations {:assigned-id  [:user :id]
                            :todo-list-id [:todo-list :id]}
                :spec-gen  {:title "default todo title"}
