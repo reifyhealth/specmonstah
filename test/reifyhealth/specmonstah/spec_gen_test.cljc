@@ -156,11 +156,35 @@
       (is (= (:data first-pass)
              (:data (gen-fn first-pass)))))))
 
+
+(deftest test-coll-relval-order
+  (testing "When a relation has a `:coll` constraint, order its vals correctly")
+  (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:project [[:_ {:refs {:todo-list-ids 3}}]]})]
+    (is (td/submap? {:u0 {:user-name "Luigi"}} gen))
+    (is (ids-present? gen))
+    (is (= (:todo-list-ids (:p0 gen))
+           [(:id (:tl0 gen))
+            (:id (:tl1 gen))
+            (:id (:tl2 gen))]))
+    (is (only-has-ents? gen #{:tl0 :tl1 :tl2 :u0 :p0}))))
+
+(deftest test-sets-custom-relation-val
+  (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:user      [[:custom-user {:spec-gen {:id 100}}]]
+                                                          :todo-list [[:custom-tl {:refs {:created-by-id :custom-user
+                                                                                          :updated-by-id :custom-user}}]]})]
+    (is (td/submap? {:custom-user {:user-name "Luigi"
+                                   :id        100}}
+                    gen))
+    (is (ids-present? gen))
+    (is (ids-match? gen
+                    {:custom-tl {:created-by-id [:custom-user :id]
+                                 :updated-by-id [:custom-user :id]}}))
+    (is (only-has-ents? gen #{:custom-tl :custom-user}))))
+
+;; testing inserting
 (defn insert
   [{:keys [data] :as db} {:keys [ent-name visit-key attrs]}]
   (swap! gen-data-db conj [(:ent-type attrs) ent-name (sg/spec-gen-ent-attr-key attrs)]))
-
-
 
 (deftest test-insert-gen-data
   (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [[1]]})
