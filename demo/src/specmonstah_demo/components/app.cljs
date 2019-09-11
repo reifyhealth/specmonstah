@@ -7,9 +7,9 @@
   []
   [:div
    [:div.schema
-    [:pre (str schemas/todo-schema)]
+    [:h2 "Schema"]
     (stfc/with-form [:schema]
-      [input :ace :schema {:value (str schemas/todo-schema)}])]
+      [input :ace :schema])]
    [:div.query "query"]
    [:div.spec-gen "spec-gen"]
    [:div.graph "graph"]])

@@ -1,7 +1,8 @@
 (ns specmonstah-demo.examples.schemas
   (:require [clojure.spec.alpha :as s]
             [clojure.test.check.generators :as gen :include-macros true]
-            [clojure.data :as data]))
+            [clojure.data :as data]
+            [shadow.resource :as rc]))
 
 (def id-seq (atom 0))
 
@@ -67,3 +68,7 @@
                                    :todo-list-ids [:todo-list :id]}
                      :constraints {:todo-list-ids #{:coll}}
                      :prefix      :p}})
+
+
+(def todo-schema-txt
+  (rc/inline "./todo-schema.edn"))
