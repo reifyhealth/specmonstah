@@ -16,3 +16,7 @@
   (fn [db]
     (assoc db :query (reader/read-string (get-in db (p/full-path :form [:query :buffer :query]))))))
 
+(rf/reg-event-db :select-node
+  [rf/trim-v]
+  (fn [db [node]]
+    (assoc db :selected-node (keyword node))))
