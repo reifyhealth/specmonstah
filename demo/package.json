@@ -12,6 +12,7 @@
     "react-css-transition-replace": "^3.0.3",
     "react-dom": "^16.6.3",
     "react-flip-move": "^3.0.3",
+    "react-graph-vis": "^1.0.2",
     "react-helmet": "6.0.0-beta",
     "react-highlight.js": "^1.0.7",
     "react-transition-group": "^2.5.0"

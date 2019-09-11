@@ -1,6 +1,5 @@
 (ns specmonstah-demo.components.vendor.ace
   (:require ["react-ace" :default AceEditor]
-            [reagent.core :as r]
             [sweet-tooth.frontend.form.components :as stfc]
             ["brace/mode/clojure"]
             ["brace/theme/monokai"]))
