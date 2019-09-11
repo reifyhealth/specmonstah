@@ -1,16 +1,18 @@
 (ns specmonstah-demo.components.app
   (:require [re-frame.core :as rf]
             [cljs.pprint :as pprint]
+            [sweet-tooth.frontend.form.components :as stfc]
+            [sweet-tooth.frontend.core.utils :as stcu]
+
             [specmonstah-demo.examples.schemas :as schemas]
             [specmonstah-demo.components.vendor.ace :as ace]
-            [sweet-tooth.frontend.form.components :as stfc]
-            [sweet-tooth.frontend.core.utils :as stcu]))
+            [specmonstah-demo.components.vendor.vis :as vis]))
 
 (defn spec-gen
   []
   [:div.spec-gen "spec-gen"
    [ace/ace-readonly
-    (with-out-str (pprint/pprint @(rf/subscribe [:query-result])))
+    (with-out-str (pprint/pprint @(rf/subscribe [:query-result-attr-map])))
     {:width "40%"}]])
 
 (defn query-form
@@ -32,4 +34,6 @@
      {:width "40%"}]]
    [query-form]
    [spec-gen]
-   [:div.graph "graph"]])
+   [:div.graph "graph"
+    (when-let [db @(rf/subscribe [:query-result-db])]
+      [vis/graph db {:options {:height "500px"}}])]])

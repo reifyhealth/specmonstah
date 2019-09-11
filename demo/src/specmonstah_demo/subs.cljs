@@ -8,10 +8,17 @@
 
 (rf/reg-sub :query :query)
 
-(rf/reg-sub :query-result
+(rf/reg-sub :query-result-attr-map
   :<- [:query]
   (fn [query]
     (when query
       (try (-> (sg/ent-db-spec-gen {:schema schemas/todo-schema} query)
                (sm/attr-map :spec-gen))
+           (catch :default e nil)))))
+
+(rf/reg-sub :query-result-db
+  :<- [:query]
+  (fn [query]
+    (when query
+      (try (sg/ent-db-spec-gen {:schema schemas/todo-schema} query)
            (catch :default e nil)))))
