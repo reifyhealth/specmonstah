@@ -6,10 +6,6 @@
 
 (def id-seq (atom 0))
 
-(defn test-fixture [f]
-  (reset! id-seq 0)
-  (f))
-
 (s/def ::id
   (s/with-gen
     pos-int?

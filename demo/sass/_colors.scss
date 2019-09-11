@@ -1,0 +1,56 @@
+$charcoal:   #3f464c;
+
+$light-green: #daede2;
+
+$light-gray: #cfd9db;
+$shadow: 0px 1px 1px rgba(0,0,0,0.3);
+
+$meta: #fafafa;
+$tip: #adaca4;
+
+/*
+primary
+primary variant
+secondary
+secondary variant
+background
+surface
+error
+
+on primary
+on secondary
+on background
+on surface
+on error
+
+disabled
+
+states: hover, selected, etc
+*/
+
+
+// $primary: #ff6b42;
+//$primary-light: #ff9d6f;
+$primary: #ff4e1d;
+$primary-light1: #ff824c;
+$primary-light2: #ffc5b9;
+$primary-light3: #ffddd6;
+$primary-dark1: #c40400;
+
+//$secondary: #80cbc4;
+//$secondary-light1: #96f0e8;
+// 00C98D
+$secondary: #00E09D;
+$secondary-light1: #00E6A1;
+$secondary-dark1: #4f9a94;
+
+$background: white;
+$surface: white;
+$error: #e54c9f;
+
+$charcoal: #3f464c;
+$on-primary: $charcoal;
+$on-secondary: $charcoal;
+$on-background: $charcoal;
+$on-surface: $charcoal;
+$on-error: $charcoal;

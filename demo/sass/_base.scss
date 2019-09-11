@@ -1,0 +1,32 @@
+html {
+  box-sizing: border-box;
+}
+
+html, #app {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100%;
+  position: relative;
+  color: $charcoal;
+  margin: 0;
+  box-sizing: border-box;
+  font-family: Source Sans Pro, Helvetica Neue, Arial, sans-serif;
+  padding: 2rem;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-column-gap: 1rem;
+}
+
+.ace_editor {
+  border-radius: .25rem;
+}
+
+h2 {
+  margin-bottom: 1rem;
+}
