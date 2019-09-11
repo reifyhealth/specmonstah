@@ -7,15 +7,6 @@
 
 (s/def ::ent-attrs (s/map-of ::sm/ent-attr ::sm/any))
 
-(defn assoc-relation
-  "Look up related ent's attr value and assoc with parent ent
-  attr. `:coll` relations will add value to a vector."
-  [gen-data relation-attr relation-val constraints]
-  
-  (if (contains? (relation-attr constraints) :coll)
-    (update gen-data relation-attr #((fnil conj []) % relation-val))
-    (assoc gen-data relation-attr relation-val)))
-
 (defn omit-relation?
   [db ent-name ent-attr-key]
   (let [{{ref ent-attr-key} :refs} (sm/query-opts db ent-name)]
@@ -41,19 +32,6 @@
     (->> (gen/generate (s/gen spec))
          (reset-relations db ent-name))))
 
-(defn spec-gen-assoc-relations
-  "Next, look up referenced attributes and assign them"
-  [db {:keys [ent-name visit-key visit-val]}]
-  (let [{:keys [constraints]} (sm/ent-schema db ent-name)]
-    (reduce (fn [ent-data [referenced-ent relation-attr]]
-              (assoc-relation ent-data
-                              relation-attr
-                              (get-in (sm/ent-attr db referenced-ent visit-key)
-                                      (:path (sm/query-relation db ent-name relation-attr)))
-                              constraints))
-            visit-val
-            (sm/referenced-ent-attrs db ent-name))))
-
 (defn spec-gen-merge-overwrites
   "Finally, merge any overwrites specified in the schema or query"
   [db {:keys [ent-name visit-val visit-key visit-query-opts]}]
@@ -65,7 +43,7 @@
       (map? visit-query-opts) (merge visit-query-opts))))
 
 (def spec-gen [spec-gen-generate-ent-val
-               spec-gen-assoc-relations
+               sm/assoc-relations-visitor
                spec-gen-merge-overwrites])
 
 (defn ent-db-spec-gen
