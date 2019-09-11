@@ -18,7 +18,7 @@
   [:div.query "query"
    (stfc/with-form [:query]
      [:form {:on-submit (stcu/prevent-default #(rf/dispatch [:submit-query]))}
-      [input :ace :query {:height "200px"
+      [input :ace :query {:height "100px"
                           :width  "40%"}]
       [:input {:type "submit"}]])])
 

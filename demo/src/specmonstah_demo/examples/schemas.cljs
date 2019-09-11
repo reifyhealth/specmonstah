@@ -16,7 +16,7 @@
     #(gen/fmap (fn [_] (swap! id-seq inc)) (gen/return nil))))
 
 
-(s/def ::user-name #{"Luigi"})
+(s/def ::user-name #{"Maggie" "Linh" "Bubba" "Tomm" "Rory" "Link" "Janie"})
 (s/def ::user (s/keys :req-un [::id ::user-name]))
 
 (s/def ::created-by-id ::id)
