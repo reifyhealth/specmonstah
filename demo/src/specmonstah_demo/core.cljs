@@ -14,6 +14,7 @@
 
             [specmonstah-demo.components.app :as app]
             [specmonstah-demo.handlers]
+            [specmonstah-demo.subs]
             
             [goog.events]))
 
