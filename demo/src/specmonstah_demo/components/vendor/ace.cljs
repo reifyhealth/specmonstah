@@ -1,7 +1,9 @@
 (ns specmonstah-demo.components.vendor.ace
   (:require ["react-ace" :default AceEditor]
             [reagent.core :as r]
-            [sweet-tooth.frontend.form.components :as stfc]))
+            [sweet-tooth.frontend.form.components :as stfc]
+            ["brace/mode/clojure"]
+            ["brace/theme/monokai"]))
 
 (defmethod stfc/input-type-opts :ace
   [opts]
@@ -13,5 +15,5 @@
   [:> AceEditor {:onChange (fn [val] (stfc/dispatch-change partial-form-path attr-path val))
                  :name     "ACE BABY"
                  :value    (or value "")
-                 :mode     "clojure"
-                 :theme    "monokai"}])
+                 :theme    "monokai"
+                 :mode     "clojure"}])

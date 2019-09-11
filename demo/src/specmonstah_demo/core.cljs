@@ -12,13 +12,8 @@
             [sweet-tooth.frontend.routes :as stfr]
             [sweet-tooth.frontend.js-event-handlers.flow :as stjehf]
 
-            #_[grateful-place.frontend.environment :as env]
-            #_[grateful-place.frontend.routes :as routes]
-            #_[grateful-place.frontend.handlers]
-            #_[grateful-place.frontend.subs]
-            #_[grateful-place.cross.utils :as u]
-
             [specmonstah-demo.components.app :as app]
+            [specmonstah-demo.handlers]
             
             [goog.events]))
 
@@ -34,7 +29,7 @@
 
 (defn ^:dev/after-load -main []
   (rf/dispatch-sync [::stcf/init-system (system-config)])
-  #_(rf/dispatch-sync [:init])
+  (rf/dispatch-sync [:init])
   (r/render [app/app] (stcu/el-by-id "app")))
 
 (defonce initial-load (delay (-main)))
