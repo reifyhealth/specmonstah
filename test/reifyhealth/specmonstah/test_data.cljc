@@ -39,7 +39,7 @@
 
 (s/def ::todo-list-id ::id)
 (s/def ::watcher-id ::id)
-(s/def ::todo-list-watcher (s/keys :req-un [::id ::todo-list-id ::watcher-id]))
+(s/def ::todo-list-watch (s/keys :req-un [::id ::todo-list-id ::watcher-id]))
 
 ;; In THE REAL WORLD todo-list would probably have a project-id,
 ;; rather than project having some coll of :todo-list-ids

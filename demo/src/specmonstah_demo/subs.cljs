@@ -22,3 +22,18 @@
     (when query
       (try (sg/ent-db-spec-gen {:schema schemas/todo-schema} query)
            (catch :default e nil)))))
+
+(rf/reg-sub :selected-node
+  (fn [db]
+    (:selected-node db)))
+
+(rf/reg-sub :selected-node-details
+  :<- [:query-result-db]
+  :<- [:selected-node]
+  (fn [[ent-db node]]
+    (when (and ent-db node)
+      (let [x (-> ent-db
+                  (sm/attr-map :spec-gen)
+                  (get node))]
+        (println "DEETS" node x)
+        x))))
