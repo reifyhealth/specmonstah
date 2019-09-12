@@ -4,6 +4,7 @@
             [sweet-tooth.frontend.form.components :as stfc]
             [sweet-tooth.frontend.core.utils :as stcu]
 
+            [specmonstah-demo.examples.queries :as queries]
             [specmonstah-demo.examples.schemas :as schemas]
             [specmonstah-demo.components.vendor.ace :as ace]
             [specmonstah-demo.components.vendor.vis :as vis]))
@@ -51,8 +52,8 @@
                       :events  {:selectNode #(rf/dispatch [:select-node (-> % (js->clj :kewordize-keys true) (get "nodes") first)])}}]
        [:p "When you run a query a visualization will appear here"])]
     (when-let [node-details @(rf/subscribe [:selected-node-details])]
-      [:div.node-details
-       [:h2 "Node Details"]
+      [:div.node-spec-gen
+       [:h2 "Spec generated map for selected ent"]
        [ace/ace-readonly (pretty node-details) {:width "100%"
                                                 :height "100px"}]])
     [spec-gen]]])
