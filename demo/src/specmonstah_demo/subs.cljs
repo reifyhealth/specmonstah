@@ -8,19 +8,18 @@
 
 (rf/reg-sub :query :query)
 
-(rf/reg-sub :query-result-attr-map
-  :<- [:query]
-  (fn [query]
-    (when query
-      (try (-> (sg/ent-db-spec-gen {:schema schemas/todo-schema} query)
-               (sm/attr-map :spec-gen))
-           (catch :default e nil)))))
-
 (rf/reg-sub :query-result-db
   :<- [:query]
   (fn [query]
     (when query
       (try (sg/ent-db-spec-gen {:schema schemas/todo-schema} query)
+           (catch :default e nil)))))
+
+(rf/reg-sub :query-result-attr-map
+  :<- [:query-result-db]
+  (fn [ent-db]
+    (when ent-db
+      (try (sm/attr-map ent-db :spec-gen)
            (catch :default e nil)))))
 
 (rf/reg-sub :selected-node
@@ -32,8 +31,6 @@
   :<- [:selected-node]
   (fn [[ent-db node]]
     (when (and ent-db node)
-      (let [x (-> ent-db
-                  (sm/attr-map :spec-gen)
-                  (get node))]
-        (println "DEETS" node x)
-        x))))
+      (-> ent-db
+          (sm/attr-map :spec-gen)
+          (get node)))))
