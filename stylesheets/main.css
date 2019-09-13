@@ -1,0 +1,82 @@
+/*
+primary
+primary variant
+secondary
+secondary variant
+background
+surface
+error
+
+on primary
+on secondary
+on background
+on surface
+on error
+
+disabled
+
+states: hover, selected, etc
+*/
+.nugget {
+  border-radius: 2px;
+  box-shadow: 0 1px 2px 0px rgba(0, 0, 0, 0.2);
+  background: white;
+  padding: 1.25em 1em 1.25em;
+}
+.nugget p:last-child {
+  margin-bottom: 0;
+}
+.nugget.break {
+  margin-bottom: 1rem;
+}
+
+html {
+  box-sizing: border-box;
+}
+
+html, #app {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100%;
+  position: relative;
+  color: #3f464c;
+  margin: 0;
+  box-sizing: border-box;
+  font-family: Source Sans Pro, Helvetica Neue, Arial, sans-serif;
+  padding: 2rem;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-column-gap: 1rem;
+}
+
+.ace_editor {
+  border-radius: 0.25rem;
+}
+
+h2 {
+  margin-bottom: 1rem;
+}
+
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+li {
+  padding: 0.5rem;
+  border: 1px solid rgba(100, 100, 255, 0.3);
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+li:hover {
+  background: rgba(100, 100, 255, 0.3);
+}
+
+/*# sourceMappingURL=main.css.map */
