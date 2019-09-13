@@ -30,3 +30,19 @@ body {
 h2 {
   margin-bottom: 1rem;
 }
+
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+li {
+  padding: .5rem;
+  border: 1px solid rgba(100, 100, 255, .3);
+  cursor: pointer;
+  margin-bottom: .5rem;
+  &:hover {
+    background: rgba(100, 100, 255, .3);
+  }
+}

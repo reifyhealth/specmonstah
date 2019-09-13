@@ -41,11 +41,12 @@
    :todo-list {:spec      ::todo-list
                :relations {:owner-id [:user :id]}
                :prefix    :tl}
-   :todo      {:spec      ::todo               
-               :relations {:assigned-id  [:user :id]
-                           :todo-list-id [:todo-list :id]}
-               :spec-gen  {:title "default todo title"}
-               :prefix    :t}})
+   :todo      {:spec        ::todo               
+               :relations   {:assigned-id  [:user :id]
+                             :todo-list-id [:todo-list :id]}
+               :constraints {:assigned-id #{:uniq}}
+               :spec-gen    {:title "default todo title"}
+               :prefix      :t}})
 
 ;; A vector of inserted records we can use to show that entities are
 ;; inserted in the correct order

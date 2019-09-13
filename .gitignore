@@ -19,3 +19,4 @@ project.clj
 pom.xml
 notes.org
 .lein-repl-history
+.cpcache
