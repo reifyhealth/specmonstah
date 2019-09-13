@@ -46,24 +46,30 @@
 
 (defn app
   []
-  [:div.app
-   [:div.input
-    [query-form]
-    [:div.schema
-     [:h2 "Schema"]
-     [ace/ace-readonly
-      schemas/todo-schema-txt
-      {:width "100%"}]]]
-   [:div.output
-    [:div.graph
-     [:h2 "Graph"]
-     (if-let [db @(rf/subscribe [:query-result-db])]
-       [vis/graph db {:options {:height "500px"}
-                      :events  {:selectNode #(rf/dispatch [:select-node (-> % (js->clj :kewordize-keys true) (get "nodes") first)])}}]
-       [:p "When you run a query a visualization will appear here"])]
-    (when-let [node-details @(rf/subscribe [:selected-node-details])]
-      [:div.node-spec-gen
-       [:h2 "Spec generated map for selected ent"]
-       [ace/ace-readonly (pretty node-details) {:width "100%"
-                                                :height "100px"}]])
-    [spec-gen]]])
+  [:div
+   [:h1 "Specmonstah Demo"]
+   [:p "Shows how a query and a schema combine to generate a graph of
+   entities. clojure.spec is used to generate a map for each entity
+   could be inserted in a database."]
+   [:div.app
+    [:div.input
+     [query-form]
+     [:div.schema
+      [:h2 "Schema"]
+      [:p "The :relations key specifies how entities of different types relate to eaach other."]
+      [ace/ace-readonly
+       schemas/todo-schema-txt
+       {:width "100%"}]]]
+    [:div.output
+     [:div.graph
+      [:h2 "Graph"]
+      (if-let [db @(rf/subscribe [:query-result-db])]
+        [vis/graph db {:options {:height "500px"}
+                       :events  {:selectNode #(rf/dispatch [:select-node (-> % (js->clj :kewordize-keys true) (get "nodes") first)])}}]
+        [:p "When you run a query a visualization will appear here"])]
+     (when-let [node-details @(rf/subscribe [:selected-node-details])]
+       [:div.node-spec-gen
+        [:h2 "Spec generated map for selected ent"]
+        [ace/ace-readonly (pretty node-details) {:width "100%"
+                                                 :height "100px"}]])
+     [spec-gen]]]])
