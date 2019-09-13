@@ -1,6 +1,7 @@
 (ns specmonstah-demo.components.app
   (:require [re-frame.core :as rf]
             [cljs.pprint :as pprint]
+            [sweet-tooth.frontend.form.flow :as stff]
             [sweet-tooth.frontend.form.components :as stfc]
             [sweet-tooth.frontend.core.utils :as stcu]
 
@@ -32,7 +33,16 @@
      [:form {:on-submit (stcu/prevent-default #(rf/dispatch [:submit-query]))}
       [input :ace :query {:height "100px"
                           :width  "100%"}]
-      [:input {:type "submit" :value "Run"}]])])
+      [:input {:type "submit" :value "Run"}]])
+   [:h3 "More queries to try"]
+   (->> queries/queries
+        (map (fn [{:keys [name description query]}]
+               [:li {:on-click (fn []
+                                 (rf/dispatch [::stff/initialize-form [:query] {:buffer {:query (pretty query)}}])
+                                 (rf/dispatch [:submit-query]))}
+                [:strong name]
+                [:div description]]))
+        (into [:ul]))])
 
 (defn app
   []
