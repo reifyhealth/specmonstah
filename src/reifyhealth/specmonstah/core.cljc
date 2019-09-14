@@ -741,6 +741,30 @@
                        visit-fns)
                  ents))))
 
+(defn assoc-relation
+  "Look up related ent's attr value and assoc with parent ent
+  attr. `:coll` relations will add value to a vector."
+  [gen-data relation-attr relation-val constraints]
+  
+  (if (contains? (relation-attr constraints) :coll)
+    (update gen-data relation-attr #((fnil conj []) % relation-val))
+    (assoc gen-data relation-attr relation-val)))
+
+(defn assoc-relations-visitor
+  "Visitor that looks up visit attr vals for refenced ents and assocs
+  them with the given ent. For example, if :tl0's :user-id should be
+  set to :u0's :id, this will make that happen."
+  [db {:keys [ent-name visit-key visit-val]}]
+  (let [{:keys [constraints]} (ent-schema db ent-name)]
+    (reduce (fn [ent-data [referenced-ent relation-attr]]
+              (assoc-relation ent-data
+                              relation-attr
+                              (get-in (ent-attr db referenced-ent visit-key)
+                                      (:path (query-relation db ent-name relation-attr)))
+                              constraints))
+            visit-val
+            (referenced-ent-attrs db ent-name))))
+
 ;; -----------------
 ;; views
 ;; -----------------
