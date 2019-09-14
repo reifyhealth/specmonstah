@@ -19,19 +19,19 @@ that are clear, concise, and easy to maintain. It's great for
 dramatically reducing test boilerplate.
 
 Say you have a forum and you want to test a scenario where a post has
-gotten three likes by three different users. To do that you first have
-to create an entire hierarchy of records for the post, topic, topic
-category, and user. You have to make sure that all the foreign keys
-are correct (e.g. the post's `:topic-id` is set to the topic's `:id`)
-and that everything is inserted in the right order.
+gotten three likes by three different users. You'd first have to
+create a hierarchy of records for the post, topic, topic category, and
+user. You have to make sure that all the foreign keys are correct
+(e.g. the post's `:topic-id` is set to the topic's `:id`) and that
+everything is inserted in the right order.
 
-With Specmonstah, all you have to do is write code like this:
+With Specmonstah, all you have to do is **write code like** this:
 
 ```clojure
 (insert {:like [[3]]})
 ```
 
-and the following records get inserted in a database (in the order
+and **these records get inserted** in a database (in the order
 displayed):
 
 ```clojure
@@ -68,11 +68,10 @@ achieve the same result:
   (create-like! {:user-id (:id user-3) :post-id (:id p)}))
 ```
 
-Call me crazy, but I think `(insert {:like [[3]]})` is
-better. The Specmonstah DSL clearly communicates what's important
-about the scenario you're trying to test. It elimiinates all the
-visual noise that results from having to type out all the record
-foreign key relationships.
+Call me crazy, but I think `(insert {:like [[3]]})` is better. The
+Specmonstah DSL clearly communicates what's important about the
+scenario you're trying to test. It elimiinates all the visual noise
+that results from having to type out the foreign key relationships.
 
 ## I know this README is hella long but read this part at least
 

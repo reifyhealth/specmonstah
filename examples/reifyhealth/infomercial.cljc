@@ -72,7 +72,7 @@
 (defn insert [query]
   (reset! id-seq 0)
   (reset! mock-db [])
-  (-> (sg/mock-db-spec-gen {:schema schema} query)
+  (-> (sg/ent-db-spec-gen {:schema schema} query)
       (sm/visit-ents-once :inserted-data insert*)))
 
 (insert {:post [[1]]})
