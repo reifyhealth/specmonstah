@@ -69,9 +69,9 @@ achieve the same result:
 ```
 
 Call me crazy, but I think `(insert {:like [[3]]})` is better. The
-Specmonstah DSL clearly communicates what's important about the
-scenario you're trying to test. It elimiinates all the visual noise
-that results from having to type out the foreign key relationships.
+Specmonstah DSL communicates what's important about the scenario
+you're trying to test. It elimiinates all the visual noise that
+results from having to type out the foreign key relationships.
 
 ## I know this README is hella long but read this part at least
 
