@@ -13,11 +13,11 @@
 (defn ex-02
   []
   (sm/add-ents {:schema schema} {:todo-list [[:my-todo-list]
-                                                  [:my-todoodle-do-list]]}))
+                                             [:my-todoodle-do-list]]}))
 
 (defn ex-03
   []
   (sm/add-ents {:schema schema} {:todo-list [[1]
-                                                  [:work]
-                                                  [1]
-                                                  [:cones-of-dunshire-club]]}))
+                                             [:work]
+                                             [1]
+                                             [:cones-of-dunshire-club]]}))

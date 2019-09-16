@@ -3,8 +3,7 @@
             [reifyhealth.specmonstah.spec-gen :as sg]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
-            [loom.attr :as lat]
-            [loom.io :as lio]))
+            [loom.attr :as lat]))
 
 (def id-seq (atom 0))
 (s/def ::id (s/with-gen pos-int? #(gen/fmap (fn [_] (swap! id-seq inc)) (gen/return nil))))
