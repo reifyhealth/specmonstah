@@ -3,12 +3,13 @@
             [loom.io :as lio]))
 
 (def schema
-  {:user      {:prefix :u}
-   :todo-list {:prefix    :tl
-               :relations {:owner-id [:user :id]}}})
+  {:user {:prefix :u}
+   :post {:prefix    :p
+          :relations {:owner-id [:user :id]}}})
+
 (defn ex-01
   []
-  (sm/add-ents {:schema schema} {:todo-list [[2]]}))
+  (sm/add-ents {:schema schema} {:post [[2]]}))
 
 (-> (ex-01) (sm/ents-by-type))
 

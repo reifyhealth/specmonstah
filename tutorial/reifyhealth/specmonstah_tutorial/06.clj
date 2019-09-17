@@ -1,6 +1,5 @@
 (ns reifyhealth.specmonstah-tutorial.06
   (:require [reifyhealth.specmonstah.core :as sm]
-            [loom.io :as lio]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
             [reifyhealth.specmonstah.spec-gen :as sg]))
