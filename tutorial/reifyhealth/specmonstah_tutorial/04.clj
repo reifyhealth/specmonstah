@@ -13,8 +13,7 @@
   (sm/add-ents {:schema schema} {:topic [[2 {:refs {:owner-id :my-own-sweet-user}}]
                                          [1]]}))
 
-
-
+(sm/view (ex-02))
 (defn ex-02
   []
   (sm/add-ents {:schema schema} {:topic [[1]

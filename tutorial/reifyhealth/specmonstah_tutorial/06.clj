@@ -5,90 +5,86 @@
             [reifyhealth.specmonstah.spec-gen :as sg]))
 
 (s/def ::id (s/and pos-int? #(< % 100)))
-(s/def ::not-empty-string (s/and string? not-empty #(< (count %) 20)))
+(s/def ::not-empty-string (s/and string? not-empty #(< (count %) 10)))
 
 (s/def ::username ::not-empty-string)
 (s/def ::user (s/keys :req-un [::id ::username]))
 
 (s/def ::name ::not-empty-string)
-(s/def ::owner-id ::id)
-(s/def ::todo-list (s/keys :req-un [::id ::name ::owner-id]))
+(s/def ::topic (s/keys :req-un [::id ::name ::owner-id]))
 
-(s/def ::details ::not-empty-string)
-(s/def ::todo-list-id ::id)
-(s/def ::todo (s/keys :req-un [::id ::details ::todo-list-id]))
+(s/def ::owner-id ::id)
+(s/def ::topic-id ::id)
+(s/def ::content ::not-empty-string)
+(s/def ::post (s/keys :req-un [::id ::owner-id ::topic-id ::content]))
 
 (def schema
-  {:user      {:prefix :u
-               :spec   ::user}
-   :todo-list {:prefix    :tl
-               :spec      ::todo-list
-               :relations {:owner-id [:user :id]}}
-   :todo      {:prefix    :t
-               :spec     ::todo
-               :relations {:todo-list-id [:todo-list :id]}}})
+  {:user  {:prefix :u
+           :spec   ::user}
+   :topic {:prefix    :t
+           :spec      ::topic
+           :relations {:owner-id [:user :id]}}
+   :post  {:prefix    :p
+           :spec      ::post
+           :relations {:topic-id [:topic :id]}}})
 
 (defn ex-01
   []
-  {:user      (gen/generate (s/gen ::user))
-   :todo-list (gen/generate (s/gen ::todo-list))
-   :todo      (gen/generate (s/gen ::todo))})
+  {:user  (gen/generate (s/gen ::user))
+   :topic (gen/generate (s/gen ::topic))
+   :post  (gen/generate (s/gen ::post))})
 
 ;;=>
-{:user      {:id 2, :username "qI0iNgiy"}
- :todo-list {:id 4, :name "etIZ3l6jDO7m9UR5P", :owner-id 11}
- :todo      {:id 1, :details "1K85jiEU3L366NTx1", :todo-list-id 2}}
+{:user  {:id 2,  :username "G95seixU"},
+ :topic {:id 11, :name "stA9xO50w", :owner-id 1},
+ :post  {:id 57, :owner-id 2, :topic-id 2, :content "937x"}}
 
 (defn ex-02
   []
-  (:data (sg/ent-db-spec-gen {:schema schema} {:todo [[1]]})))
+  (:data (sg/ent-db-spec-gen {:schema schema} {:post [[1]]})))
 
 ;; =>
-{:nodeset #{:todo-list :tl0 :t0 :u0 :todo :user},
- :adj {:todo #{:t0},
-       :t0 #{:tl0},
-       :todo-list #{:tl0},
-       :tl0 #{:u0},
-       :user #{:u0}},
- :in {:t0 #{:todo}, :tl0 #{:todo-list :t0}, :u0 #{:tl0 :user}},
- :attrs {:todo {:type :ent-type},
-         :t0 {:type :ent,
-              :index 0,
-              :ent-type :todo,
-              :query-term [1],
-              :loom.attr/edge-attrs {:tl0 {:relation-attrs #{:todo-list-id}}},
-              :spec-gen {:id 1, :details "uhr5LSa", :todo-list-id 8}},
-         :todo-list {:type :ent-type},
-         :tl0 {:type :ent,
-               :index 0,
-               :ent-type :todo-list,
-               :query-term [:_],
-               :loom.attr/edge-attrs {:u0 {:relation-attrs #{:owner-id}}},
-               :spec-gen {:id 8, :name "xbamqBULZ", :owner-id 42}},
-         :user {:type :ent-type},
-         :u0 {:type :ent,
-              :index 0,
-              :ent-type :user,
-              :query-term [:_],
-              :spec-gen {:id 42, :username "abrfR4s1I15"}}}}
+{:nodeset #{:t0 :topic :p0 :u0 :post :user},
+ :adj     {:post #{:p0}, :p0 #{:t0}, :topic #{:t0}, :t0 #{:u0}, :user #{:u0}},
+ :in      {:p0 #{:post}, :t0 #{:topic :p0}, :u0 #{:t0 :user}},
+ :attrs   {:post  {:type :ent-type},
+           :p0    {:type                 :ent,
+                   :index                0,
+                   :ent-type             :post,
+                   :query-term           [1],
+                   :loom.attr/edge-attrs {:t0 {:relation-attrs #{:topic-id}}},
+                   :spec-gen             {:id 2, :owner-id 7, :topic-id 16, :content "3IU"}},
+           :topic {:type :ent-type},
+           :t0    {:type                 :ent,
+                   :index                0,
+                   :ent-type             :topic,
+                   :query-term           [:_],
+                   :loom.attr/edge-attrs {:u0 {:relation-attrs #{:owner-id}}},
+                   :spec-gen             {:id 16, :name "FM4fcV3t", :owner-id 2}},
+           :user  {:type :ent-type},
+           :u0    {:type       :ent,
+                   :index      0,
+                   :ent-type   :user,
+                   :query-term [:_],
+                   :spec-gen   {:id 2, :username "xh"}}}}
 
 (defn ex-03
   []
-  (-> (sg/ent-db-spec-gen {:schema schema} {:todo [[1]]})
+  (-> (sg/ent-db-spec-gen {:schema schema} {:post [[1]]})
       (sm/attr-map :spec-gen)))
 
 ;; => 
-{:tl0 {:id 21, :name "0N2xKMNwM8uO", :owner-id 19}
- :t0  {:id 4, :details "PGf92", :todo-list-id 21}
- :u0  {:id 19, :username "fz774"}}
+{:p0 {:id 30, :owner-id 6, :topic-id 11, :content "03hK"}
+ :t0 {:id 11, :name "A4rq01NK", :owner-id 84}
+ :u0 {:id 84, :username "QN8J68"}}
 
 
 (defn ex-04
   []
-  (sg/ent-db-spec-gen-attr {:schema schema} {:todo [[1]]}))
+  (sg/ent-db-spec-gen-attr {:schema schema} {:post [[1]]}))
 
 (ex-04)
 ;; =>
-{:tl0 {:id 51, :name "VO1161Id66DJRftxq", :owner-id 90}
- :t0  {:id 91, :details "qaQ0e5Bfa6B", :todo-list-id 51}
- :u0  {:id 90, :username "82d71j551NVMFj4"}}
+{:p0 {:id 2, :owner-id 20, :topic-id 2, :content "573AAM1D"}
+ :t0 {:id 2, :name "6q7a4", :owner-id 2}
+ :u0 {:id 2, :username "h"}}

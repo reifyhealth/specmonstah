@@ -15,3 +15,7 @@
     (sm/view ent-db-2)))
 
 (ex-01)
+
+
+(sm/add-ents ent-db-1 {:topic [[1]
+                               [1 {:refs {:owner-id :hamburglar}}]]})

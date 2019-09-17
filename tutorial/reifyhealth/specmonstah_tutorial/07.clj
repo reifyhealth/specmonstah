@@ -5,45 +5,46 @@
             [reifyhealth.specmonstah.spec-gen :as sg]))
 
 (s/def ::id (s/and pos-int? #(< % 100)))
-(s/def ::not-empty-string (s/and string? not-empty #(< (count %) 20)))
+(s/def ::not-empty-string (s/and string? not-empty #(< (count %) 10)))
 
 (s/def ::username ::not-empty-string)
 (s/def ::user (s/keys :req-un [::id ::username]))
 
 (s/def ::name ::not-empty-string)
-(s/def ::owner-id ::id)
-(s/def ::todo-list (s/keys :req-un [::id ::name ::owner-id]))
+(s/def ::topic (s/keys :req-un [::id ::name ::owner-id]))
 
-(s/def ::details ::not-empty-string)
-(s/def ::todo-list-id ::id)
-(s/def ::todo (s/keys :req-un [::id ::details ::todo-list-id]))
+(s/def ::owner-id ::id)
+(s/def ::topic-id ::id)
+(s/def ::content ::not-empty-string)
+(s/def ::post (s/keys :req-un [::id ::owner-id ::topic-id ::content]))
 
 (def schema
-  {:user      {:prefix :u
-               :spec   ::user}
-   :todo-list {:prefix    :tl
-               :spec      ::todo-list
-               :relations {:owner-id [:user :id]}}
-   :todo      {:prefix    :t
-               :spec     ::todo
-               :relations {:todo-list-id [:todo-list :id]}}})
+  {:user  {:prefix :u
+           :spec   ::user}
+   :topic {:prefix    :t
+           :spec      ::topic
+           :relations {:owner-id [:user :id]}}
+   :post  {:prefix    :p
+           :spec      ::post
+           :relations {:topic-id [:topic :id]}}})
 
 (defn ex-01
   []
   (sg/ent-db-spec-gen-attr {:schema schema}
-                           {:user [[1 {:spec-gen {:username "bob"}}]]
-                            :todo [[1 {:spec-gen {:details "get groceries"}}]]}))
+                           {:user [[1 {:spec-gen {:username "barb"}}]]
+                            :post [[1 {:spec-gen {:content "so good to be barb"}}]]}))
 
 (ex-01)
 ;; =>
-{:tl0 {:id 48, :name "C8Cj51DSbZIb69Z", :owner-id 2}
- :t0  {:id 21, :details "get groceries", :todo-list-id 48}
- :u0  {:id 2, :username "bob"}}
+{:p0 {:id 81, :owner-id 96, :topic-id 68, :content "so good to be barb"}
+ :t0 {:id 68, :name "3l1IR8", :owner-id 3}
+ :u0 {:id 3, :username "barb"}}
 
 
 (defn ex-02
   []
-  (sg/ent-db-spec-gen-attr {:schema schema} {:todo-list [[1 {:refs {:owner-id ::sm/omit}}]]}))
+  (sg/ent-db-spec-gen-attr {:schema schema}
+                           {:topic [[1 {:refs {:owner-id ::sm/omit}}]]}))
 
 (ex-02)
 ;; =>
@@ -52,8 +53,9 @@
 
 (defn ex-03
   []
-  (sg/ent-db-spec-gen-attr {:schema schema} {:todo-list [[1 {:refs     {:owner-id ::sm/omit}
-                                                             :spec-gen {:owner-id nil}}]]}))
+  (sg/ent-db-spec-gen-attr {:schema schema}
+                           {:topic [[1 {:refs     {:owner-id ::sm/omit}
+                                        :spec-gen {:owner-id nil}}]]}))
 
 (ex-03)
 ;; =>
