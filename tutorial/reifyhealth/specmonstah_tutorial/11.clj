@@ -4,25 +4,36 @@
             [reifyhealth.specmonstah.spec-gen :as sg]))
 
 (s/def ::id (s/and pos-int? #(< % 100)))
-(s/def ::topic-id ::id)
-(s/def ::first-post-id ::id)
 
-(s/def ::post (s/keys :req-un [::id ::topic-id]))
-(s/def ::topic (s/keys :req-un [::id ::first-post-id]))
+(s/def ::post (s/keys :req-un [::id]))
+
+(s/def ::favorite-ids (s/coll-of ::id))
+(s/def ::user (s/keys :req-un [::id ::favorite-ids]))
 
 (def schema
-  {:topic {:prefix    :t
-           :spec      ::topic
-           :relations {:first-post-id [:post :id]}}
-   :post  {:prefix      :p
-           :relations   {:topic-id [:topic :id]}
-           :constraints {:topic-id #{:required}}
-           :spec        ::post}})
+  {:post {:prefix :p
+          :spec   ::post}
+   :user {:prefix      :u
+          :spec        ::user
+          :relations   {:favorite-ids [:post :id]}
+          :constraints {:favorite-ids #{:coll}}}})
 
 (defn ex-01
   []
-  (sg/ent-db-spec-gen-attr {:schema schema} {:post [[1]]}))
+  (sg/ent-db-spec-gen-attr {:schema schema} {:user [[1]]}))
 
 (defn ex-02
   []
-  (sm/view (sm/add-ents {:schema schema} {:post [[1]]})))
+  (sg/ent-db-spec-gen-attr {:schema schema}
+                           {:user [[1 {:refs {:favorite-ids 3}}]]}))
+
+(defn ex-03
+  []
+  (sm/view (sm/add-ents {:schema schema}
+                        {:user [[2 {:refs {:favorite-ids 3}}]]})))
+
+(defn ex-04
+  []
+  (sm/view (sm/add-ents {:schema schema}
+                        {:user [[1 {:refs {:favorite-ids [:my-p0 :my-p1]}}]
+                                [1 {:refs {:favorite-ids [:my-p2 :my-p3]}}]]})))
