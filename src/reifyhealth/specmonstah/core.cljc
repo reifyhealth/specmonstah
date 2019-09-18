@@ -711,13 +711,10 @@
    (visit-ents db visit-key visit-fns (sort-ents db)))
   ([db visit-key visit-fns ents]
    (let [visit-fns (if (sequential? visit-fns) visit-fns [visit-fns])]
-     (reduce (fn [db ent]
-               (reduce (fn [db visit-fn]
-                         (update db :data lat/add-attr ent visit-key (visit-fn db (visit-fn-data db ent visit-key))))
-                       db
-                       visit-fns))
+     (reduce (fn [db [visit-fn ent]]
+               (update db :data lat/add-attr ent visit-key (visit-fn db (visit-fn-data db ent visit-key))))
              db
-             ents))))
+             (for [visit-fn visit-fns ent ents] [visit-fn ent])))))
 
 (defn visit-ents-once
   "Like `visit-ents` but doesn't call `visit-fn` if the ent already

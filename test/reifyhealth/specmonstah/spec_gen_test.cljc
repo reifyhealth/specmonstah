@@ -260,6 +260,14 @@
     (is (= @gen-data-cycle-db
            [:tl0 :t0]))))
 
+(deftest handles-cycle-ids
+  (testing "spec-gen correctly sets foreign keys for cycles"
+    (let [gen (sg/ent-db-spec-gen-attr {:schema td/cycle-schema} {:todo [[1]]})]
+      (is (ids-present? gen))
+      (is (ids-match? gen
+                      {:t0  {:todo-list-id [:tl0 :id]}
+                       :tl0 {:first-todo-id [:t0 :id]}})))))
+
 (deftest throws-exception-on-2nd-map-ent-attr-try
   (testing "insert-cycle fails because the schema contains a :required cycle"
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
