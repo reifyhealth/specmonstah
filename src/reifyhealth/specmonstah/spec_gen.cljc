@@ -7,15 +7,6 @@
 
 (s/def ::ent-attrs (s/map-of ::sm/ent-attr ::sm/any))
 
-(defn assoc-relation
-  "Look up related ent's attr value and assoc with parent ent
-  attr. `:coll` relations will add value to a vector."
-  [gen-data relation-attr relation-val constraints]
-  
-  (if (contains? (relation-attr constraints) :coll)
-    (update gen-data relation-attr #((fnil conj []) % relation-val))
-    (assoc gen-data relation-attr relation-val)))
-
 (defn omit-relation?
   [db ent-name ent-attr-key]
   (let [{{ref ent-attr-key} :refs} (sm/query-opts db ent-name)]
@@ -40,6 +31,15 @@
   (let [{:keys [spec]} (sm/ent-schema db ent-name)]
     (->> (gen/generate (s/gen spec))
          (reset-relations db ent-name))))
+
+(defn assoc-relation
+  "Look up related ent's attr value and assoc with parent ent
+  attr. `:coll` relations will add value to a vector."
+  [gen-data relation-attr relation-val constraints]
+  
+  (if (contains? (relation-attr constraints) :coll)
+    (update gen-data relation-attr #((fnil conj []) % relation-val))
+    (assoc gen-data relation-attr relation-val)))
 
 (defn spec-gen-assoc-relations
   "Next, look up referenced attributes and assign them"
@@ -75,6 +75,7 @@
 (def spec-gen [spec-gen-generate-ent-val
                spec-gen-merge-overwrites
                spec-gen-assoc-relations])
+
 
 (defn ent-db-spec-gen
   "Convenience function to build a new db using the spec-gen mapper
