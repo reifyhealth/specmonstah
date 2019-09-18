@@ -711,13 +711,10 @@
    (visit-ents db visit-key visit-fns (sort-ents db)))
   ([db visit-key visit-fns ents]
    (let [visit-fns (if (sequential? visit-fns) visit-fns [visit-fns])]
-     (reduce (fn [db ent]
-               (reduce (fn [db visit-fn]
-                         (update db :data lat/add-attr ent visit-key (visit-fn db (visit-fn-data db ent visit-key))))
-                       db
-                       visit-fns))
+     (reduce (fn [db [visit-fn ent]]
+               (update db :data lat/add-attr ent visit-key (visit-fn db (visit-fn-data db ent visit-key))))
              db
-             ents))))
+             (for [visit-fn visit-fns ent ents] [visit-fn ent])))))
 
 (defn visit-ents-once
   "Like `visit-ents` but doesn't call `visit-fn` if the ent already
@@ -740,30 +737,6 @@
                              (visit-fn db visit-data))))
                        visit-fns)
                  ents))))
-
-(defn assoc-relation
-  "Look up related ent's attr value and assoc with parent ent
-  attr. `:coll` relations will add value to a vector."
-  [gen-data relation-attr relation-val constraints]
-  
-  (if (contains? (relation-attr constraints) :coll)
-    (update gen-data relation-attr #((fnil conj []) % relation-val))
-    (assoc gen-data relation-attr relation-val)))
-
-(defn assoc-relations-visitor
-  "Visitor that looks up visit attr vals for refenced ents and assocs
-  them with the given ent. For example, if :tl0's :user-id should be
-  set to :u0's :id, this will make that happen."
-  [db {:keys [ent-name visit-key visit-val]}]
-  (let [{:keys [constraints]} (ent-schema db ent-name)]
-    (reduce (fn [ent-data [referenced-ent relation-attr]]
-              (assoc-relation ent-data
-                              relation-attr
-                              (get-in (ent-attr db referenced-ent visit-key)
-                                      (:path (query-relation db ent-name relation-attr)))
-                              constraints))
-            visit-val
-            (referenced-ent-attrs db ent-name))))
 
 ;; -----------------
 ;; views

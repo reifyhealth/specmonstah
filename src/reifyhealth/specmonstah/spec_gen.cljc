@@ -32,19 +32,50 @@
     (->> (gen/generate (s/gen spec))
          (reset-relations db ent-name))))
 
+(defn assoc-relation
+  "Look up related ent's attr value and assoc with parent ent
+  attr. `:coll` relations will add value to a vector."
+  [gen-data relation-attr relation-val constraints]
+  
+  (if (contains? (relation-attr constraints) :coll)
+    (update gen-data relation-attr #((fnil conj []) % relation-val))
+    (assoc gen-data relation-attr relation-val)))
+
+(defn spec-gen-assoc-relations
+  "Next, look up referenced attributes and assign them"
+  [db {:keys [ent-name visit-key visit-val]}]
+  (let [{:keys [constraints]} (sm/ent-schema db ent-name)
+        skip-keys             (:overwritten (meta visit-val))]
+    (->> (sm/referenced-ent-attrs db ent-name)
+         (filter (comp (complement skip-keys) second))
+         (reduce (fn [ent-data [referenced-ent relation-attr]]
+                   (assoc-relation ent-data
+                                   relation-attr
+                                   (get-in (sm/ent-attr db referenced-ent visit-key)
+                                           (:path (sm/query-relation db ent-name relation-attr)))
+                                   constraints))
+                 visit-val))))
+
 (defn spec-gen-merge-overwrites
   "Finally, merge any overwrites specified in the schema or query"
   [db {:keys [ent-name visit-val visit-key visit-query-opts]}]
-  (let [{:keys [spec-gen]} (sm/ent-schema db ent-name)]
-    (cond-> visit-val
-      (fn? spec-gen)          spec-gen
-      (map? spec-gen)         (merge spec-gen)
-      (fn? visit-query-opts)  visit-query-opts
-      (map? visit-query-opts) (merge visit-query-opts))))
+  (let [{:keys [spec-gen]} (sm/ent-schema db ent-name)
+        merged             (cond-> visit-val
+                             (fn? spec-gen)          spec-gen
+                             (map? spec-gen)         (merge spec-gen)
+                             (fn? visit-query-opts)  visit-query-opts
+                             (map? visit-query-opts) (merge visit-query-opts))
+        changed-keys       (->> (clojure.data/diff visit-val merged)
+                                (take 2)
+                                (map keys)
+                                (apply into)
+                                (set))]
+    (with-meta merged {:overwritten changed-keys})))
 
 (def spec-gen [spec-gen-generate-ent-val
-               sm/assoc-relations-visitor
-               spec-gen-merge-overwrites])
+               spec-gen-merge-overwrites
+               spec-gen-assoc-relations])
+
 
 (defn ent-db-spec-gen
   "Convenience function to build a new db using the spec-gen mapper
