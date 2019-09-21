@@ -35,8 +35,7 @@
 (defn assoc-relation
   "Look up related ent's attr value and assoc with parent ent
   attr. `:coll` relations will add value to a vector."
-  [gen-data relation-attr relation-val constraints]
-  
+  [gen-data relation-attr relation-val constraints]  
   (if (contains? (relation-attr constraints) :coll)
     (update gen-data relation-attr #((fnil conj []) % relation-val))
     (assoc gen-data relation-attr relation-val)))
@@ -58,11 +57,10 @@
 
 (defn spec-gen-merge-overwrites
   "Finally, merge any overwrites specified in the schema or query"
-  [db {:keys [ent-name visit-val visit-key visit-query-opts]}]
-  (let [{:keys [spec-gen]} (sm/ent-schema db ent-name)
-        merged             (cond-> visit-val
-                             (fn? spec-gen)          spec-gen
-                             (map? spec-gen)         (merge spec-gen)
+  [db {:keys [ent-name visit-val visit-key visit-query-opts schema-opts]}]
+  (let [merged             (cond-> visit-val
+                             (fn? schema-opts)       schema-opts
+                             (map? schema-opts)      (merge schema-opts)
                              (fn? visit-query-opts)  visit-query-opts
                              (map? visit-query-opts) (merge visit-query-opts))
         changed-keys       (->> (clojure.data/diff visit-val merged)
