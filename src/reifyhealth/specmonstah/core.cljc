@@ -661,35 +661,68 @@
          (map #(related-ents-by-attr db ent-name %))
          set)))
 
-(defn sort-by-required
-  "If :a0 depends on :b0, returns the vector [:b0 :a0]. Used to sort
+#_(defn sort-by-required
+    "If :a0 depends on :b0, returns the vector [:b0 :a0]. Used to sort
   ents when ref cycles are present."
-  [{:keys [schema data] :as db} ents]
-  (loop [ordered           []
-         tried             #{}
-         [ent & remaining] ents]
-    (cond (nil? ent) ordered
+    [{:keys [schema data] :as db} ents]
+    (loop [ordered           []
+           tried             #{}
+           [ent & remaining] ents]
+      (cond (nil? ent) ordered
 
-          (empty? (set/difference (required-ents db ent) (set ordered)))
-          (recur (conj ordered ent) (conj tried ent) remaining)
+            (empty? (set/difference (required-ents db ent) (set ordered)))
+            (recur (conj ordered ent) (conj tried ent) remaining)
 
-          (contains? tried ent)
-          (throw (ex-info "Can't order ents: check for a :required cycle"
-                          {:ent ent :tried tried :remaining remaining}))
-          
-          :else
-          (recur ordered (conj tried ent) (concat remaining [ent])))))
+            (contains? tried ent)
+            (throw (ex-info "Can't order ents: check for a :required cycle"
+                            {:ent ent :tried tried :remaining remaining}))
+            
+            :else
+            (recur ordered (conj tried ent) (concat remaining [ent])))))
 
 (defn topsort-ents
   [{:keys [data]}]
-  (la/topsort (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data)))
+  (reverse (la/topsort (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data))))
+
+(defn required-attrs
+  [{:keys [schema]}]
+  (->> (for [[ent-type ent-schema]   schema
+             [attr-name constraints] (:constraints ent-schema)
+             :when                   (contains? constraints :required)]
+         [ent-type #{attr-name}])
+       (group-by first)
+       (medley/map-vals (fn [xs] (->> xs (map second) (apply set/union))))))
+
+(defn prune-required
+  [{:keys [data] :as db} required-attrs]
+  (assoc db :data
+         (reduce-kv (fn [g ent-type attrs]
+                      (reduce (fn [g ent]
+                                (reduce (fn [g successor]
+                                          (if (seq (set/intersection attrs (lat/attr g ent successor :relation-attrs)))
+                                            (lg/remove-edges g [successor ent])
+                                            g))
+                                        g
+                                        (lg/successors g ent)))
+                              g
+                              (lg/successors g ent-type)))
+                    data
+                    required-attrs)))
+
+(defn sort-by-required
+  [db]
+  (topsort-ents (prune-required db (required-attrs db))))
 
 (defn sort-ents
   "Attempts to topsort ents. If that's not possible (cycles present),
   uses `sort-by-required` to resolve ordering of ents in cycle"
   [db]
-  (or (seq (reverse (topsort-ents db)))
-      (sort-by-required db (ents db))))
+  (let [sorted (or (seq (topsort-ents db))
+                   (sort-by-required db))]
+    (when (and (empty? sorted) (not-empty (ents db)))
+      (throw (ex-info "Can't sort ents: check for cycles in ent type relations. If a cycle is present, use the :required constraint to indicate ordering."
+                      {})))
+    sorted))
 
 (defn visit-fn-data
   "When a visit fn is called, it's passed this map as its second argument"
@@ -701,7 +734,8 @@
                 :visit-val        (visit-key attrs)
                 :visit-key        visit-key
                 :query-opts       q-opts
-                :visit-query-opts (visit-key q-opts)}]
+                :visit-query-opts (visit-key q-opts)
+                :schema-opts      (visit-key (ent-schema db ent))}]
     (merge attrs base)))
 
 (defn visit-ents

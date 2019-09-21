@@ -1,21 +1,9 @@
-(ns reifyhealth.specmonstah.test-data
-  (:require #?(:clj [clojure.test :refer [deftest is are use-fixtures testing]]
-               :cljs [cljs.test :include-macros true])
-            [clojure.spec.alpha :as s]
+(ns specmonstah-demo.examples.schemas
+  (:require [clojure.spec.alpha :as s]
             [clojure.test.check.generators :as gen :include-macros true]
-            [clojure.data :as data]))
-
-;; Test helper functions
-(defn submap?
-  "All vals in m1 are present in m2"
-  [m1 m2]
-  (nil? (first (data/diff m1 m2))))
+            [shadow.resource :as rc]))
 
 (def id-seq (atom 0))
-
-(defn test-fixture [f]
-  (reset! id-seq 0)
-  (f))
 
 (s/def ::id
   (s/with-gen
@@ -23,7 +11,7 @@
     #(gen/fmap (fn [_] (swap! id-seq inc)) (gen/return nil))))
 
 
-(s/def ::user-name #{"Luigi"})
+(s/def ::user-name #{"Maggie" "Linh" "Bubba" "Tomm" "Rory" "Link" "Janie"})
 (s/def ::user (s/keys :req-un [::id ::user-name]))
 
 (s/def ::created-by-id ::id)
@@ -46,7 +34,7 @@
 (s/def ::todo-list-ids (s/coll-of ::todo-list-id))
 (s/def ::project (s/keys :req-un [::id ::todo-list-ids ::created-by-id ::updated-by-id]))
 
-(def schema
+(def todo-schema
   {:user            {:spec   ::user
                      :prefix :u}
    :attachment      {:spec      ::attachment
@@ -77,34 +65,5 @@
                      :prefix      :p}})
 
 
-(def cycle-schema
-  {:user      {:spec      ::user
-               :prefix    :u
-               :relations {:updated-by-id [:user :id]}}
-   :todo      {:spec        ::todo
-               :relations   {:todo-list-id [:todo-list :id]}
-               :constraints {:todo-list-id #{:required}}
-               :spec-gen    {:todo-title "write unit tests"}
-               :prefix      :t}
-   :todo-list {:spec      ::todo-list
-               :relations {:first-todo-id [:todo :id]}
-               :prefix    :tl}})
-
-(s/def ::topic-category (s/keys :req-un [::id]))
-
-(s/def ::topic-category-id ::id)
-(s/def ::topic (s/keys :req-un [::id ::topic-category-id]))
-
-(s/def ::watched-id ::id)
-(s/def ::watch (s/keys :req-un [::id ::watched-id]))
-
-(def polymorphic-schema
-  {:topic-category {:spec ::topic-category
-                    :prefix :tc}
-   :topic          {:spec ::topic
-                    :relations {:topic-category-id [:topic-category :id]}
-                    :prefix :t}
-   :watch          {:spec ::watch
-                    :relations {:watched-id #{[:topic-category :id]
-                                              [:topic :id]}}
-                    :prefix :w}})
+(def todo-schema-txt
+  (rc/inline "./todo-schema.edn"))

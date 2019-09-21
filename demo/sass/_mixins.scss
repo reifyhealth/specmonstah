@@ -1,0 +1,59 @@
+$border-radius: 2px;
+$box-shadow: 0 1px 2px 0px rgba(0, 0, 0, 0.2);
+
+@mixin nugget-border () {
+  border-radius: $border-radius;
+  box-shadow: $box-shadow;
+  background: white;
+}
+
+@mixin nugget-padding () {
+  padding: 1.25em 1em 1.25em;
+}
+
+@mixin nugget () {
+  @include nugget-border;
+  @include nugget-padding;
+}
+
+.nugget {
+  @include nugget;
+  p:last-child {
+    margin-bottom: 0;
+  }
+  &.break {
+    margin-bottom: 1rem;
+  }
+}
+
+@mixin button() {
+  @include typeset($sans, $ams-down1, 2, 0, 0);
+  font-family: font-family-of($sans);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 0 .75em;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  margin-top:1rem;
+  position: relative;
+  transition: all 0.15s;
+
+  &:active {
+    outline: none;
+  }
+  &:focus {
+    outline: none;
+  }
+}
+
+@mixin button-small {
+  padding: .25em;
+  border-radius: .5em;
+  width: 1em;
+  text-align: center;
+}

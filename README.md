@@ -9,45 +9,69 @@
 ## Deps
 
 ```clojure
-[reifyhealth/specmonstah "2.0.0-alpha-1"]
+[reifyhealth/specmonstah "2.0.0-alpha-2"]
 ```
 
-## Introduction
+## Rationale
 
-Specmonstah (Boston for "Specmonster") lets you generate and
-manipulate deeply-nested, hierarchical graphs of business data (what
-you typically store in a relational database) using a concise
-DSL. It's great for dramatically reducing the amount of boilerplate
-code you have to write for tests. It's similar in purpose to Ruby's
-[factory_bot](https://github.com/thoughtbot/factory_bot).
+Specmonstah (Boston for "Specmonster") lets you write test fixtures
+that are clear, concise, and easy to maintain. It's great for
+dramatically reducing test boilerplate.
 
-![Specmonstah purpose](docs/diagram.png)
+Say you have a forum and you want to test a scenario where a post has
+gotten three likes by three different users. You'd first have to
+create a hierarchy of records for the post, topic, topic category, and
+user. You have to make sure that all the foreign keys are correct
+(e.g. the post's `:topic-id` is set to the topic's `:id`) and that
+everything is inserted in the right order.
 
-For example, say you need to test a function that inserts a _Todo_ in
-a database: your foreign key constraints would require you to first
-insert the _TodoList_ that the Todo belongs to, and the _User_ that
-the TodoList and Todo belong to. Instead of having to write something
-like this:
+With Specmonstah, all you have to do is **write code like** this:
 
 ```clojure
-(let [user      (create-user! {:username "bob" :email "bob@bob-town.com"})
-      todo-list (create-todo-list! {:title         "Bob convention todos"
-                                    :created-by-id (:id user)})]
-  (create-todo! {:description "Book flight"
-                 :todo-list-id (:id todo-list)
-                 :created-by-id (:id user)}))
+(insert {:like [[3]]})
 ```
 
-Specmonstah lets you write something like this:
+and **these records get inserted** in a database (in the order
+displayed):
 
 ```clojure
-(create! {:todo [[1 {:spec-gen {:description "Book flight"}}]]})
+[[:user {:id 1 :username "T2TD3pAB79X5"}]
+ [:user {:id 2 :username "ziJ9GnvNMOHcaUz"}]
+ [:topic-category {:id 3 :created-by-id 2 :updated-by-id 2}]
+ [:topic {:id 6
+          :topic-category-id 3
+          :title "4juV71q9Ih9eE1"
+          :created-by-id 2
+          :updated-by-id 2}]
+ [:post {:id 10 :topic-id 6 :created-by-id 2 :updated-by-id 2}]
+ [:like {:id 14 :post-id 10 :created-by-id 1}]
+ [:like {:id 17 :post-id 10 :created-by-id 2}]
+ [:user {:id 20 :username "b73Ts5BoO"}]
+ [:like {:id 21 :post-id 10 :created-by-id 20}]]
 ```
 
-Specmonstah (SM) creates the User and TodoList, and ensures that the
-TodoList correctly references the User and the Todo correctly
-references the TodoList and user. Call me crazy, but I think the
-second snippet is preferable to the first.
+Without Specmonstah, you'd have to write something like this to
+achieve the same result:
+
+```clojure
+(let [user-1 (create-user! {:username "u1" :email "e1@example.co"})
+      user-2 (create-user! {:username "u2" :email "e2@example.co"})
+      user-3 (create-user! {:username "u3" :email "e3@example.co"})
+      tc     (create-topic-category! {:created-by-id (:id user-1), :updated-by-id (:id user-1)})
+      t      (create-topic! {:title             "topic"
+                             :created-by-id     (:id user-1)
+                             :updated-by-id     (:id user-1)
+                             :topic-category-id (:id tc)})
+      p      (create-post! {:topic-id (:id t), :created-by-id, (:id user-1), :updated-by-id (:id user-1)})]
+  (create-like! {:user-id (:id user-1) :post-id (:id p)})
+  (create-like! {:user-id (:id user-2) :post-id (:id p)})
+  (create-like! {:user-id (:id user-3) :post-id (:id p)}))
+```
+
+Call me crazy, but I think `(insert {:like [[3]]})` is better. The
+Specmonstah DSL communicates what's important about the scenario
+you're trying to test. It elimiinates all the visual noise that
+results from having to type out the foreign key relationships.
 
 ## I know this README is hella long but read this part at least
 
