@@ -176,6 +176,10 @@ todos or todo lists?
 
 ## Usage
 
+This is meant as a quick reference. If none of the terms below make
+sense, [check out the
+tutorial](https://sweet-tooth.gitbook.io/specmonstah/tutorial).
+
 In Specmonstah, you _add ents_ to an _ent db_ using a _schema_ and
 _query_. You associate ents with attributes (and perform side effects
 like db insertion) using _visiting functions_.
