@@ -1,4 +1,4 @@
-<img align="right" src="docs/monstahs.png">
+<img align="right" src="docs/small-monstahs.png">
 
 # Specmonstah
 
