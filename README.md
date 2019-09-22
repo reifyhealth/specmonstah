@@ -1,4 +1,4 @@
-![Specmonstah](docs/monstahs.png)
+<img align="right" src="docs/monstahs.png">
 
 # Specmonstah
 
