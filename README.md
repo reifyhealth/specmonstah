@@ -172,3 +172,102 @@ todos or todo lists?
 (insert {:like [[1]]})
 @mock-db
 ```
+
+
+## Usage
+
+In Specmonstah, you _add ents_ to an _ent db_ using a _schema_ and
+_query_. You associate ents with attributes (and perform side effects
+like db insertion) using _visiting functions_.
+
+### Schema
+
+A schema is a map of _ent types_ to _ent type schemas_:
+
+```clojure
+;; example schema
+(def schema
+  {:user {:prefix :u}
+   :post {:prefix :p}
+   :like {:prefix      :l
+          :spec        ::like
+          :relations   {:post-id       [:post :id]
+                        :created-by-id [:user :id]}
+          :constraints {:created-by-id #{:uniq}}}})
+```
+
+* Every ent type schema must have a `:prefix` key. This is used to
+  name the ents Specmonstah generates.
+* `:spec` is used by the `reifyhealth.specmonstah.spec-gen/spec-gen`
+  visiting function to generate values for ents using clojure.spec
+* `:relations` specify how ents of different types reference each other
+* `:constraints` provide additional rules around ent generation and visitation:
+  * `:uniq` means that every generated ent must reference a unique ent
+    of the given type. In the schema above, multiple `:like`s must
+    each reference a distinct `:user`.
+  * `:coll` indicates that the given attribute can reference multiple
+    ents. [See the
+    tutorial](https://sweet-tooth.gitbook.io/specmonstah/tutorial/11-collect-constraint-vector-of-foreign-keys)
+  * `:required` is used to indicate ent sort order when your ent graph has a cycle
+
+You can also add arbitrary keys to the schema matching the
+`visit-key`s you give to visiting functions. The schema will be
+available to the visiting function under the key `schema-opts`.
+
+### Queries
+
+You specify ents to add to an _ent db_ using a _query_:
+
+```clojure
+(sm/add-ents {:schema schema} {:like [[3]]})
+```
+
+Above, `{:like [[3]]}` is a query meaning "Add 3 likes to the ent db,
+as well as the hierarchy of ents necessary for 3 likes to be present."
+
+When you add ents to the ent db, that means that Specmonstah has
+created a graph node to represent the ent and added it an internal
+graph that represents all their ents and their relationships.
+
+### Visiting functions
+
+You can apply a function to each ent's graph node in topologically
+sorted (topsort) order and associate the return value as a node
+attribute. 
+
+(Topsort means that if a `:post` references a `:user`, then the
+`:user` will be placed before the `:post` in the sort.)
+
+```clojure
+(-> (sm/add-ents {:schema good-schema} {:like [[3]]})
+    (sm/visit-ents :prn (fn [db {:keys [ent-name ent-type]}]
+                          (prn [ent-name ent-type]))))
+[:u1 :user]
+[:p0 :post]
+[:l1 :like]
+[:u0 :user]
+[:l0 :like]
+[:u2 :user]
+[:l2 :like]
+```
+
+In the example above, `sm/visit-ents` is used to apply an anonymous
+function to every ent, printing the ent's name and type. The `:prn`
+key is called the _visit key_. The return value of the visiting
+function is associated with each ent node using the visit key.
+
+The first argument to the visit function is always the entire ent
+db. The second argument is a map that includes the following keys:
+
+* `:ent-name`: `:u0`, `:u1` and the like
+* `:attrs`: a map of all node attrs for the ent. These attrs are also
+  merged into the map passed to the visit function
+* `:visit-val` - current value of the visit attr for this node. Could
+  be present from previous visits.
+* `:visit-key`, the key used to associate the return value of the
+  visit fn with the node
+* `:query-opts`: any options you might have included in the query used
+  to generate this node
+* `:visit-query-opts`: just looks up the value of `:visit-key` in the
+  `:query-opts` map
+* `:schema-opts`: any options set for `:visit-key` in the schema
