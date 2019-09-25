@@ -3,13 +3,13 @@
             [clojure.spec.gen.alpha :as gen]
             [reifyhealth.specmonstah.core :as sm]))
 
-(def spec-gen-ent-attr-key :spec-gen)
+(def spec-gen-visit-key :spec-gen)
 
 (s/def ::ent-attrs (s/map-of ::sm/ent-attr ::sm/any))
 
 (defn omit-relation?
-  [db ent-name ent-attr-key]
-  (let [{{ref ent-attr-key} :refs} (sm/query-opts db ent-name)]
+  [db ent-name visit-key]
+  (let [{{ref visit-key} :refs} (sm/query-opts db ent-name)]
     (sm/omit? ref)))
 
 (defn reset-relations
@@ -80,11 +80,11 @@
   and the default attr-key"
   [db query]
   (-> (sm/add-ents db query)
-      (sm/visit-ents-once spec-gen-ent-attr-key spec-gen)))
+      (sm/visit-ents-once spec-gen-visit-key spec-gen)))
 
 (defn ent-db-spec-gen-attr
   "Convenience function to return a map of `{ent-name gen-data}` using
   the db returned by `ent-db-spec-gen`"
   [db query]
   (-> (ent-db-spec-gen db query)
-      (sm/attr-map spec-gen-ent-attr-key)))
+      (sm/attr-map spec-gen-visit-key)))

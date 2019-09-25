@@ -184,7 +184,7 @@
 ;; testing inserting
 (defn insert
   [{:keys [data] :as db} {:keys [ent-name visit-key attrs]}]
-  (swap! gen-data-db conj [(:ent-type attrs) ent-name (sg/spec-gen-ent-attr-key attrs)]))
+  (swap! gen-data-db conj [(:ent-type attrs) ent-name (sg/spec-gen-visit-key attrs)]))
 
 (deftest test-insert-gen-data
   (-> (sg/ent-db-spec-gen {:schema td/schema} {:todo [[1]]})
@@ -251,7 +251,7 @@
 (defn insert-cycle
   [db {:keys [ent-name visit-key]}]
   (do (swap! gen-data-cycle-db conj ent-name)
-      (sm/ent-attr db ent-name sg/spec-gen-ent-attr-key)))
+      (sm/ent-attr db ent-name sg/spec-gen-visit-key)))
 
 (deftest handle-cycles-with-constraints-and-reordering
   (testing "todo-list is inserted before todo because todo requires todo-list"
