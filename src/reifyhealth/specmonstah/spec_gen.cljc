@@ -1,6 +1,7 @@
 (ns reifyhealth.specmonstah.spec-gen
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
+            [clojure.data :as data]
             [reifyhealth.specmonstah.core :as sm]))
 
 (def spec-gen-visit-key :spec-gen)
@@ -63,7 +64,7 @@
                              (map? schema-opts)      (merge schema-opts)
                              (fn? visit-query-opts)  visit-query-opts
                              (map? visit-query-opts) (merge visit-query-opts))
-        changed-keys       (->> (clojure.data/diff visit-val merged)
+        changed-keys       (->> (data/diff visit-val merged)
                                 (take 2)
                                 (map keys)
                                 (apply into)
