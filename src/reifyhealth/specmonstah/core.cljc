@@ -589,7 +589,7 @@
 
   (let [diff (set/difference (set (keys query)) (set (keys schema)))]
     (assert (empty? diff)
-            (str "The following ent types are not defined in your schema: " diff)))
+            (str "The following ent types are in your query but aren't defined in your schema: " diff)))
   
   (throw-invalid-spec "db" ::db db)
   (throw-invalid-spec "query" ::query query)

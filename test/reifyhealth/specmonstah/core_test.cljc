@@ -773,7 +773,7 @@
 (deftest assert-query-does-not-contain-unknown-ent-types
   (is (thrown-with-msg? #?(:clj java.lang.AssertionError
                            :cljs js/Error)
-                        #"The following ent types are not defined in your schema: #\{:bluser\}"
+                        #"The following ent types are in your query but aren't defined in your schema: #\{:bluser\}"
                         (sm/add-ents {:schema {:user  {:prefix :u}}}
                                      {:bluser [[1]]}))))
 
