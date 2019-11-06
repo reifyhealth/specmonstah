@@ -1,12 +1,22 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2019-11-5
+
+### New
+
+- It's all entirely different now. Please see https://sweet-tooth.gitbook.io/specmonstah/ for a tutorial.
+
+### Changed
+
+- **BREAKING** renamed `reifyhealth.specmonstah.core/build-ent-db` to `reifyhealth.specmonstah.core/add-ents`
+
 ## [1.1.1] - 2017-07-27
 
 ### New
 
 - Added CLJS test tasks
-	
+
 ### Fixed
 
 - Fixed tests when run as CLJS

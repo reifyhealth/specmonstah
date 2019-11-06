@@ -604,12 +604,6 @@
                  (:types db))
          (add-ref-ents))))
 
-(defn ^{:deprecated "2.0.0-alpha-2"} build-ent-db
-  [db query]
-  (binding [*out* *err*]
-    (println "`r.s.core/build-ent-db` was deprecated in 2.0.0-alpha-2 in favor of `r.s.core/add-ents` and will be removed in 2.0.0"))
-  (add-ents db query))
-
 ;; -----------------
 ;; visiting
 ;; -----------------
