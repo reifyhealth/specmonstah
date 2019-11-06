@@ -574,14 +574,26 @@
   "Produce a new db with an ent graph that contains all ents specified
   by query"
   [{:keys [schema] :as db} query]
+  ;; validations
   (let [isr (invalid-schema-relations schema)]
-    (assert (empty? isr) (str "Your schema relations reference nonexistent types: " isr)))
+    (assert (empty? isr)
+            (str "Your schema relations reference nonexistent types: " isr)))
+
   (let [prefix-dupes (identical-prefixes schema)]
-    (assert (empty? prefix-dupes) (str "You have used the same prefix for multiple entity types: " prefix-dupes)))
+    (assert (empty? prefix-dupes)
+            (str "You have used the same prefix for multiple entity types: " prefix-dupes)))
+
   (let [ic (invalid-constraints schema)]
-    (assert (empty? ic) (str "Schema constraints reference nonexistent relation attrs: " ic)))
+    (assert (empty? ic)
+            (str "Schema constraints reference nonexistent relation attrs: " ic)))
+
+  (let [diff (set/difference (set (keys query)) (set (keys schema)))]
+    (assert (empty? diff)
+            (str "The following ent types are not defined in your schema: " diff)))
+  
   (throw-invalid-spec "db" ::db db)
   (throw-invalid-spec "query" ::query query)
+  ;; end validations
   
   (let [db (init-db db query)]
     (->> (reduce (fn [db ent-type]
@@ -648,43 +660,13 @@
         relation-attr  (relation-attrs db ent-name referenced-ent)]
     [referenced-ent relation-attr]))
 
-(defn required-ents
-  "For ent A, returns all the referenced ents that ent A requires as
-  specified in the schema's constraints. Used to order ent sequences;
-  ensures that required ents are positioned before the ents that
-  require them, resolving ambiguity when the reference graph has
-  cycles."
-  [db ent-name]
-  (let [{:keys [constraints]} (ent-schema db ent-name)]
-    (->> (medley/filter-vals :required constraints)
-         keys
-         (map #(related-ents-by-attr db ent-name %))
-         set)))
-
-#_(defn sort-by-required
-    "If :a0 depends on :b0, returns the vector [:b0 :a0]. Used to sort
-  ents when ref cycles are present."
-    [{:keys [schema data] :as db} ents]
-    (loop [ordered           []
-           tried             #{}
-           [ent & remaining] ents]
-      (cond (nil? ent) ordered
-
-            (empty? (set/difference (required-ents db ent) (set ordered)))
-            (recur (conj ordered ent) (conj tried ent) remaining)
-
-            (contains? tried ent)
-            (throw (ex-info "Can't order ents: check for a :required cycle"
-                            {:ent ent :tried tried :remaining remaining}))
-            
-            :else
-            (recur ordered (conj tried ent) (concat remaining [ent])))))
-
 (defn topsort-ents
   [{:keys [data]}]
   (reverse (la/topsort (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data))))
 
 (defn required-attrs
+  "Returns a map of `{:ent-type #{:required-attr-1 :required-attr-2}}`.
+  Used to handle cycles."
   [{:keys [schema]}]
   (->> (for [[ent-type ent-schema]   schema
              [attr-name constraints] (:constraints ent-schema)
@@ -694,16 +676,18 @@
        (medley/map-vals (fn [xs] (->> xs (map second) (apply set/union))))))
 
 (defn prune-required
+  "Updates ent graph, removing edges going from a 'required' ent to the
+  'requiring' ent, thus eliminating cycles."
   [{:keys [data] :as db} required-attrs]
   (assoc db :data
          (reduce-kv (fn [g ent-type attrs]
-                      (reduce (fn [g ent]
-                                (reduce (fn [g successor]
-                                          (if (seq (set/intersection attrs (lat/attr g ent successor :relation-attrs)))
-                                            (lg/remove-edges g [successor ent])
+                      (reduce (fn [g requiring-ent]
+                                (reduce (fn [g required-ent]
+                                          (if (seq (set/intersection attrs (lat/attr g requiring-ent required-ent :relation-attrs)))
+                                            (lg/remove-edges g [required-ent requiring-ent])
                                             g))
                                         g
-                                        (lg/successors g ent)))
+                                        (lg/successors g requiring-ent)))
                               g
                               (lg/successors g ent-type)))
                     data

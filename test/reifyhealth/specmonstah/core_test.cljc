@@ -560,7 +560,7 @@
          (set (sm/query-ents (sm/add-ents {:schema td/schema} {:user [[1]]
                                                                :todo [[1]]}))))))
 
-(deftest testadd-entsb-throws-exception-on-invalid-db
+(deftest test-add-ents-throws-exception-on-invalid-db
   (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
                            :cljs js/Object)
                         #"db is invalid"
@@ -751,21 +751,31 @@
   (is (thrown-with-msg? #?(:clj java.lang.AssertionError
                            :cljs js/Error)
                         #"Your schema relations reference nonexistent types: "
-                        (sm/add-ents {:schema {:user {:relations {:u1 [:circle :circle-id]}}}} {}))))
+                        (sm/add-ents {:schema {:user {:relations {:u1 [:circle :circle-id]}}}}
+                                     {}))))
 
 (deftest assert-no-dupe-prefixes
   (is (thrown-with-msg? #?(:clj java.lang.AssertionError
                            :cljs js/Error)
                         #"You have used the same prefix for multiple entity types: "
                         (sm/add-ents {:schema {:user  {:prefix :u}
-                                               :user2 {:prefix :u}}} {}))))
+                                               :user2 {:prefix :u}}}
+                                     {}))))
 
 (deftest assert-constraints-must-ref-existing-relations
   (is (thrown-with-msg? #?(:clj java.lang.AssertionError
                            :cljs js/Error)
-                        #"Schema constraints reference nonexistent relation attrs: "
+                        #"Schema constraints reference nonexistent relation attrs: \{:user #\{:blarb\}\}"
                         (sm/add-ents {:schema {:user  {:prefix :u
-                                                       :constraints {:blarb :coll}}}} {}))))
+                                                       :constraints {:blarb :coll}}}}
+                                     {}))))
+
+(deftest assert-query-does-not-contain-unknown-ent-types
+  (is (thrown-with-msg? #?(:clj java.lang.AssertionError
+                           :cljs js/Error)
+                        #"The following ent types are not defined in your schema: #\{:bluser\}"
+                        (sm/add-ents {:schema {:user  {:prefix :u}}}
+                                     {:bluser [[1]]}))))
 
 (deftest enforces-coll-schema-constraints
   (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
