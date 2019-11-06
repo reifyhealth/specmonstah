@@ -10,7 +10,7 @@
 ## Deps
 
 ```clojure
-[reifyhealth/specmonstah "2.0.0-alpha-2"]
+[reifyhealth/specmonstah "2.0.0"]
 ```
 
 ## Purpose
