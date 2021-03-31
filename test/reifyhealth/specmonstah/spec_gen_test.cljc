@@ -81,7 +81,7 @@
                              :updated-by-id [:u0 :id]
                              :todo-list-id  [:tl0 :id]}}))
       (is (only-has-ents? gen #{:tl0 :t0 :u0}))))
-  
+
   (testing "Manual attribute setting for reference field"
     (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo [[:_ {:spec-gen {:created-by-id 1}}]]})]
       (is (td/submap? {:u0 {:user-name "Luigi"}

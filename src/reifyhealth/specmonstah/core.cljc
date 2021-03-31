@@ -1,11 +1,10 @@
 (ns reifyhealth.specmonstah.core
-  (:require [loom.alg :as la]
+  (:require #?(:bb  [loom.alg-generic :as lgen]
+               :clj [loom.alg :as la])
             [loom.attr :as lat]
             [loom.graph :as lg]
             [loom.derived :as ld]
-            #?(:clj [loom.io :as lio])
             [medley.core :as medley]
-            [better-cond.core :as b]
             [clojure.test.check.generators :as gen :include-macros true]
             [clojure.string :as str]
             [clojure.set :as set]
@@ -49,7 +48,7 @@
 
 ;; A relation is the description of how ents of type A reference ents
 ;; of type B. For example, in this:
-;; 
+;;
 ;; {:user {}
 ;;  :todo {:relations {:created-by-id [:user :id]}}}
 ;;
@@ -80,7 +79,7 @@
 ;; relations are monotype relations. example:
 ;;
 ;; {:topic {:relations {:topic-category-id [:topic-category :id]}}}
-;; 
+;;
 ;; `[:topic-category-id :id]` is a monotype relation
 (s/def ::monotype-relation
   (s/cat :ent-type ::ent-type
@@ -120,9 +119,9 @@
 
 ;; the prefix is used for ent auto-generation to uniquely identify
 ;; ents. Given this schema:
-;; 
+;;
 ;; {:user {:prefix :u}}
-;; 
+;;
 ;; the query `{:user [[2]]}` would produce ents with `ent-name` `:u0`
 ;; and `:u1`
 (s/def ::prefix keyword?)
@@ -183,7 +182,7 @@
 
 ;; examples:
 ;; generate 5 of a thing
-;; [[5]] 
+;; [[5]]
 ;;
 ;; generate 1 of a thing, don't generate the ent corresponding to created-by-id:
 ;; [[1 {:refs {:created-by-id ::omit}}]]
@@ -323,7 +322,7 @@
 (defn add-edge-with-id
   "When indicating :ent-a references :ent-b, include a
   `:relation-attrs` graph attribute that includes the attributes via
-  which `:ent-a` references `:ent-b`. 
+  which `:ent-a` references `:ent-b`.
 
   For example, if the `:project` named `:p0` has an `:owner-id` and
   `:updated-by-id` that both reference the `:user` named `:u0`, then
@@ -377,7 +376,7 @@
   (let [coll-attr?                      (coll-relation-attr? db ent-name relation-attr)
         {:keys [qr-constraint qr-term]} (conformed-query-opts query-term relation-attr)]
     (cond (or (nil? qr-constraint) (= :omit qr-constraint)) nil ;; noop
-          
+
           (and coll-attr? (not= qr-constraint :coll))
           (throw (ex-info "Query-relations for coll attrs must be a number or vector"
                           {:spec-data (s/explain-data ::coll-query-relations qr-term)}))
@@ -393,21 +392,22 @@
 
     (validate-related-ents-query db ent-name relation-attr query-term)
 
-    (b/cond (= qr-constraint :omit) []
-            (= qr-type :ent-count)  (mapv (partial numeric-node-name schema related-ent-type) (range qr-term))
-            (= qr-type :ent-names)  qr-term
-            (= qr-type :ent-name)   [qr-term]
-            :let [bn (get bind related-ent-type)]
-            bn   [bn]
-            
-            :let [has-bound-descendants? (bound-descendants? db bind related-ent-type)
-                  uniq?                  (uniq-relation-attr? db ent-name relation-attr)
-                  ent-index              (lat/attr data ent-name :index)]
-            (and has-bound-descendants? uniq?) [(bound-relation-attr-name db ent-name related-ent-type ent-index)]
-            has-bound-descendants?             [(bound-relation-attr-name db ent-name related-ent-type 0)]
-            uniq?                              [(numeric-node-name schema related-ent-type ent-index)]
-            related-ent-type                   [(default-node-name db related-ent-type)]
-            :else                              [])))
+    (cond (= qr-constraint :omit) []
+      (= qr-type :ent-count)  (mapv (partial numeric-node-name schema related-ent-type) (range qr-term))
+      (= qr-type :ent-names)  qr-term
+      (= qr-type :ent-name)   [qr-term]
+      (get bind related-ent-type)   [(get bind related-ent-type)]
+
+      :else
+      (let [has-bound-descendants? (bound-descendants? db bind related-ent-type)
+            uniq?                  (uniq-relation-attr? db ent-name relation-attr)
+            ent-index              (lat/attr data ent-name :index)]
+        (cond
+          (and has-bound-descendants? uniq?) [(bound-relation-attr-name db ent-name related-ent-type ent-index)]
+          has-bound-descendants?             [(bound-relation-attr-name db ent-name related-ent-type 0)]
+          uniq?                              [(numeric-node-name schema related-ent-type ent-index)]
+          related-ent-type                   [(default-node-name db related-ent-type)]
+          :else                              [])))))
 
 (defn query-relation
   "Returns the conformed relation for an ent's relation-attr. Handles
@@ -590,11 +590,11 @@
   (let [diff (set/difference (set (keys query)) (set (keys schema)))]
     (assert (empty? diff)
             (str "The following ent types are in your query but aren't defined in your schema: " diff)))
-  
+
   (throw-invalid-spec "db" ::db db)
   (throw-invalid-spec "query" ::query query)
   ;; end validations
-  
+
   (let [db (init-db db query)]
     (->> (reduce (fn [db ent-type]
                    (if-let [ent-type-query (ent-type query)]
@@ -654,9 +654,27 @@
         relation-attr  (relation-attrs db ent-name referenced-ent)]
     [referenced-ent relation-attr]))
 
+#?(:bb
+   (defn topsort
+   "Topological sort of a directed acyclic graph (DAG). Returns nil if
+      g contains any cycles."
+   ([g]
+    (loop [seen #{}
+           result ()
+           [n & ns] (seq (lg/nodes g))]
+      (if-not n
+        result
+        (if (seen n)
+          (recur seen result ns)
+          (when-let [cresult (lgen/topsort-component
+                              (lg/successors g) n seen seen)]
+            (recur (into seen cresult) (concat cresult result) ns))))))
+   ([g start]
+    (lgen/topsort-component (lg/successors g) start))))
+
 (defn topsort-ents
   [{:keys [data]}]
-  (reverse (la/topsort (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data))))
+  (reverse (#?(:bb topsort :clj la/topsort) (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data))))
 
 (defn required-attrs
   "Returns a map of `{:ent-type #{:required-attr-1 :required-attr-2}}`.
@@ -821,8 +839,12 @@
                   (s/map-of ::ent-name
                             (s/map-of ::ent-attr ::ent-name))))
 
-#?(:clj
-   (defn view
-     "View with loom"
-     [{:keys [data]}]
-     (lio/view data)))
+#?(:bb
+   nil
+   :clj
+   (do
+     (require '[loom.io :as lio])
+     (defn view
+       "View with loom"
+       [{:keys [data]}]
+       (lio/view data))))
