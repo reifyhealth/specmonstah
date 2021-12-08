@@ -1,10 +1,9 @@
+;; This file exists for easilyrunning clj tests. More work needs to bedone to replace boot
+;; completely
 {:paths ["src"]
  :deps {aysylu/loom             {:mvn/version "1.0.2"}
         medley/medley           {:mvn/version "0.8.3"}
-        borkdude/spartan.spec   {:git/url "https://github.com/borkdude/spartan.spec"
-                                 :sha "e5c9f40ebcc64b27b3e3e83ad2a285ccc0997097"}
-        ; org.clojure/spec.alpha  {:mvn/version "RELEASE"}
-        }
+        org.clojure/spec.alpha  {:mvn/version "0.3.218"}}
  :aliases
  {:test
   {:extra-paths ["test"]

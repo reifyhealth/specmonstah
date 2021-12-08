@@ -12,8 +12,9 @@
 
 #?(:bb nil
    :clj (do
-     (require '[clojure.spec.test.alpha :as stest])
-     (use-fixtures :once (fn [t] (stest/instrument) (t)))))
+          (require '[clojure.spec.test.alpha :as stest])
+          ;; Still fails in bb with 'No matching method applyTo found taking 1 args for class sci.impl.fns$fun$arity'
+          (use-fixtures :once (fn [t] (stest/instrument) (t)))))
 
 (defmacro is-graph=
   "Breaks graph equality test into comparisons on graph keys to

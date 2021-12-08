@@ -18,9 +18,9 @@
   (f))
 
 (s/def ::id
-  (s/spec
+  (s/with-gen
     pos-int?
-    :gen #(gen/fmap (fn [_] (swap! id-seq inc)) (gen/return nil))))
+    #(gen/fmap (fn [_] (swap! id-seq inc)) (gen/return nil))))
 
 
 (s/def ::user-name #{"Luigi"})
