@@ -1,6 +1,6 @@
 (ns reifyhealth.specmonstah.core
   (:require #?(:bb  [loom.alg-generic :as lgen]
-               :clj [loom.alg :as la])
+               :default [loom.alg :as la])
             [loom.attr :as lat]
             [loom.graph :as lg]
             [loom.derived :as ld]
@@ -674,7 +674,7 @@
 
 (defn topsort-ents
   [{:keys [data]}]
-  (reverse (#?(:bb topsort :clj la/topsort) (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data))))
+  (reverse (#?(:bb topsort :default la/topsort) (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data))))
 
 (defn required-attrs
   "Returns a map of `{:ent-type #{:required-attr-1 :required-attr-2}}`.
