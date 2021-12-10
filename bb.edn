@@ -1,8 +1,10 @@
 {:paths ["src" "test"]
  :deps {aysylu/loom             {:mvn/version "1.0.2"}
         medley/medley           {:mvn/version "0.8.3"}
+        better-cond/better-cond {:mvn/version "2.0.1-SNAPSHOT"}
+        org.clojure/core.specs.alpha {:mvn/version "0.2.62"}
         org.babashka/spec.alpha {:git/url "https://github.com/babashka/spec.alpha"
-                                 :git/sha "4fb8ef0f8ca1700e7ff152b7691e5170eeb8690f"}}
+                                 :git/sha "4b76776ca84403555dc03cbf7fc285ebfe3907ec"}}
  :tasks
  {test {:extra-paths ["test"]
         :extra-deps {io.github.cognitect-labs/test-runner

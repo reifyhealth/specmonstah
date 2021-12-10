@@ -1,8 +1,10 @@
-;; This file exists for easilyrunning clj tests. More work needs to bedone to replace boot
-;; completely
+;; This file currently exists for easily running clj tests.
+;; To replace build.boot, more work needs to be done e.g.
+;; configure cljs and provide tasks e.g. deploy and testing
 {:paths ["src"]
  :deps {aysylu/loom             {:mvn/version "1.0.2"}
         medley/medley           {:mvn/version "0.8.3"}
+        better-cond/better-cond {:mvn/version "2.0.1-SNAPSHOT"}
         org.clojure/spec.alpha  {:mvn/version "0.3.218"}}
  :aliases
  {:test
@@ -12,6 +14,6 @@
   :runner
   {:extra-deps {com.cognitect/test-runner
                 {:git/url "https://github.com/cognitect-labs/test-runner.git"
-                 :sha     "b6b3193fcc42659d7e46ecd1884a228993441182"}}
+                 :git/sha "b6b3193fcc42659d7e46ecd1884a228993441182"}}
    :main-opts  ["-m" "cognitect.test-runner"
                 "-d" "test"]}}}

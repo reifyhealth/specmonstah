@@ -2,6 +2,7 @@
   (:require #?(:clj [clojure.test :refer [deftest is are use-fixtures testing]]
                :cljs [cljs.test :include-macros true :refer [deftest is are use-fixtures testing]])
             [clojure.spec.alpha :as s]
+            [clojure.spec.test.alpha :as stest]
             [clojure.test.check.generators :as gen :include-macros true]
             [reifyhealth.specmonstah.test-data :as td]
             [reifyhealth.specmonstah.core :as sm]
@@ -10,11 +11,7 @@
 
 (use-fixtures :each td/test-fixture)
 
-#?(:bb nil
-   :clj (do
-          (require '[clojure.spec.test.alpha :as stest])
-          ;; Still fails in bb with 'No matching method applyTo found taking 1 args for class sci.impl.fns$fun$arity'
-          (use-fixtures :once (fn [t] (stest/instrument) (t)))))
+(use-fixtures :once (fn [t] (stest/instrument) (t)))
 
 (defmacro is-graph=
   "Breaks graph equality test into comparisons on graph keys to
@@ -72,12 +69,12 @@
                  (lat/add-attr :u0 :index 0)
                  (lat/add-attr :u0 :query-term [3])
                  (lat/add-attr :u0 :ent-type :user)
-
+                 
                  (lat/add-attr :u1 :type :ent)
                  (lat/add-attr :u1 :index 1)
                  (lat/add-attr :u1 :query-term [3])
                  (lat/add-attr :u1 :ent-type :user)
-
+                 
                  (lat/add-attr :u2 :type :ent)
                  (lat/add-attr :u2 :index 2)
                  (lat/add-attr :u2 :query-term [3])
@@ -86,7 +83,7 @@
 (deftest test-add-ents-one-level-relation
   (is-graph= (:data (sm/add-ents {:schema td/schema} {:todo-list [[1]]}))
              (-> (lg/digraph [:user :u0] [:todo-list :tl0] [:tl0 :u0])
-
+                 
                  (lat/add-attr :user :type :ent-type)
                  (lat/add-attr :u0 :type :ent)
                  (lat/add-attr :u0 :index 0)
@@ -98,7 +95,7 @@
                  (lat/add-attr :tl0 :index 0)
                  (lat/add-attr :tl0 :ent-type :todo-list)
                  (lat/add-attr :tl0 :query-term [1])
-
+                 
                  (lat/add-attr :tl0 :u0 :relation-attrs #{:created-by-id :updated-by-id}))))
 
 (deftest test-add-ents-one-level-relation-with-omit
@@ -120,7 +117,7 @@
                              [:todo-list :tl1]
                              [:tl0 :bloop]
                              [:tl1 :bloop])
-
+                 
                  (lat/add-attr :user :type :ent-type)
                  (lat/add-attr :bloop :type :ent)
                  (lat/add-attr :bloop :index 0)
@@ -171,14 +168,14 @@
                    (lat/add-attr :u0 :index 0)
                    (lat/add-attr :u0 :query-term [:_])
                    (lat/add-attr :u0 :ent-type :user)
-
+                   
                    (lat/add-attr :project :type :ent-type)
                    (lat/add-attr :p0 :type :ent)
                    (lat/add-attr :p0 :index 0)
                    (lat/add-attr :p0 :query-term [:_ {:refs {:todo-list-ids 2}}])
                    (lat/add-attr :p0 :ent-type :project)
                    (lat/add-attr :p0 :u0 :relation-attrs #{:created-by-id :updated-by-id})
-
+                   
                    (lat/add-attr :todo-list :type :ent-type)
                    (lat/add-attr :tl0 :type :ent)
                    (lat/add-attr :tl0 :index 0)
@@ -209,14 +206,14 @@
                    (lat/add-attr :u0 :index 0)
                    (lat/add-attr :u0 :query-term [:_])
                    (lat/add-attr :u0 :ent-type :user)
-
+                   
                    (lat/add-attr :project :type :ent-type)
                    (lat/add-attr :p0 :type :ent)
                    (lat/add-attr :p0 :index 0)
                    (lat/add-attr :p0 :query-term [:_ {:refs {:todo-list-ids [:mario :luigi]}}])
                    (lat/add-attr :p0 :ent-type :project)
                    (lat/add-attr :p0 :u0 :relation-attrs #{:created-by-id :updated-by-id})
-
+                   
                    (lat/add-attr :todo-list :type :ent-type)
                    (lat/add-attr :mario :type :ent)
                    (lat/add-attr :mario :index 0)
@@ -258,7 +255,7 @@
                              [:t0 :bloop]
                              [:t0 :tl-bound-t-0]
                              [:tl-bound-t-0 :bloop])
-
+                 
                  (lat/add-attr :user :type :ent-type)
                  (lat/add-attr :bloop :type :ent)
                  (lat/add-attr :bloop :index 0)
@@ -297,7 +294,7 @@
                                [:t2 :bloop]
                                [:t2 :tl-bound-t-0]
                                [:tl-bound-t-0 :bloop])
-
+                   
                    (lat/add-attr :user :type :ent-type)
                    (lat/add-attr :bloop :type :ent)
                    (lat/add-attr :bloop :index 0)
@@ -353,7 +350,7 @@
                                [:todo-list-watch :tlw1]
                                [:tlw1 :bloop]
                                [:tlw1 :tl-bound-tlw-1])
-
+                   
                    (lat/add-attr :user :type :ent-type)
                    (lat/add-attr :bloop :type :ent)
                    (lat/add-attr :bloop :index 0)
@@ -404,7 +401,7 @@
                              [:t-bound-a-0 :bloop]
                              [:t-bound-a-0 :tl-bound-a-0]
                              [:tl-bound-a-0 :bloop])
-
+                 
                  (lat/add-attr :user :type :ent-type)
                  (lat/add-attr :bloop :type :ent)
                  (lat/add-attr :bloop :index 0)
@@ -455,7 +452,7 @@
                  (lat/add-attr :u0 :index 0)
                  (lat/add-attr :u0 :ent-type :user)
                  (lat/add-attr :u0 :query-term [:_])
-
+                 
                  (lat/add-attr :todo-list :type :ent-type)
                  (lat/add-attr :tl0 :type :ent)
                  (lat/add-attr :tl0 :index 0)
@@ -467,7 +464,7 @@
                  (lat/add-attr :tl1 :index 1)
                  (lat/add-attr :tl1 :ent-type :todo-list)
                  (lat/add-attr :tl1 :query-term [:_])
-
+                 
                  (lat/add-attr :todo-list-watch :type :ent-type)
                  (lat/add-attr :tlw0 :type :ent)
                  (lat/add-attr :tlw0 :index 0)
@@ -479,7 +476,7 @@
                  (lat/add-attr :tlw1 :index 1)
                  (lat/add-attr :tlw1 :ent-type :todo-list-watch)
                  (lat/add-attr :tlw1 :query-term [2])
-
+                 
                  (lat/add-attr :tl0 :u0 :relation-attrs #{:updated-by-id :created-by-id})
                  (lat/add-attr :tl1 :u0 :relation-attrs #{:updated-by-id :created-by-id})
 
@@ -535,7 +532,7 @@
                    (lat/add-attr :t0 :query-term [:t0 {:refs {:todo-list-id :tl0}}])
                    (lat/add-attr :t0 :ent-type :todo)
                    (lat/add-attr :t0 :tl0 :relation-attrs #{:todo-list-id})
-
+                   
                    (lat/add-attr :todo-list :type :ent-type)
                    (lat/add-attr :tl0 :type :ent)
                    (lat/add-attr :tl0 :index 0)
@@ -606,7 +603,7 @@
                  (lat/add-attr :tc0 :index 0)
                  (lat/add-attr :tc0 :query-term [:_])
                  (lat/add-attr :tc0 :ent-type :topic-category)
-
+                 
                  (lat/add-attr :watch :type :ent-type)
                  (lat/add-attr :w0 :type :ent)
                  (lat/add-attr :w0 :index 0)
@@ -625,7 +622,7 @@
                  (lat/add-attr :tc0 :index 0)
                  (lat/add-attr :tc0 :query-term [:_])
                  (lat/add-attr :tc0 :ent-type :topic-category)
-
+                 
                  (lat/add-attr :watch :type :ent-type)
                  (lat/add-attr :w0 :type :ent)
                  (lat/add-attr :w0 :index 0)
@@ -656,7 +653,7 @@
                  (lat/add-attr :t0 :query-term [:_])
                  (lat/add-attr :t0 :ent-type :topic)
                  (lat/add-attr :t0 :tc0 :relation-attrs #{:topic-category-id})
-
+                 
                  (lat/add-attr :watch :type :ent-type)
                  (lat/add-attr :w0 :type :ent)
                  (lat/add-attr :w0 :index 0)
@@ -689,7 +686,7 @@
                  (lat/add-attr :t0 :query-term [:_ {:bind {:topic-category :tc100}}])
                  (lat/add-attr :t0 :ent-type :topic)
                  (lat/add-attr :t0 :tc100 :relation-attrs #{:topic-category-id})
-
+                 
                  (lat/add-attr :watch :type :ent-type)
                  (lat/add-attr :w0 :type :ent)
                  (lat/add-attr :w0 :index 0)

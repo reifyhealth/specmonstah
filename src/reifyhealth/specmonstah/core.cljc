@@ -5,6 +5,7 @@
             [loom.graph :as lg]
             [loom.derived :as ld]
             [medley.core :as medley]
+            [better-cond.core :as b]
             [clojure.test.check.generators :as gen :include-macros true]
             [clojure.string :as str]
             [clojure.set :as set]
@@ -392,22 +393,21 @@
 
     (validate-related-ents-query db ent-name relation-attr query-term)
 
-    (cond (= qr-constraint :omit) []
-      (= qr-type :ent-count)  (mapv (partial numeric-node-name schema related-ent-type) (range qr-term))
-      (= qr-type :ent-names)  qr-term
-      (= qr-type :ent-name)   [qr-term]
-      (get bind related-ent-type)   [(get bind related-ent-type)]
+    (b/cond (= qr-constraint :omit) []
+            (= qr-type :ent-count)  (mapv (partial numeric-node-name schema related-ent-type) (range qr-term))
+            (= qr-type :ent-names)  qr-term
+            (= qr-type :ent-name)   [qr-term]
+            :let [bn (get bind related-ent-type)]
+            bn   [bn]
 
-      :else
-      (let [has-bound-descendants? (bound-descendants? db bind related-ent-type)
-            uniq?                  (uniq-relation-attr? db ent-name relation-attr)
-            ent-index              (lat/attr data ent-name :index)]
-        (cond
-          (and has-bound-descendants? uniq?) [(bound-relation-attr-name db ent-name related-ent-type ent-index)]
-          has-bound-descendants?             [(bound-relation-attr-name db ent-name related-ent-type 0)]
-          uniq?                              [(numeric-node-name schema related-ent-type ent-index)]
-          related-ent-type                   [(default-node-name db related-ent-type)]
-          :else                              [])))))
+            :let [has-bound-descendants? (bound-descendants? db bind related-ent-type)
+                  uniq?                  (uniq-relation-attr? db ent-name relation-attr)
+                  ent-index              (lat/attr data ent-name :index)]
+            (and has-bound-descendants? uniq?) [(bound-relation-attr-name db ent-name related-ent-type ent-index)]
+            has-bound-descendants?             [(bound-relation-attr-name db ent-name related-ent-type 0)]
+            uniq?                              [(numeric-node-name schema related-ent-type ent-index)]
+            related-ent-type                   [(default-node-name db related-ent-type)]
+            :else                              [])))
 
 (defn query-relation
   "Returns the conformed relation for an ent's relation-attr. Handles
@@ -655,6 +655,7 @@
     [referenced-ent relation-attr]))
 
 #?(:bb
+    ;; Copied from la/topsort since bb can't load the loom.alg ns
    (defn topsort
    "Topological sort of a directed acyclic graph (DAG). Returns nil if
       g contains any cycles."
