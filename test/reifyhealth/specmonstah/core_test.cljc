@@ -6,12 +6,11 @@
             [clojure.test.check.generators :as gen :include-macros true]
             [reifyhealth.specmonstah.test-data :as td]
             [reifyhealth.specmonstah.core :as sm]
-            [reifyhealth.specmonstah.spec-gen :as sg]
             [loom.graph :as lg]
-            [loom.alg :as la]
             [loom.attr :as lat]))
 
 (use-fixtures :each td/test-fixture)
+
 (use-fixtures :once (fn [t] (stest/instrument) (t)))
 
 (defmacro is-graph=

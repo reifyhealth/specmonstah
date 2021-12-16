@@ -17,8 +17,15 @@ jobs:
           name: Check deps
           command: boot show -d
       - run:
-          name: Run tests
+          name: Run clj and cljs tests
           command: boot test-all
+      - run:
+          name: Install bb
+          command: |
+            sudo bash < <(curl -s https://raw.githubusercontent.com/babashka/babashka/master/install)
+      - run:
+          name: Run bb tests
+          command: bb test
       - run:
           name: Build
           command: boot make  # Validate the namespaces are correct
