@@ -36,7 +36,7 @@
 (defn assoc-relation
   "Look up related ent's attr value and assoc with parent ent
   attr. `:coll` relations will add value to a vector."
-  [gen-data relation-attr relation-val constraints]  
+  [gen-data relation-attr relation-val constraints]
   (if (contains? (relation-attr constraints) :coll)
     (update gen-data relation-attr #((fnil conj []) % relation-val))
     (assoc gen-data relation-attr relation-val)))
