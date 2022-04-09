@@ -777,9 +777,9 @@
 
 (defn query-ents
   "Get seq of nodes that are explicitly defined in the query"
-  [{:keys [data queries] :as db}]
+  [{:keys [data] :as _db}]
   (->> (:attrs data)
-       (filter (fn [[ent-name attrs]] (:top-level (meta (:query-term attrs)))))
+       (filter (fn [[_ent-name attrs]] (:top-level (meta (:query-term attrs)))))
        (map first)))
 
 (defn ents-by-type
