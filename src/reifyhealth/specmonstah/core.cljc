@@ -6,7 +6,6 @@
             [loom.derived :as ld]
             [medley.core :as medley]
             [better-cond.core :as b]
-            [clojure.test.check.generators :as gen :include-macros true]
             [clojure.string :as str]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]))
