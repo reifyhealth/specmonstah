@@ -766,7 +766,10 @@
 
 (defn omit-relation?
   [db ent-name reference-key]
-  (omit? (get-in (query-opts db ent-name) [:refs reference-key])))
+  (-> db
+      (query-opts ent-name)
+      (get-in [:refs reference-key])
+      omit?))
 
 (defn reset-relations
   "Generated data generates values agnostic of any schema constraints that may be
