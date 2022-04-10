@@ -275,3 +275,8 @@ db. The second argument is a map that includes the following keys:
 * `:visit-query-opts`: just looks up the value of `:visit-key` in the
   `:query-opts` map
 * `:schema-opts`: any options set for `:visit-key` in the schema
+
+## TODO
+
+- document `:bind` syntax
+- document `wrap-gen-data-visiting-fn`
