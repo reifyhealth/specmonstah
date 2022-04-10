@@ -1,5 +1,5 @@
 (ns reifyhealth.specmonstah.core
-  (:require #?(:bb  [loom.alg-generic :as lgen]
+  (:require #?(:bb      [loom.alg-generic :as lgen]
                :default [loom.alg :as la])
             [loom.attr :as lat]
             [loom.graph :as lg]
@@ -612,19 +612,9 @@
   [{:keys [data]}]
   (lg/nodes (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data)))
 
-(defn attr-map
-  "Produce a map where each key is a node and its value is a graph
-  attr on that node"
-  ([db attr] (attr-map db attr (ents db)))
-  ([{:keys [data] :as db} attr ents]
-   (->> ents
-        (reduce (fn [m ent] (assoc m ent (lat/attr data ent attr)))
-                {})
-        (into (sorted-map)))))
-
 (defn relation-attrs
   "Given an ent A and an ent it references B, return the set of attrs
-  by which A references B"
+  by which A references B."
   [{:keys [data]} ent-name referenced-ent]
   (lat/attr data ent-name referenced-ent :relation-attrs))
 
@@ -768,12 +758,44 @@
                        visit-fns)
                  ents))))
 
+(defn assoc-referenced-val
+  "Look up related ent's attr value and assoc with parent ent
+  attr. `:coll` relations will add value to a vector."
+  [ent-data relation-attr relation-val constraints]
+  (if (contains? (relation-attr constraints) :coll)
+    (update ent-data relation-attr #((fnil conj []) % relation-val))
+    (assoc ent-data relation-attr relation-val)))
+
+(defn assoc-referenced-vals
+  [db {:keys [ent-name visit-key visit-val]}]
+  (let [{:keys [constraints]} (ent-schema db ent-name)
+        skip-keys             (:overwritten (meta visit-val) #{})]
+    (->> (referenced-ent-attrs db ent-name)
+         (filter (comp (complement skip-keys) second))
+         (reduce (fn [ent-data [referenced-ent relation-attr]]
+                   (assoc-referenced-val ent-data
+                                         relation-attr
+                                         (get-in (ent-attr db referenced-ent visit-key)
+                                                 (:path (query-relation db ent-name relation-attr)))
+                                         constraints))
+                 visit-val))))
+
 ;; -----------------
 ;; views
 ;; -----------------
 
 ;; convenience functions for getting projections of the ent db,
 ;; considering the ent db has a lot of loom bookkeeping
+
+(defn attr-map
+  "Produce a map where each key is a node and its value is a graph
+  attr on that node"
+  ([db attr] (attr-map db attr (ents db)))
+  ([{:keys [data] :as db} attr ents]
+   (->> ents
+        (reduce (fn [m ent] (assoc m ent (lat/attr data ent attr)))
+                {})
+        (into (sorted-map)))))
 
 (defn query-ents
   "Get seq of nodes that are explicitly defined in the query"

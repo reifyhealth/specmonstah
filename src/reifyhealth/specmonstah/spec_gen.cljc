@@ -57,7 +57,7 @@
                  visit-val))))
 
 (defn spec-gen-merge-overwrites
-  "Finally, merge any overwrites specified in the schema or query"
+  "Merge any overwrites specified in the schema or query"
   [db {:keys [ent-name visit-val visit-key visit-query-opts schema-opts]}]
   (let [merged             (cond-> visit-val
                              (fn? schema-opts)       schema-opts

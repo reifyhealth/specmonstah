@@ -2,7 +2,6 @@
   (:require #?(:clj [clojure.test :refer [deftest is are use-fixtures testing]]
                :cljs [cljs.test :include-macros true :refer [deftest is are use-fixtures testing]])
             [clojure.spec.test.alpha :as stest]
-            [clojure.test.check.generators :as gen :include-macros true]
             [reifyhealth.specmonstah.test-data :as td]
             [reifyhealth.specmonstah.core :as sm]
             [loom.graph :as lg]
@@ -693,6 +692,26 @@
                  (sm/visit-ents-once :custom-attr-key (constantly "overwrite!")))]
       (is (= (lat/attr (:data db) :u0 :custom-attr-key)
              "yaaaaay a key")))))
+
+(deftest test-relation-attrs
+  (is (= #{:todo-list-id}
+         (-> (sm/add-ents {:schema td/schema} {:todo [[1]]})
+             (sm/relation-attrs :t0 :tl0)))))
+
+(deftest test-assoc-referenced-vals
+  (let [visiting-fn (fn [db {:keys [ent-name] :as v}]
+                      {:id (str ent-name "-id")})]
+    (is (= {:u0  {:id ":u0-id"}
+            :tl0 {:id            ":tl0-id"
+                  :created-by-id ":u0-id"
+                  :updated-by-id ":u0-id"}
+            :t0  {:id            ":t0-id"
+                  :todo-list-id  ":tl0-id"
+                  :created-by-id ":u0-id"
+                  :updated-by-id ":u0-id"}}
+           (-> (sm/add-ents {:schema td/schema} {:todo [[1]]})
+               (sm/visit-ents-once :test [visiting-fn sm/assoc-referenced-vals])
+               (sm/attr-map :test))))))
 
 ;; -----------------
 ;; view tests
