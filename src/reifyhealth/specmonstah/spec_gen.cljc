@@ -1,8 +1,9 @@
 (ns reifyhealth.specmonstah.spec-gen
-  (:require [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as gen]
-            [clojure.data :as data]
-            [reifyhealth.specmonstah.core :as sm]))
+  (:require
+   [clojure.spec.alpha :as s]
+   [clojure.spec.gen.alpha :as gen]
+   [clojure.data :as data]
+   [reifyhealth.specmonstah.core :as sm]))
 
 (def spec-gen-visit-key :spec-gen)
 
@@ -57,7 +58,7 @@
 
 (defn spec-gen-merge-overwrites
   "Merge any overwrites specified in the schema or query"
-  [db {:keys [ent-name visit-val visit-key visit-query-opts schema-opts]}]
+  [_db {:keys [visit-val visit-query-opts schema-opts]}]
   (let [merged       (cond-> visit-val
                        (fn? schema-opts)       schema-opts
                        (map? schema-opts)      (merge schema-opts)
