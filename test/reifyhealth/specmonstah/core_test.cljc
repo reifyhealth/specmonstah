@@ -699,19 +699,47 @@
              (sm/relation-attrs :t0 :tl0)))))
 
 (deftest test-assoc-referenced-vals
-  (let [visiting-fn (fn [db {:keys [ent-name] :as v}]
-                      {:id (str ent-name "-id")})]
-    (is (= {:u0  {:id ":u0-id"}
-            :tl0 {:id            ":tl0-id"
-                  :created-by-id ":u0-id"
-                  :updated-by-id ":u0-id"}
-            :t0  {:id            ":t0-id"
-                  :todo-list-id  ":tl0-id"
-                  :created-by-id ":u0-id"
-                  :updated-by-id ":u0-id"}}
-           (-> (sm/add-ents {:schema td/schema} {:todo [[1]]})
-               (sm/visit-ents-once :test [visiting-fn sm/assoc-referenced-vals])
-               (sm/attr-map :test))))))
+  (let [gen-id (fn [db {:keys [ent-name] :as v}]
+                 {:id (str ent-name "-id")})]
+    (testing "without custom refs"
+      (is (= {:u0  {:id ":u0-id"}
+              :tl0 {:id            ":tl0-id"
+                    :created-by-id ":u0-id"
+                    :updated-by-id ":u0-id"}
+              :t0  {:id            ":t0-id"
+                    :todo-list-id  ":tl0-id"
+                    :created-by-id ":u0-id"
+                    :updated-by-id ":u0-id"}}
+             (-> (sm/add-ents {:schema td/schema} {:todo [[1]]})
+                 (sm/visit-ents-once :test [gen-id sm/assoc-referenced-vals])
+                 (sm/attr-map :test)))))
+
+    (testing "with custom refs"
+      (is (= {:custom-user {:id ":custom-user-id"}
+              :tl0         {:id            ":tl0-id"
+                            :created-by-id ":custom-user-id"
+                            :updated-by-id ":custom-user-id"}}
+             (-> (sm/add-ents
+                  {:schema td/schema}
+                  {:todo-list [[1 {:refs {:created-by-id :custom-user
+                                          :updated-by-id :custom-user}}]]})
+                 (sm/visit-ents-once :test [gen-id sm/assoc-referenced-vals])
+                 (sm/attr-map :test)))))
+
+    (testing "with overwrites"
+      (is (= {:custom-user {:id ":overwritten-id"}
+              :tl0         {:id            ":tl0-id"
+                            :created-by-id ":overwritten-id"
+                            :updated-by-id ":overwritten-id"}}
+             (-> (sm/add-ents
+                  {:schema td/schema}
+                  {:user      [[:custom-user {:test {:id ":overwritten-id"}}]]
+                   :todo-list [[1 {:refs {:created-by-id :custom-user
+                                          :updated-by-id :custom-user}}]]})
+                 (sm/visit-ents-once :test [gen-id
+                                            sm/merge-overwrites
+                                            sm/assoc-referenced-vals])
+                 (sm/attr-map :test)))))))
 
 ;; -----------------
 ;; view tests

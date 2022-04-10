@@ -9,9 +9,8 @@
 (s/def ::ent-attrs (s/map-of ::sm/ent-attr ::sm/any))
 
 (defn omit-relation?
-  [db ent-name visit-key]
-  (let [{{ref visit-key} :refs} (sm/query-opts db ent-name)]
-    (sm/omit? ref)))
+  [db ent-name reference-key]
+  (sm/omit? (get-in (sm/query-opts db ent-name) [:refs reference-key])))
 
 (defn reset-relations
   "The generated data will generate values agnostic of any constraints that may
@@ -23,7 +22,7 @@
   (let [coll-attrs (sm/relation-attrs-with-constraint db ent-name :coll)]
     (into {}
           (comp (map (fn [[k v]] (if (coll-attrs k) [k []] [k v])))
-                (map (fn [[k v]] (if-not (omit-relation? db ent-name k) [k v]))))
+                (map (fn [[k v]] (when-not (omit-relation? db ent-name k) [k v]))))
           ent-data)))
 
 (defn spec-gen-generate-ent-val
@@ -45,7 +44,7 @@
   "Next, look up referenced attributes and assign them"
   [db {:keys [ent-name visit-key visit-val]}]
   (let [{:keys [constraints]} (sm/ent-schema db ent-name)
-        skip-keys             (:overwritten (meta visit-val))]
+        skip-keys             (:overwritten (meta visit-val) #{})]
     (->> (sm/referenced-ent-attrs db ent-name)
          (filter (comp (complement skip-keys) second))
          (reduce (fn [ent-data [referenced-ent relation-attr]]
@@ -59,16 +58,16 @@
 (defn spec-gen-merge-overwrites
   "Merge any overwrites specified in the schema or query"
   [db {:keys [ent-name visit-val visit-key visit-query-opts schema-opts]}]
-  (let [merged             (cond-> visit-val
-                             (fn? schema-opts)       schema-opts
-                             (map? schema-opts)      (merge schema-opts)
-                             (fn? visit-query-opts)  visit-query-opts
-                             (map? visit-query-opts) (merge visit-query-opts))
-        changed-keys       (->> (data/diff visit-val merged)
-                                (take 2)
-                                (map keys)
-                                (apply into)
-                                (set))]
+  (let [merged       (cond-> visit-val
+                       (fn? schema-opts)       schema-opts
+                       (map? schema-opts)      (merge schema-opts)
+                       (fn? visit-query-opts)  visit-query-opts
+                       (map? visit-query-opts) (merge visit-query-opts))
+        changed-keys (->> (data/diff visit-val merged)
+                          (take 2)
+                          (map keys)
+                          (apply into)
+                          (set))]
     (with-meta merged {:overwritten changed-keys})))
 
 (def spec-gen [spec-gen-generate-ent-val

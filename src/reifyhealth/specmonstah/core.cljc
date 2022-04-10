@@ -1,14 +1,16 @@
 (ns reifyhealth.specmonstah.core
-  (:require #?(:bb      [loom.alg-generic :as lgen]
-               :default [loom.alg :as la])
-            [loom.attr :as lat]
-            [loom.graph :as lg]
-            [loom.derived :as ld]
-            [medley.core :as medley]
-            [better-cond.core :as b]
-            [clojure.string :as str]
-            [clojure.set :as set]
-            [clojure.spec.alpha :as s]))
+  (:require
+   [better-cond.core :as b]
+   [clojure.data :as data]
+   [clojure.set :as set]
+   [clojure.spec.alpha :as s]
+   [clojure.string :as str]
+   #?(:bb      [loom.alg-generic :as lgen]
+      :default [loom.alg :as la])
+   [loom.attr :as lat]
+   [loom.derived :as ld]
+   [loom.graph :as lg]
+   [medley.core :as medley]))
 
 ;; specifies that a ref ent should *not* be automatically generated
 (defn omit? [x] (= x ::omit))
@@ -758,6 +760,27 @@
                        visit-fns)
                  ents))))
 
+;; -----------------
+;; visiting w/ referenced vals
+;; -----------------
+
+(defn omit-relation?
+  [db ent-name reference-key]
+  (omit? (get-in (query-opts db ent-name) [:refs reference-key])))
+
+(defn reset-relations
+  "Generated data generates values agnostic of any schema constraints that may be
+  present. This function updates values in the generated data to match up with
+  constraints. First, it will remove any dummy ID's for a `:coll` relation.
+  Next, it will remove any dummy ID's generated for an `:omit` relation. The
+  updated ent-data map will be returned."
+  [db {:keys [ent-name visit-val]}]
+  (let [coll-attrs (relation-attrs-with-constraint db ent-name :coll)]
+    (into {}
+          (comp (map (fn [[k v]] (if (coll-attrs k) [k []] [k v])))
+                (map (fn [[k v]] (when-not (omit-relation? db ent-name k) [k v]))))
+          visit-val)))
+
 (defn assoc-referenced-val
   "Look up related ent's attr value and assoc with parent ent
   attr. `:coll` relations will add value to a vector."
@@ -767,9 +790,16 @@
     (assoc ent-data relation-attr relation-val)))
 
 (defn assoc-referenced-vals
+  "A visiting function that sets referenced values.
+
+  Given a schema like
+  {:user {}
+   :post {:relations {:created-by [:user :id]}}}
+
+  a :post's `:created-by` key gets set to the `:id` of the :user it references."
   [db {:keys [ent-name visit-key visit-val]}]
   (let [{:keys [constraints]} (ent-schema db ent-name)
-        skip-keys             (:overwritten (meta visit-val) #{})]
+        skip-keys             (::overwritten (meta visit-val) #{})]
     (->> (referenced-ent-attrs db ent-name)
          (filter (comp (complement skip-keys) second))
          (reduce (fn [ent-data [referenced-ent relation-attr]]
@@ -779,6 +809,34 @@
                                                  (:path (query-relation db ent-name relation-attr)))
                                          constraints))
                  visit-val))))
+
+(defn merge-overwrites
+  "Overwrites generated data with what's found in schema-opts or
+  visit-query-opts."
+  [_db {:keys [visit-val visit-query-opts schema-opts]}]
+  (let [merged (cond-> visit-val
+                 ;; the schema can include vals to merge into each ent
+                 (fn? schema-opts)  schema-opts
+                 (map? schema-opts) (merge schema-opts)
+
+                 ;; visit query opts can also specify merge vals
+                 (fn? visit-query-opts)  visit-query-opts
+                 (map? visit-query-opts) (merge visit-query-opts))
+        changed-keys (->> (data/diff visit-val merged)
+                          (take 2)
+                          (map keys)
+                          (apply into)
+                          (set))]
+    (with-meta merged {::overwritten changed-keys})))
+
+(defn wrap-gen-data-visiting-fn
+  "Useful when writing visiting fns where data generated for ent A needs to be
+  referenced by ent B."
+  [data-generating-visiting-fn]
+  [data-generating-visiting-fn
+   reset-relations
+   merge-overwrites
+   assoc-referenced-vals])
 
 ;; -----------------
 ;; views
