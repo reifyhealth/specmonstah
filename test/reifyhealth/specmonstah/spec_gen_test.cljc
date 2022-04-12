@@ -1,12 +1,9 @@
 (ns reifyhealth.specmonstah.spec-gen-test
-  (:require #?(:clj [clojure.test :refer [deftest is are use-fixtures testing]]
-               :cljs [cljs.test :include-macros true :refer [deftest is are use-fixtures testing]])
-            [clojure.spec.alpha :as s]
-            [clojure.test.check.generators :as gen :include-macros true]
+  (:require #?(:clj [clojure.test :refer [deftest is use-fixtures testing]]
+               :cljs [cljs.test :include-macros true :refer [deftest is use-fixtures testing]])
             [reifyhealth.specmonstah.test-data :as td]
             [reifyhealth.specmonstah.core :as sm]
-            [reifyhealth.specmonstah.spec-gen :as sg]
-            [medley.core :as medley]))
+            [reifyhealth.specmonstah.spec-gen :as sg]))
 
 (def gen-data-db (atom []))
 (def gen-data-cycle-db (atom []))
@@ -137,15 +134,15 @@
 
   (testing "Overwriting generated value with schema map"
     (let [gen (sg/ent-db-spec-gen-attr
-                {:schema (assoc-in td/schema [:todo :spec-gen :todo-title] "schema title")}
-                {:todo [[:_ {:spec-gen #(assoc % :updated-by-id :foo)}]]})]
+               {:schema (assoc-in td/schema [:todo :spec-gen :todo-title] "schema title")}
+               {:todo [[:_ {:spec-gen #(assoc % :updated-by-id :foo)}]]})]
       (is (ids-present? gen))
       (is (= "schema title" (-> gen :t0 :todo-title)))))
 
   (testing "Overwriting generated value with schema fn"
     (let [gen (sg/ent-db-spec-gen-attr
-                {:schema (assoc-in td/schema [:todo :spec-gen] #(assoc % :todo-title "boop whooop"))}
-                {:todo [[:_ {:spec-gen #(assoc % :updated-by-id :foo)}]]})]
+               {:schema (assoc-in td/schema [:todo :spec-gen] #(assoc % :todo-title "boop whooop"))}
+               {:todo [[:_ {:spec-gen #(assoc % :updated-by-id :foo)}]]})]
       (is (ids-present? gen))
       (is (= "boop whooop" (-> gen :t0 :todo-title))))))
 
@@ -159,7 +156,9 @@
 
 (deftest test-coll-relval-order
   (testing "When a relation has a `:coll` constraint, order its vals correctly")
-  (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:project [[:_ {:refs {:todo-list-ids 3}}]]})]
+  (let [gen (sg/ent-db-spec-gen-attr
+             {:schema td/schema}
+             {:project [[:_ {:refs {:todo-list-ids 3}}]]})]
     (is (td/submap? {:u0 {:user-name "Luigi"}} gen))
     (is (ids-present? gen))
     (is (= (:todo-list-ids (:p0 gen))
@@ -169,9 +168,11 @@
     (is (only-has-ents? gen #{:tl0 :tl1 :tl2 :u0 :p0}))))
 
 (deftest test-sets-custom-relation-val
-  (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:user      [[:custom-user {:spec-gen {:id 100}}]]
-                                                          :todo-list [[:custom-tl {:refs {:created-by-id :custom-user
-                                                                                          :updated-by-id :custom-user}}]]})]
+  (let [gen (sg/ent-db-spec-gen-attr
+             {:schema td/schema}
+             {:user      [[:custom-user {:spec-gen {:id 100}}]]
+              :todo-list [[:custom-tl {:refs {:created-by-id :custom-user
+                                              :updated-by-id :custom-user}}]]})]
     (is (td/submap? {:custom-user {:user-name "Luigi"
                                    :id        100}}
                     gen))
@@ -250,8 +251,8 @@
 
 (defn insert-cycle
   [db {:keys [ent-name visit-key]}]
-  (do (swap! gen-data-cycle-db conj ent-name)
-      (sm/ent-attr db ent-name sg/spec-gen-visit-key)))
+  (swap! gen-data-cycle-db conj ent-name)
+  (sm/ent-attr db ent-name sg/spec-gen-visit-key))
 
 (deftest handle-cycles-with-constraints-and-reordering
   (testing "todo-list is inserted before todo because todo requires todo-list"

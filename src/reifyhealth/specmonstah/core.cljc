@@ -1,15 +1,16 @@
 (ns reifyhealth.specmonstah.core
-  (:require #?(:bb  [loom.alg-generic :as lgen]
-               :default [loom.alg :as la])
-            [loom.attr :as lat]
-            [loom.graph :as lg]
-            [loom.derived :as ld]
-            [medley.core :as medley]
-            [better-cond.core :as b]
-            [clojure.test.check.generators :as gen :include-macros true]
-            [clojure.string :as str]
-            [clojure.set :as set]
-            [clojure.spec.alpha :as s]))
+  (:require
+   [better-cond.core :as b]
+   [clojure.data :as data]
+   [clojure.set :as set]
+   [clojure.spec.alpha :as s]
+   [clojure.string :as str]
+   #?(:bb      [loom.alg-generic :as lgen]
+      :default [loom.alg :as la])
+   [loom.attr :as lat]
+   [loom.derived :as ld]
+   [loom.graph :as lg]
+   [medley.core :as medley]))
 
 ;; specifies that a ref ent should *not* be automatically generated
 (defn omit? [x] (= x ::omit))
@@ -613,19 +614,9 @@
   [{:keys [data]}]
   (lg/nodes (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data)))
 
-(defn attr-map
-  "Produce a map where each key is a node and its value is a graph
-  attr on that node"
-  ([db attr] (attr-map db attr (ents db)))
-  ([{:keys [data] :as db} attr ents]
-   (->> ents
-        (reduce (fn [m ent] (assoc m ent (lat/attr data ent attr)))
-                {})
-        (into (sorted-map)))))
-
 (defn relation-attrs
   "Given an ent A and an ent it references B, return the set of attrs
-  by which A references B"
+  by which A references B."
   [{:keys [data]} ent-name referenced-ent]
   (lat/attr data ent-name referenced-ent :relation-attrs))
 
@@ -770,17 +761,108 @@
                  ents))))
 
 ;; -----------------
+;; visiting w/ referenced vals
+;; -----------------
+
+(defn omit-relation?
+  [db ent-name reference-key]
+  (-> db
+      (query-opts ent-name)
+      (get-in [:refs reference-key])
+      omit?))
+
+(defn reset-relations
+  "Generated data generates values agnostic of any schema constraints that may be
+  present. This function updates values in the generated data to match up with
+  constraints. First, it will remove any dummy ID's for a `:coll` relation.
+  Next, it will remove any dummy ID's generated for an `:omit` relation. The
+  updated ent-data map will be returned."
+  [db {:keys [ent-name visit-val]}]
+  (let [coll-attrs (relation-attrs-with-constraint db ent-name :coll)]
+    (into {}
+          (comp (map (fn [[k v]] (if (coll-attrs k) [k []] [k v])))
+                (map (fn [[k v]] (when-not (omit-relation? db ent-name k) [k v]))))
+          visit-val)))
+
+(defn assoc-referenced-val
+  "Look up related ent's attr value and assoc with parent ent
+  attr. `:coll` relations will add value to a vector."
+  [ent-data relation-attr relation-val constraints]
+  (if (contains? (relation-attr constraints) :coll)
+    (update ent-data relation-attr #((fnil conj []) % relation-val))
+    (assoc ent-data relation-attr relation-val)))
+
+(defn assoc-referenced-vals
+  "A visiting function that sets referenced values.
+
+  Given a schema like
+  {:user {}
+   :post {:relations {:created-by [:user :id]}}}
+
+  a :post's `:created-by` key gets set to the `:id` of the :user it references."
+  [db {:keys [ent-name visit-key visit-val]}]
+  (let [{:keys [constraints]} (ent-schema db ent-name)
+        skip-keys             (::overwritten (meta visit-val) #{})]
+    (->> (referenced-ent-attrs db ent-name)
+         (filter (comp (complement skip-keys) second))
+         (reduce (fn [ent-data [referenced-ent relation-attr]]
+                   (assoc-referenced-val ent-data
+                                         relation-attr
+                                         (get-in (ent-attr db referenced-ent visit-key)
+                                                 (:path (query-relation db ent-name relation-attr)))
+                                         constraints))
+                 visit-val))))
+
+(defn merge-overwrites
+  "Overwrites generated data with what's found in schema-opts or
+  visit-query-opts."
+  [_db {:keys [visit-val visit-query-opts schema-opts]}]
+  (let [merged (cond-> visit-val
+                 ;; the schema can include vals to merge into each ent
+                 (fn? schema-opts)  schema-opts
+                 (map? schema-opts) (merge schema-opts)
+
+                 ;; visit query opts can also specify merge vals
+                 (fn? visit-query-opts)  visit-query-opts
+                 (map? visit-query-opts) (merge visit-query-opts))
+        changed-keys (->> (data/diff visit-val merged)
+                          (take 2)
+                          (map keys)
+                          (apply into)
+                          (set))]
+    (with-meta merged {::overwritten changed-keys})))
+
+(defn wrap-gen-data-visiting-fn
+  "Useful when writing visiting fns where data generated for ent A needs to be
+  referenced by ent B."
+  [data-generating-visiting-fn]
+  [data-generating-visiting-fn
+   reset-relations
+   merge-overwrites
+   assoc-referenced-vals])
+
+;; -----------------
 ;; views
 ;; -----------------
 
 ;; convenience functions for getting projections of the ent db,
 ;; considering the ent db has a lot of loom bookkeeping
 
+(defn attr-map
+  "Produce a map where each key is a node and its value is a graph
+  attr on that node"
+  ([db attr] (attr-map db attr (ents db)))
+  ([{:keys [data] :as db} attr ents]
+   (->> ents
+        (reduce (fn [m ent] (assoc m ent (lat/attr data ent attr)))
+                {})
+        (into (sorted-map)))))
+
 (defn query-ents
   "Get seq of nodes that are explicitly defined in the query"
-  [{:keys [data queries] :as db}]
+  [{:keys [data] :as _db}]
   (->> (:attrs data)
-       (filter (fn [[ent-name attrs]] (:top-level (meta (:query-term attrs)))))
+       (filter (fn [[_ent-name attrs]] (:top-level (meta (:query-term attrs)))))
        (map first)))
 
 (defn ents-by-type

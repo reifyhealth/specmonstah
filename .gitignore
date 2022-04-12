@@ -20,3 +20,4 @@ pom.xml
 notes.org
 .lein-repl-history
 .cpcache
+cljs-test-runner-out
