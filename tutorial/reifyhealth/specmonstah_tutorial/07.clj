@@ -60,3 +60,12 @@
 (ex-03)
 ;; =>
 {:tl0 {:id 2, :name "v"}}
+
+(defn ex-04
+  []
+  (sg/ent-db-spec-gen-attr {:schema schema}
+                           {:topic [[1 {:refs {:owner-id ::sm/dummy}}]]}))
+
+(ex-04)
+;; =>
+{:tl0 {:owner-id 71, :id 2, :name "v"}}

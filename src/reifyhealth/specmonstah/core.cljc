@@ -13,7 +13,12 @@
    [medley.core :as medley]))
 
 ;; specifies that a ref ent should *not* be automatically generated
-(defn omit? [x] (= x ::omit))
+(defn omit? [x] (isa? x ::omit))
+
+;; Specifies that a ref ent should *not* be automatically generated
+;; but a dummy value should be inserted for it when using
+;; `wrap-gen-data-visiting-fn` for visiting
+(derive ::dummy ::omit)
 
 ;; ent type is specified in the schema, e.g. in this:
 ;; {:user {:prefix :u}}
@@ -765,11 +770,12 @@
 ;; -----------------
 
 (defn omit-relation?
+  "When visiting, should the value for this reference field be `nil`?"
   [db ent-name reference-key]
   (-> db
       (query-opts ent-name)
       (get-in [:refs reference-key])
-      omit?))
+      (= ::omit)))
 
 (defn reset-relations
   "Generated data generates values agnostic of any schema constraints that may be
@@ -800,11 +806,15 @@
    :post {:relations {:created-by [:user :id]}}}
 
   a :post's `:created-by` key gets set to the `:id` of the :user it references."
-  [db {:keys [ent-name visit-key visit-val]}]
+  [db {:keys [ent-name visit-key visit-val query-opts]}]
   (let [{:keys [constraints]} (ent-schema db ent-name)
-        skip-keys             (::overwritten (meta visit-val) #{})]
+        ref-key?              (->> (:refs query-opts)
+                                   (keep (fn [[k ref]] (when (omit? ref) k)))
+                                   (concat (::overwritten (meta visit-val)))
+                                   set
+                                   complement)]
     (->> (referenced-ent-attrs db ent-name)
-         (filter (comp (complement skip-keys) second))
+         (filter (comp ref-key? second))
          (reduce (fn [ent-data [referenced-ent relation-attr]]
                    (assoc-referenced-val ent-data
                                          relation-attr

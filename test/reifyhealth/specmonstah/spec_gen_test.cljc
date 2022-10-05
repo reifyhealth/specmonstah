@@ -121,6 +121,30 @@
       (is (ids-present? gen))
       (is (= nil (-> gen :tl0 :updated-by-id))))))
 
+(deftest test-spec-gen-dummy
+  (testing "Ref not created but attr is given a dummy value for dummy references"
+    (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[:_ {:refs {:created-by-id ::sm/dummy
+                                                                                    :updated-by-id ::sm/dummy}}]]})
+          tl0 (:tl0 gen)]
+      (is (ids-present? gen))
+      (is (only-has-ents? gen #{:tl0}))
+      (is (= #{:id :created-by-id :updated-by-id} (set (keys tl0))))
+      (is (some? (:created-by-id tl0)))
+      (is (some? (:updated-by-id tl0)))))
+
+  (testing "Dummy reference allows overwriting generated value with custom value"
+    (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[:_ {:refs     {:updated-by-id ::sm/dummy}
+                                                                             :spec-gen {:updated-by-id 42}}]]})]
+      (is (ids-present? gen))
+      (is (= 42 (-> gen :tl0 :updated-by-id)))))
+
+  (testing "Dummy reference allows overwriting generated value with nil"
+    (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[:_ {:refs     {:updated-by-id ::sm/dummy}
+                                                                             :spec-gen {:updated-by-id nil}}]]})]
+      (is (ids-present? gen))
+      (is (= nil (-> gen :tl0 :updated-by-id))))))
+
+
 (deftest overwriting
   (testing "Overwriting generated value with query map"
     (let [gen (sg/ent-db-spec-gen-attr {:schema td/schema} {:todo-list [[:_ {:spec-gen {:updated-by-id 42}}]]})]
