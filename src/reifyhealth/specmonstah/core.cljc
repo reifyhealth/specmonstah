@@ -1,15 +1,16 @@
 (ns reifyhealth.specmonstah.core
-  (:require [loom.alg :as la]
-            [loom.attr :as lat]
-            [loom.graph :as lg]
-            [loom.derived :as ld]
-            #?(:clj [loom.io :as lio])
-            [medley.core :as medley]
-            [better-cond.core :as b]
-            [clojure.test.check.generators :as gen :include-macros true]
-            [clojure.string :as str]
-            [clojure.set :as set]
-            [clojure.spec.alpha :as s]))
+  (:require
+   [better-cond.core :as b]
+   [clojure.data :as data]
+   [clojure.set :as set]
+   [clojure.spec.alpha :as s]
+   [clojure.string :as str]
+   #?(:bb      [loom.alg-generic :as lgen]
+      :default [loom.alg :as la])
+   [loom.attr :as lat]
+   [loom.derived :as ld]
+   [loom.graph :as lg]
+   [medley.core :as medley]))
 
 ;; specifies that a ref ent should *not* be automatically generated
 (defn omit? [x] (= x ::omit))
@@ -49,7 +50,7 @@
 
 ;; A relation is the description of how ents of type A reference ents
 ;; of type B. For example, in this:
-;; 
+;;
 ;; {:user {}
 ;;  :todo {:relations {:created-by-id [:user :id]}}}
 ;;
@@ -80,7 +81,7 @@
 ;; relations are monotype relations. example:
 ;;
 ;; {:topic {:relations {:topic-category-id [:topic-category :id]}}}
-;; 
+;;
 ;; `[:topic-category-id :id]` is a monotype relation
 (s/def ::monotype-relation
   (s/cat :ent-type ::ent-type
@@ -120,9 +121,9 @@
 
 ;; the prefix is used for ent auto-generation to uniquely identify
 ;; ents. Given this schema:
-;; 
+;;
 ;; {:user {:prefix :u}}
-;; 
+;;
 ;; the query `{:user [[2]]}` would produce ents with `ent-name` `:u0`
 ;; and `:u1`
 (s/def ::prefix keyword?)
@@ -183,7 +184,7 @@
 
 ;; examples:
 ;; generate 5 of a thing
-;; [[5]] 
+;; [[5]]
 ;;
 ;; generate 1 of a thing, don't generate the ent corresponding to created-by-id:
 ;; [[1 {:refs {:created-by-id ::omit}}]]
@@ -323,7 +324,7 @@
 (defn add-edge-with-id
   "When indicating :ent-a references :ent-b, include a
   `:relation-attrs` graph attribute that includes the attributes via
-  which `:ent-a` references `:ent-b`. 
+  which `:ent-a` references `:ent-b`.
 
   For example, if the `:project` named `:p0` has an `:owner-id` and
   `:updated-by-id` that both reference the `:user` named `:u0`, then
@@ -377,7 +378,7 @@
   (let [coll-attr?                      (coll-relation-attr? db ent-name relation-attr)
         {:keys [qr-constraint qr-term]} (conformed-query-opts query-term relation-attr)]
     (cond (or (nil? qr-constraint) (= :omit qr-constraint)) nil ;; noop
-          
+
           (and coll-attr? (not= qr-constraint :coll))
           (throw (ex-info "Query-relations for coll attrs must be a number or vector"
                           {:spec-data (s/explain-data ::coll-query-relations qr-term)}))
@@ -399,7 +400,7 @@
             (= qr-type :ent-name)   [qr-term]
             :let [bn (get bind related-ent-type)]
             bn   [bn]
-            
+
             :let [has-bound-descendants? (bound-descendants? db bind related-ent-type)
                   uniq?                  (uniq-relation-attr? db ent-name relation-attr)
                   ent-index              (lat/attr data ent-name :index)]
@@ -590,11 +591,11 @@
   (let [diff (set/difference (set (keys query)) (set (keys schema)))]
     (assert (empty? diff)
             (str "The following ent types are in your query but aren't defined in your schema: " diff)))
-  
+
   (throw-invalid-spec "db" ::db db)
   (throw-invalid-spec "query" ::query query)
   ;; end validations
-  
+
   (let [db (init-db db query)]
     (->> (reduce (fn [db ent-type]
                    (if-let [ent-type-query (ent-type query)]
@@ -613,19 +614,9 @@
   [{:keys [data]}]
   (lg/nodes (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data)))
 
-(defn attr-map
-  "Produce a map where each key is a node and its value is a graph
-  attr on that node"
-  ([db attr] (attr-map db attr (ents db)))
-  ([{:keys [data] :as db} attr ents]
-   (->> ents
-        (reduce (fn [m ent] (assoc m ent (lat/attr data ent attr)))
-                {})
-        (into (sorted-map)))))
-
 (defn relation-attrs
   "Given an ent A and an ent it references B, return the set of attrs
-  by which A references B"
+  by which A references B."
   [{:keys [data]} ent-name referenced-ent]
   (lat/attr data ent-name referenced-ent :relation-attrs))
 
@@ -654,9 +645,35 @@
         relation-attr  (relation-attrs db ent-name referenced-ent)]
     [referenced-ent relation-attr]))
 
+#?(:bb
+    ;; Copied from la/topsort since bb can't load the loom.alg ns
+   (defn topsort
+   "Topological sort of a directed acyclic graph (DAG). Returns nil if
+      g contains any cycles."
+   ([g]
+    (loop [seen #{}
+           result ()
+           [n & ns] (seq (lg/nodes g))]
+      (if-not n
+        result
+        (if (seen n)
+          (recur seen result ns)
+          (when-let [cresult (lgen/topsort-component
+                              (lg/successors g) n seen seen)]
+            (recur (into seen cresult) (concat cresult result) ns))))))
+   ([g start]
+    (lgen/topsort-component (lg/successors g) start))))
+
 (defn topsort-ents
   [{:keys [data]}]
-  (reverse (la/topsort (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data))))
+  (->> data
+       lg/edges
+       (filter (fn [[from to]] (= from to)))
+       (apply lg/remove-edges data)
+       (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent))
+       #?(:bb      topsort
+          :default la/topsort)
+       reverse))
 
 (defn required-attrs
   "Returns a map of `{:ent-type #{:required-attr-1 :required-attr-2}}`.
@@ -751,17 +768,108 @@
                  ents))))
 
 ;; -----------------
+;; visiting w/ referenced vals
+;; -----------------
+
+(defn omit-relation?
+  [db ent-name reference-key]
+  (-> db
+      (query-opts ent-name)
+      (get-in [:refs reference-key])
+      omit?))
+
+(defn reset-relations
+  "Generated data generates values agnostic of any schema constraints that may be
+  present. This function updates values in the generated data to match up with
+  constraints. First, it will remove any dummy ID's for a `:coll` relation.
+  Next, it will remove any dummy ID's generated for an `:omit` relation. The
+  updated ent-data map will be returned."
+  [db {:keys [ent-name visit-val]}]
+  (let [coll-attrs (relation-attrs-with-constraint db ent-name :coll)]
+    (into {}
+          (comp (map (fn [[k v]] (if (coll-attrs k) [k []] [k v])))
+                (map (fn [[k v]] (when-not (omit-relation? db ent-name k) [k v]))))
+          visit-val)))
+
+(defn assoc-referenced-val
+  "Look up related ent's attr value and assoc with parent ent
+  attr. `:coll` relations will add value to a vector."
+  [ent-data relation-attr relation-val constraints]
+  (if (contains? (relation-attr constraints) :coll)
+    (update ent-data relation-attr #((fnil conj []) % relation-val))
+    (assoc ent-data relation-attr relation-val)))
+
+(defn assoc-referenced-vals
+  "A visiting function that sets referenced values.
+
+  Given a schema like
+  {:user {}
+   :post {:relations {:created-by [:user :id]}}}
+
+  a :post's `:created-by` key gets set to the `:id` of the :user it references."
+  [db {:keys [ent-name visit-key visit-val]}]
+  (let [{:keys [constraints]} (ent-schema db ent-name)
+        skip-keys             (::overwritten (meta visit-val) #{})]
+    (->> (referenced-ent-attrs db ent-name)
+         (filter (comp (complement skip-keys) second))
+         (reduce (fn [ent-data [referenced-ent relation-attr]]
+                   (assoc-referenced-val ent-data
+                                         relation-attr
+                                         (get-in (ent-attr db referenced-ent visit-key)
+                                                 (:path (query-relation db ent-name relation-attr)))
+                                         constraints))
+                 visit-val))))
+
+(defn merge-overwrites
+  "Overwrites generated data with what's found in schema-opts or
+  visit-query-opts."
+  [_db {:keys [visit-val visit-query-opts schema-opts]}]
+  (let [merged (cond-> visit-val
+                 ;; the schema can include vals to merge into each ent
+                 (fn? schema-opts)  schema-opts
+                 (map? schema-opts) (merge schema-opts)
+
+                 ;; visit query opts can also specify merge vals
+                 (fn? visit-query-opts)  visit-query-opts
+                 (map? visit-query-opts) (merge visit-query-opts))
+        changed-keys (->> (data/diff visit-val merged)
+                          (take 2)
+                          (map keys)
+                          (apply into)
+                          (set))]
+    (with-meta merged {::overwritten changed-keys})))
+
+(defn wrap-gen-data-visiting-fn
+  "Useful when writing visiting fns where data generated for ent A needs to be
+  referenced by ent B."
+  [data-generating-visiting-fn]
+  [data-generating-visiting-fn
+   reset-relations
+   merge-overwrites
+   assoc-referenced-vals])
+
+;; -----------------
 ;; views
 ;; -----------------
 
 ;; convenience functions for getting projections of the ent db,
 ;; considering the ent db has a lot of loom bookkeeping
 
+(defn attr-map
+  "Produce a map where each key is a node and its value is a graph
+  attr on that node"
+  ([db attr] (attr-map db attr (ents db)))
+  ([{:keys [data] :as db} attr ents]
+   (->> ents
+        (reduce (fn [m ent] (assoc m ent (lat/attr data ent attr)))
+                {})
+        (into (sorted-map)))))
+
 (defn query-ents
   "Get seq of nodes that are explicitly defined in the query"
-  [{:keys [data queries] :as db}]
+  [{:keys [data] :as _db}]
   (->> (:attrs data)
-       (filter (fn [[ent-name attrs]] (:top-level (meta (:query-term attrs)))))
+       (filter (fn [[_ent-name attrs]] (:top-level (meta (:query-term attrs)))))
        (map first)))
 
 (defn ents-by-type
@@ -821,8 +929,12 @@
                   (s/map-of ::ent-name
                             (s/map-of ::ent-attr ::ent-name))))
 
-#?(:clj
-   (defn view
-     "View with loom"
-     [{:keys [data]}]
-     (lio/view data)))
+#?(:bb
+   nil
+   :clj
+   (do
+     (require '[loom.io :as lio])
+     (defn view
+       "View with loom"
+       [{:keys [data]}]
+       (lio/view data))))

@@ -1,6 +1,13 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2022-10-7
+
+- Added Babashka support
+- Added Relation helpers `wrap-gen-data-visiting-fn` to support other data generation mechanism
+- Moved to deps.edn
+- Fix visiting entities with self references no longer causes an exception
+
 ## [2.0.0] - 2019-11-5
 
 ### New
