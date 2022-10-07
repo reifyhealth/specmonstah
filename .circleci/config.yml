@@ -8,20 +8,17 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Make user binary directory
-          command: mkdir -p ~/bin
-      - run:
           name: Download boot
-          command: sudo curl -L https://github.com/boot-clj/boot-bin/releases/download/latest/boot.sh -o ~/bin/boot
+          command: sudo curl -L https://github.com/boot-clj/boot-bin/releases/download/latest/boot.sh -o /usr/bin/boot
       - run:
           name: Change boot permissions
-          command: sudo chmod +x ~/bin/boot
+          command: sudo chmod +x /usr/bin/boot
       - run:
           name: Check deps
-          command: ~/bin/boot show -d
+          command: boot show -d
       - run:
           name: Run clj and cljs tests
-          command: ~/bin/boot test-all
+          command: boot test-all
       - run:
           name: Install bb
           command: |
@@ -31,7 +28,7 @@ jobs:
           command: bb test
       - run:
           name: Build
-          command: ~/bin/boot make  # Validate the namespaces are correct
+          command: boot make  # Validate the namespaces are correct
       - save-cache:
           paths:
             - ~/bin
@@ -53,8 +50,14 @@ jobs:
       - attach_workspace:
           at: ./
       - run:
+          name: Download boot
+          command: sudo curl -L https://github.com/boot-clj/boot-bin/releases/download/latest/boot.sh -o /usr/bin/boot
+      - run:
+          name: Change boot permissions
+          command: sudo chmod +x /usr/bin/boot
+      - run:
           name: Deploy to clojars
-          command: ~/bin/boot make push-release-without-gpg
+          command: boot make push-release-without-gpg
 
 workflows:
   version: 2
