@@ -10,7 +10,7 @@
 ## Deps
 
 ```clojure
-[reifyhealth/specmonstah "2.0.0"]
+[reifyhealth/specmonstah "2.1.0"]
 ```
 
 ## Purpose
@@ -237,7 +237,7 @@ graph that represents all their ents and their relationships.
 
 You can apply a function to each ent's graph node in topologically
 sorted (topsort) order and associate the return value as a node
-attribute. 
+attribute.
 
 (Topsort means that if a `:post` references a `:user`, then the
 `:user` will be placed before the `:post` in the sort.)
