@@ -666,7 +666,14 @@
 
 (defn topsort-ents
   [{:keys [data]}]
-  (reverse (#?(:bb topsort :default la/topsort) (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent) data))))
+  (->> data
+       lg/edges
+       (filter (fn [[from to]] (= from to)))
+       (apply lg/remove-edges data)
+       (ld/nodes-filtered-by #(= (lat/attr data % :type) :ent))
+       #?(:bb      topsort
+          :default la/topsort)
+       reverse))
 
 (defn required-attrs
   "Returns a map of `{:ent-type #{:required-attr-1 :required-attr-2}}`.
