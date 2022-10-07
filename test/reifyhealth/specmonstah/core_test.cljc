@@ -67,12 +67,12 @@
                  (lat/add-attr :u0 :index 0)
                  (lat/add-attr :u0 :query-term [3])
                  (lat/add-attr :u0 :ent-type :user)
-                 
+
                  (lat/add-attr :u1 :type :ent)
                  (lat/add-attr :u1 :index 1)
                  (lat/add-attr :u1 :query-term [3])
                  (lat/add-attr :u1 :ent-type :user)
-                 
+
                  (lat/add-attr :u2 :type :ent)
                  (lat/add-attr :u2 :index 2)
                  (lat/add-attr :u2 :query-term [3])
@@ -81,7 +81,7 @@
 (deftest test-add-ents-one-level-relation
   (is-graph= (:data (sm/add-ents {:schema td/schema} {:todo-list [[1]]}))
              (-> (lg/digraph [:user :u0] [:todo-list :tl0] [:tl0 :u0])
-                 
+
                  (lat/add-attr :user :type :ent-type)
                  (lat/add-attr :u0 :type :ent)
                  (lat/add-attr :u0 :index 0)
@@ -93,7 +93,7 @@
                  (lat/add-attr :tl0 :index 0)
                  (lat/add-attr :tl0 :ent-type :todo-list)
                  (lat/add-attr :tl0 :query-term [1])
-                 
+
                  (lat/add-attr :tl0 :u0 :relation-attrs #{:created-by-id :updated-by-id}))))
 
 (deftest test-add-ents-one-level-relation-with-omit
@@ -166,14 +166,14 @@
                    (lat/add-attr :u0 :index 0)
                    (lat/add-attr :u0 :query-term [:_])
                    (lat/add-attr :u0 :ent-type :user)
-                   
+
                    (lat/add-attr :project :type :ent-type)
                    (lat/add-attr :p0 :type :ent)
                    (lat/add-attr :p0 :index 0)
                    (lat/add-attr :p0 :query-term [:_ {:refs {:todo-list-ids 2}}])
                    (lat/add-attr :p0 :ent-type :project)
                    (lat/add-attr :p0 :u0 :relation-attrs #{:created-by-id :updated-by-id})
-                   
+
                    (lat/add-attr :todo-list :type :ent-type)
                    (lat/add-attr :tl0 :type :ent)
                    (lat/add-attr :tl0 :index 0)
@@ -204,14 +204,14 @@
                    (lat/add-attr :u0 :index 0)
                    (lat/add-attr :u0 :query-term [:_])
                    (lat/add-attr :u0 :ent-type :user)
-                   
+
                    (lat/add-attr :project :type :ent-type)
                    (lat/add-attr :p0 :type :ent)
                    (lat/add-attr :p0 :index 0)
                    (lat/add-attr :p0 :query-term [:_ {:refs {:todo-list-ids [:mario :luigi]}}])
                    (lat/add-attr :p0 :ent-type :project)
                    (lat/add-attr :p0 :u0 :relation-attrs #{:created-by-id :updated-by-id})
-                   
+
                    (lat/add-attr :todo-list :type :ent-type)
                    (lat/add-attr :mario :type :ent)
                    (lat/add-attr :mario :index 0)
@@ -253,7 +253,7 @@
                              [:t0 :bloop]
                              [:t0 :tl-bound-t-0]
                              [:tl-bound-t-0 :bloop])
-                 
+
                  (lat/add-attr :user :type :ent-type)
                  (lat/add-attr :bloop :type :ent)
                  (lat/add-attr :bloop :index 0)
@@ -292,7 +292,7 @@
                                [:t2 :bloop]
                                [:t2 :tl-bound-t-0]
                                [:tl-bound-t-0 :bloop])
-                   
+
                    (lat/add-attr :user :type :ent-type)
                    (lat/add-attr :bloop :type :ent)
                    (lat/add-attr :bloop :index 0)
@@ -348,7 +348,7 @@
                                [:todo-list-watch :tlw1]
                                [:tlw1 :bloop]
                                [:tlw1 :tl-bound-tlw-1])
-                   
+
                    (lat/add-attr :user :type :ent-type)
                    (lat/add-attr :bloop :type :ent)
                    (lat/add-attr :bloop :index 0)
@@ -399,7 +399,7 @@
                              [:t-bound-a-0 :bloop]
                              [:t-bound-a-0 :tl-bound-a-0]
                              [:tl-bound-a-0 :bloop])
-                 
+
                  (lat/add-attr :user :type :ent-type)
                  (lat/add-attr :bloop :type :ent)
                  (lat/add-attr :bloop :index 0)
@@ -450,7 +450,7 @@
                  (lat/add-attr :u0 :index 0)
                  (lat/add-attr :u0 :ent-type :user)
                  (lat/add-attr :u0 :query-term [:_])
-                 
+
                  (lat/add-attr :todo-list :type :ent-type)
                  (lat/add-attr :tl0 :type :ent)
                  (lat/add-attr :tl0 :index 0)
@@ -462,7 +462,7 @@
                  (lat/add-attr :tl1 :index 1)
                  (lat/add-attr :tl1 :ent-type :todo-list)
                  (lat/add-attr :tl1 :query-term [:_])
-                 
+
                  (lat/add-attr :todo-list-watch :type :ent-type)
                  (lat/add-attr :tlw0 :type :ent)
                  (lat/add-attr :tlw0 :index 0)
@@ -474,7 +474,7 @@
                  (lat/add-attr :tlw1 :index 1)
                  (lat/add-attr :tlw1 :ent-type :todo-list-watch)
                  (lat/add-attr :tlw1 :query-term [2])
-                 
+
                  (lat/add-attr :tl0 :u0 :relation-attrs #{:updated-by-id :created-by-id})
                  (lat/add-attr :tl1 :u0 :relation-attrs #{:updated-by-id :created-by-id})
 
@@ -540,13 +540,24 @@
                    (lat/add-attr :t0 :query-term [:t0 {:refs {:todo-list-id :tl0}}])
                    (lat/add-attr :t0 :ent-type :todo)
                    (lat/add-attr :t0 :tl0 :relation-attrs #{:todo-list-id})
-                   
+
                    (lat/add-attr :todo-list :type :ent-type)
                    (lat/add-attr :tl0 :type :ent)
                    (lat/add-attr :tl0 :index 0)
                    (lat/add-attr :tl0 :query-term [:tl0 {:refs {:first-todo-id :t0}}])
                    (lat/add-attr :tl0 :ent-type :todo-list)
                    (lat/add-attr :tl0 :t0 :relation-attrs #{:first-todo-id})))))
+
+(deftest test-add-ents-handles-A->self-cycles
+  (testing "Handle cycles where an entity references itself"
+    (is-graph= (:data (sm/add-ents {:schema td/cycle-schema} {:user [[:u0 {:refs {:updated-by-id :u0}}]]}))
+               (-> (lg/digraph [:user :u0] [:u0 :u0])
+                   (lat/add-attr :user :type :ent-type)
+                   (lat/add-attr :u0 :type :ent)
+                   (lat/add-attr :u0 :index 0)
+                   (lat/add-attr :u0 :query-term [:u0 {:refs {:updated-by-id :u0}}])
+                   (lat/add-attr :u0 :ent-type :user)
+                   (lat/add-attr :u0 :u0 :relation-attrs #{:updated-by-id})))))
 
 ;; -----------------
 ;; polymorphism tests
@@ -740,6 +751,30 @@
                                             sm/merge-overwrites
                                             sm/assoc-referenced-vals])
                  (sm/attr-map :test)))))))
+
+(deftest test-visit-self-reference
+  (let [user-gen (fn [query]
+                   (-> (sm/add-ents {:schema td/cycle-schema} query)
+                       (sm/visit-ents-once :gen
+                                           [(let [id (partial swap!
+                                                              (atom 0)
+                                                              inc)]
+                                              (fn [_ _]
+                                                (let [i (id)]
+                                                  {:id i :updated-by-id i})))
+                                            sm/merge-overwrites
+                                            sm/assoc-referenced-vals])
+                       (sm/attr-map :gen)))]
+    (is (= {:u0 {:id 1, :updated-by-id 1}} (user-gen {:user [[1]]}))
+        "only create one entity with self reference")
+    (testing "self reference can be specified explicitly"
+      (let [{:keys [u0 u1]} (user-gen
+                             {:user [[1]
+                                     [1 {:refs {:updated-by-id :u1}}]]})]
+        (is (= (:id u0) (:updated-by-id u0)))
+        (is (= (:id u1) (:updated-by-id u1)))
+        (is (not= (:id u0) (:id u1)))
+        (is (not= (:version u0) (:updated-by-id u1)))))))
 
 ;; -----------------
 ;; view tests
