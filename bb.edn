@@ -4,7 +4,8 @@
         better-cond/better-cond {:mvn/version "2.0.1-SNAPSHOT"}
         org.clojure/core.specs.alpha {:mvn/version "0.2.62"}
         org.babashka/spec.alpha {:git/url "https://github.com/babashka/spec.alpha"
-                                 :git/sha "1a841c4cc1d4f6dab7505a98ed2d532dd9d56b78"}}
+                                 :git/sha "1a841c4cc1d4f6dab7505a98ed2d532dd9d56b78"}
+        metosin/malli           {:mvn/version "0.9.2"}}
  :tasks
  {test {:extra-paths ["test"]
         :extra-deps {io.github.cognitect-labs/test-runner
