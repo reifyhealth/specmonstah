@@ -8,7 +8,8 @@
             [clojure.spec.gen.alpha :as sgen]
             [clojure.test.check.generators :as gen]
             [reifyhealth.specmonstah.core :as sm]
-            [borkdude.dynaload :as dynaload]))
+            [borkdude.dynaload :as dynaload]
+            #?(:cljs [malli.generator])))
 
 (def franken-gen-visit-key ::generated)
 
