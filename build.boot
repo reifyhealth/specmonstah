@@ -15,7 +15,8 @@
                     [org.clojure/spec.alpha      "0.1.123"       :scope "test"]
                     [better-cond                 "2.0.1-SNAPSHOT"]
                     [aysylu/loom                 "1.0.2"]
-                    [medley                      "0.8.3"]])
+                    [medley                      "0.8.3"]
+                    [borkdude/dynaload           "0.3.5"]])
 
 (require '[adzerk.bootlaces :refer :all]
          '[adzerk.boot-test :refer :all]

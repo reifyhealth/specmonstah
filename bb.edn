@@ -1,16 +1,17 @@
 {:paths ["src" "test"]
- :deps {aysylu/loom             {:mvn/version "1.0.2"}
-        medley/medley           {:mvn/version "0.8.3"}
-        better-cond/better-cond {:mvn/version "2.0.1-SNAPSHOT"}
-        org.clojure/core.specs.alpha {:mvn/version "0.2.62"}
-        org.babashka/spec.alpha {:git/url "https://github.com/babashka/spec.alpha"
-                                 :git/sha "1a841c4cc1d4f6dab7505a98ed2d532dd9d56b78"}
-        metosin/malli           {:mvn/version "0.9.2"}}
+ :deps  {aysylu/loom                  {:mvn/version "1.0.2"}
+         medley/medley                {:mvn/version "0.8.3"}
+         better-cond/better-cond      {:mvn/version "2.0.1-SNAPSHOT"}
+         org.clojure/core.specs.alpha {:mvn/version "0.2.62"}
+         org.babashka/spec.alpha      {:git/url "https://github.com/babashka/spec.alpha"
+                                       :git/sha "1a841c4cc1d4f6dab7505a98ed2d532dd9d56b78"}
+         metosin/malli                {:mvn/version "0.9.2"}
+         borkdude/dynaload            {:mvn/version "0.3.5"}}
  :tasks
  {test {:extra-paths ["test"]
-        :extra-deps {io.github.cognitect-labs/test-runner
-                     {:git/tag "v0.5.0" :git/sha "b3fd0d2"}
-                     org.clojure/tools.namespace {:git/url "https://github.com/babashka/tools.namespace"
-                                                  :git/sha "3625153ee66dfcec2ba600851b5b2cbdab8fae6c"}}
-        :requires ([cognitect.test-runner :as tr])
-        :task (apply tr/-main "-d" "test" *command-line-args*)}}}
+        :extra-deps  {io.github.cognitect-labs/test-runner
+                      {:git/tag "v0.5.0" :git/sha "b3fd0d2"}
+                      org.clojure/tools.namespace {:git/url "https://github.com/babashka/tools.namespace"
+                                                   :git/sha "3625153ee66dfcec2ba600851b5b2cbdab8fae6c"}}
+        :requires    ([cognitect.test-runner :as tr])
+        :task        (apply tr/-main "-d" "test" *command-line-args*)}}}

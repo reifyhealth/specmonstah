@@ -7,24 +7,15 @@
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as sgen]
             [clojure.test.check.generators :as gen]
-            [reifyhealth.specmonstah.core :as sm]))
+            [reifyhealth.specmonstah.core :as sm]
+            [borkdude.dynaload :as dynaload]))
 
 (def franken-gen-visit-key ::generated)
 
 ;; Dynamically Loadded Libraries
 
 (def ^:private malli-generate
-  (let [f (delay
-            (locking ::dynaload
-              (require 'malli.generator))
-            (let [v (resolve 'malli.generator/generate)]
-              (if v
-                @v
-                (throw (RuntimeException.
-                        (str "`malli.generators` is not on the classpath."
-                             " please include metosin/malli in your project"
-                             " dependencies"))))))]
-    (fn [& args] (apply @f args))))
+  (dynaload/dynaload 'malli.generator/generate))
 
 ;; Generation Strategies
 
@@ -41,7 +32,7 @@
 ;; Malli schemas
 (defmethod generate-entity :malli
   [_ schema]
-  (malli-generate schema))
+  (#?(:bb @@malli-generate :default malli-generate) schema))
 
 ;; test.check generators
 (defmethod generate-entity :generator
