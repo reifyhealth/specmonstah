@@ -2,7 +2,7 @@
   :source-paths   #{"src" "test"}
   :resource-paths #{}
   :target-path    "target/build"
-  :dependencies   '[[org.clojure/clojure         "1.10.0"        :scope "provided"]
+  :dependencies   '[[org.clojure/clojure         "1.11.1"        :scope "provided"]
                     [org.clojure/clojurescript   "1.10.516"      :scope "provided"]
                     [boot/core                   "2.5.5"         :scope "provided"]
                     [adzerk/boot-test            "1.1.1"         :scope "test"]
@@ -21,7 +21,7 @@
          '[adzerk.boot-test :refer :all]
          '[crisptrutski.boot-cljs-test :refer [test-cljs]])
 
-(def +version+ "2.1.0")
+(def +version+ "2.2.0")
 (bootlaces! +version+)
 
 (task-options!
@@ -36,6 +36,7 @@
 (deftask test-all
   "unit tests and cljs tests"
   []
+  (set-env! :dependencies #(conj % '[metosin/malli "0.9.2"]))
   (comp (test)
         (test-cljs :exit? true)))
 
