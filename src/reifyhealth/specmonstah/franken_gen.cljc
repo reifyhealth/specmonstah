@@ -5,35 +5,26 @@
   namespace my friend."
   (:require [clojure.data :as data]
             [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as sgen]
+            [clojure.test.check.generators :as gen]
             [reifyhealth.specmonstah.core :as sm]))
 
 (def franken-gen-visit-key ::generated)
 
 ;; Dynamically Loadded Libraries
 
-(defn- dynaload-fn
-  "lifted from `clojure.spec.gen.alpha`. Dynamically load a function."
-  [s]
-  (let [ns (namespace s)
-        _  (assert ns)
-        f  (delay
-             (locking ::dynaload
-               (require (symbol ns)))
-             (let [v (resolve s)]
-               (if v
-                 @v
-                 (throw (RuntimeException.
-                         (str "Var " s " is not on the classpath"))))))]
-    (fn [& args] (apply @f args))))
-
 (def ^:private malli-generate
-  (dynaload-fn 'malli.generator/generate))
-
-(def ^:private test-check-generate
-  (dynaload-fn 'clojure.test.check.generators/generate))
-
-(def ^:private spec-generate
-  (dynaload-fn 'clojure.spec.gen.alpha/generate))
+  (let [f (delay
+            (locking ::dynaload
+              (require 'malli.generator))
+            (let [v (resolve 'malli.generator/generate)]
+              (if v
+                @v
+                (throw (RuntimeException.
+                        (str "`malli.generators` is not on the classpath."
+                             " please include metosin/malli in your project"
+                             " dependencies"))))))]
+    (fn [& args] (apply @f args))))
 
 ;; Generation Strategies
 
@@ -55,12 +46,12 @@
 ;; test.check generators
 (defmethod generate-entity :generator
   [_ generator]
-  (test-check-generate generator))
+  (gen/generate generator))
 
 ;; spec, same as spec-gen
 (defmethod generate-entity :spec
   [_ spec]
-  (-> spec s/gen spec-generate))
+  (-> spec s/gen sgen/generate))
 
 ;; Visitor Functions
 (defn visit-fn-generate

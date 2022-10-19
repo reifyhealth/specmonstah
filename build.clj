@@ -13,7 +13,7 @@
             [org.corfield.build :as bb]))
 
 (def lib 'reifyhealth/specmonstah)
-(def version (format "2.0.1" (b/git-count-revs nil)))
+(def version (format "2.2.0" (b/git-count-revs nil)))
 
 (defn deploy "Deploy the JAR to Clojars"
   [opts]
