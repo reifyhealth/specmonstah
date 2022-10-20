@@ -722,15 +722,17 @@
 (defn visit-fn-data
   "When a visit fn is called, it's passed this map as its second argument"
   [db ent visit-key]
-  (let [attrs  (ent-attrs db ent)
-        q-opts (query-opts db ent)
-        base   {:ent-name         ent
-                :attrs            attrs
-                :visit-val        (visit-key attrs)
-                :visit-key        visit-key
-                :query-opts       q-opts
-                :visit-query-opts (visit-key q-opts)
-                :schema-opts      (visit-key (ent-schema db ent))}]
+  (let [attrs    (ent-attrs db ent)
+        q-opts   (query-opts db ent)
+        schema   (ent-schema db ent)
+        base     {:ent-schema       schema
+                  :ent-name         ent
+                  :attrs            attrs
+                  :visit-val        (visit-key attrs)
+                  :visit-key        visit-key
+                  :query-opts       q-opts
+                  :visit-query-opts (visit-key q-opts)
+                  :schema-opts      (visit-key schema)}]
     (merge attrs base)))
 
 (defn visit-ents

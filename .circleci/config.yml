@@ -4,21 +4,15 @@ jobs:
     environment:
       - _JAVA_OPTIONS: "-Xms512m -Xmx1024m"
     docker:
-      - image: circleci/openjdk:8-jdk-node
+      - image: cimg/clojure:1.11.1-openjdk-8.0-node
     steps:
       - checkout
       - run:
-          name: Download boot
-          command: sudo curl -L https://github.com/boot-clj/boot-bin/releases/download/latest/boot.sh -o /usr/bin/boot
+          name: Run clj tests
+          command: clojure -X:test
       - run:
-          name: Change boot permissions
-          command: sudo chmod +x /usr/bin/boot
-      - run:
-          name: Check deps
-          command: boot show -d
-      - run:
-          name: Run clj and cljs tests
-          command: boot test-all
+          name: Run cljs tests
+          command: clojure -X:test-cljs
       - run:
           name: Install bb
           command: |
@@ -28,14 +22,14 @@ jobs:
           command: bb test
       - run:
           name: Build
-          command: boot make  # Validate the namespaces are correct
+          command: clojure -T:build jar  # Validate the namespaces are correct
       - save-cache:
           paths:
             - ~/bin
             - ~/.m2
             - ~/.boot/cache/bin
             - ~/.boot/cache/lib
-          key: specmonstah-{{ checksum "build.boot" }}
+          key: specmonstah-{{ checksum "build.clj" }}
       - persist_to_workspace:
           root: ./
           paths:
@@ -46,12 +40,12 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: specmonstah-{{ checksum "build.boot" }}
+          key: specmonstah-{{ checksum "build.clj" }}
       - attach_workspace:
           at: ./
       - run:
           name: Deploy to clojars
-          command: boot make push-release-without-gpg
+          command: clojure -T:build deploy
 
 workflows:
   version: 2
