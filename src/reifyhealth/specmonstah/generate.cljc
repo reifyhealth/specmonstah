@@ -1,22 +1,26 @@
-(ns reifyhealth.specmonstah.franken-gen
-  "You ever get the urge to use many different kinds of data specification and
-  generate throughout your project and stitch them together into a single
-  specmonstah schema as an afront unto god? If yes, then you have come to right
-  namespace my friend."
+(ns reifyhealth.specmonstah.generate
+  "Generate data for specmonstah queries using various generation methods.
+
+  Generation can be specified in the schema, or the query. the former taking
+  precedent over the latter.
+
+  Generation Methods:
+  - `:spec`      - a clojure spec, same as used by spec-gen.
+  - `:generator` - a test check generator.
+  - `:fn`        - a function called with no arguments to generate the entity.
+  - `:malli`     - a malli schema.
+    - NOTE: For malli support, include `metosin/malli` in your project
+            dependencies and load the namespace
+            `reifyhealth.specmonstah.generate.malli`.
+  - Other generation methods maybe be added by adding methods to
+    `generate-entity`."
   (:require [clojure.data :as data]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as sgen]
             [clojure.test.check.generators :as gen]
-            [reifyhealth.specmonstah.core :as sm]
-            [borkdude.dynaload :as dynaload]
-            #?(:cljs [malli.generator])))
+            [reifyhealth.specmonstah.core :as sm]))
 
-(def franken-gen-visit-key ::generated)
-
-;; Dynamically Loadded Libraries
-
-(def ^:private malli-generate
-  (dynaload/dynaload 'malli.generator/generate))
+(def generate-visit-key ::generated)
 
 ;; Generation Strategies
 
@@ -29,11 +33,6 @@
 ;; ex. In a schema: {:users {:fn gen-user, :prefix :u}}
 ;;     In a query:  {:users [[1 {:fn gen-user}]]}
 (defmethod generate-entity :fn [_ f] (f))
-
-;; Malli schemas
-(defmethod generate-entity :malli
-  [_ schema]
-  (#?(:bb @@malli-generate :default malli-generate) schema))
 
 ;; test.check generators
 (defmethod generate-entity :generator
@@ -100,7 +99,7 @@
 
 (defn generate
   "Generate entities according to a query using various data generation
-  methods. See `reifyhealth.specmonstah.franken-gen/generate-entity` for
+  methods. See `reifyhealth.specmonstah.generate/generate-entity` for
   more information.
 
   Options:
@@ -120,13 +119,12 @@
                            sm/assoc-referenced-vals]
                     insert! (conj (visit-fn-insert insert!)))]
      (-> (sm/add-ents db query)
-         (sm/visit-ents-once franken-gen-visit-key visit-fn)))))
+         (sm/visit-ents-once generate-visit-key visit-fn)))))
 
 (defn attrs
   "get the generated values for a database"
   [db]
-  (sm/attr-map db franken-gen-visit-key))
-
+  (sm/attr-map db generate-visit-key))
 
 (comment
   ;; Example

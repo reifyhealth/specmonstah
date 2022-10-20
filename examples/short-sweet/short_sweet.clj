@@ -1,8 +1,10 @@
 (ns short-sweet
-  (:require [reifyhealth.specmonstah.core :as sm]
-            [reifyhealth.specmonstah.franken-gen :as fg]
-            [clojure.spec.alpha :as s]
-            [clojure.test.check.generators :as gen]))
+  (:require [clojure.spec.alpha :as s]
+            [clojure.test.check.generators :as gen]
+            [reifyhealth.specmonstah.core :as sm]
+            [reifyhealth.specmonstah.generate :as generate]
+            ;; Include this if you want to use malli to generate entities
+            [reifyhealth.specmonstah.generate.malli]))
 
 ;;-------*****--------
 ;; Begin example setup
@@ -31,7 +33,9 @@
   [:map {:registry {::id [:schema {:gen/fmap gen-id} pos-int?]}}
    [:id            ::id]
    [:created-by-id ::id]
-   [:content       [:string {:min 1, :max 10}]]])
+   [:content       [:string {:gen/gen gen/string-alpha-numeric ; for readability
+                             :min     1
+                             :max     10}]]])
 
 ;; Test Check Generator
 (def like
@@ -71,7 +75,7 @@
 (defn insert [query]
   (reset! id-seq 0)
   (reset! mock-db [])
-  (fg/generate {:schema schema} query :insert! insert*)
+  (generate/generate {:schema schema} query :insert! insert*)
   ;; normally you'd return the expression above, but return nil for
   ;; the example to not produce overwhelming output
   nil)
@@ -81,23 +85,22 @@
 ;;-------*****--------
 
 ;; Return a map of user entities and their generated data
-(-> (fg/generate {:schema schema} {:user [[3]]})
-    fg/attrs)
+(-> (generate/generate {:schema schema} {:user [[3]]})
+    generate/attrs)
 
 ;; You can specify a username and id
-(-> (fg/generate {:schema schema} {:user [[1 {:set {:username "Meeghan"
-                                                    :id       100}}]]})
-    fg/attrs)
+(-> (generate/generate {:schema schema} {:user [[1 {:set {:username "Meeghan"
+                                                          :id       100}}]]})
+    generate/attrs)
 
 ;; Generating a post generates the user the post belongs to, with
 ;; foreign keys correct
-(-> (fg/generate {:schema schema} {:post [[1]]})
-    fg/attrs)
+(-> (generate/generate {:schema schema} {:post [[1]]})
+    generate/attrs)
 
 ;; Generating a like also generates a post and user
-(-> (fg/generate {:schema schema} {:like [[1]]})
-    fg/attrs)
-
+(-> (generate/generate {:schema schema} {:like [[1]]})
+    generate/attrs)
 
 ;; The `insert` function shows that records are inserted into the
 ;; simulate "database" (`mock-db`) in correct dependency order:

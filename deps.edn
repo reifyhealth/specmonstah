@@ -3,8 +3,7 @@
  :deps {aysylu/loom             {:mvn/version "1.0.2"}
         medley/medley           {:mvn/version "0.8.3"}
         better-cond/better-cond {:mvn/version "2.0.1-SNAPSHOT"}
-        org.clojure/spec.alpha  {:mvn/version "0.3.218"}
-        borkdude/dynaload       {:mvn/version "0.3.5"}}
+        org.clojure/spec.alpha  {:mvn/version "0.3.218"}}
 
  :aliases
  {:test
@@ -17,7 +16,8 @@
   :test-cljs
   {:extra-paths ["test"]
    :extra-deps  {org.clojure/test.check  {:mvn/version "0.9.0"}
-                 olical/cljs-test-runner {:mvn/version "3.8.0"}}
+                 olical/cljs-test-runner {:mvn/version "3.8.0"}
+                 metosin/malli           {:mvn/version "0.8.9"}}
    :exec-fn     cljs-test-runner.main/-main}
 
   :build

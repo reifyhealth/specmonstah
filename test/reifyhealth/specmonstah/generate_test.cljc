@@ -1,4 +1,4 @@
-(ns reifyhealth.specmonstah.franken-gen-test
+(ns reifyhealth.specmonstah.generate-test
   (:require #?(:clj [clojure.test :refer [deftest are is use-fixtures testing]]
                :cljs [cljs.test :include-macros true :refer [deftest are is use-fixtures testing]])
             [clojure.spec.alpha :as s]
@@ -6,9 +6,10 @@
             [malli.core :as malli]
             [medley.core :as m]
             [reifyhealth.specmonstah.core :as sm]
-            [reifyhealth.specmonstah.franken-gen :as franken-gen]
+            [reifyhealth.specmonstah.generate :as generate]
             [reifyhealth.specmonstah.test-data :as td]
-            [reifyhealth.specmonstah.test-data :as td]))
+            [reifyhealth.specmonstah.test-data :as td]
+            [reifyhealth.specmonstah.generate.malli]))
 
 (def gen-data-db (atom []))
 (def gen-data-cycle-db (atom []))
@@ -43,7 +44,7 @@
           matches))
 
 ;; Rename :spec-gen to :set in the entity schemas
-(def franken-gen-schema
+(def generate-schema
   (reduce-kv (fn [acc ent-type schema]
                (if-let [overwrite (:spec-gen schema)]
                  (assoc-in acc [ent-type :set] overwrite)
@@ -58,8 +59,8 @@
 
 (defn- quick-gen
   [schema query & opts]
-  (-> (apply franken-gen/generate {:schema schema} query opts)
-      (franken-gen/attrs)))
+  (-> (apply generate/generate {:schema schema} query opts)
+      (generate/attrs)))
 
 (deftest malli-test
   (testing "we can use malli to generate entities"
@@ -148,8 +149,8 @@
                          :strategies [:malli :fn])))
       "the query is checked before the schema regardless of strategy order"))
 
-(deftest test-franken-gen
-  (let [gen (quick-gen franken-gen-schema {:todo-list [[1]]})]
+(deftest test-generate
+  (let [gen (quick-gen generate-schema {:todo-list [[1]]})]
     (is (td/submap? {:u0 {:user-name "Luigi"}} gen))
     (is (ids-present? gen))
     (is (ids-match? gen
@@ -157,8 +158,8 @@
                            :updated-by-id [:u0 :id]}}))
     (is (only-has-ents? gen #{:tl0 :u0}))))
 
-(deftest test-franken-gen-nested
-  (let [gen (quick-gen franken-gen-schema {:project [[:_ {:refs {:todo-list-ids 3}}]]})]
+(deftest test-generate-nested
+  (let [gen (quick-gen generate-schema {:project [[:_ {:refs {:todo-list-ids 3}}]]})]
     (is (td/submap? {:u0 {:user-name "Luigi"}} gen))
     (is (ids-present? gen))
     (is (ids-match? gen
@@ -175,9 +176,9 @@
                                            [:tl2 :id]]}}))
     (is (only-has-ents? gen #{:tl0 :tl1 :tl2 :u0 :p0}))))
 
-(deftest test-franken-gen-manual-attr
+(deftest test-generate-manual-attr
   (testing "Manual attribute setting for non-reference field"
-    (let [gen (quick-gen franken-gen-schema {:todo [[:_ {:set {:todo-title "pet the dog"}}]]})]
+    (let [gen (quick-gen generate-schema {:todo [[:_ {:set {:todo-title "pet the dog"}}]]})]
       (is (td/submap? {:u0 {:user-name "Luigi"}
                        :t0 {:todo-title "pet the dog"}}
                       gen))
@@ -191,7 +192,7 @@
       (is (only-has-ents? gen #{:tl0 :t0 :u0}))))
 
   (testing "Manual attribute setting for reference field"
-    (let [gen (quick-gen franken-gen-schema {:todo [[:_ {:set {:created-by-id 1}}]]})]
+    (let [gen (quick-gen generate-schema {:todo [[:_ {:set {:created-by-id 1}}]]})]
       (is (td/submap? {:u0 {:user-name "Luigi"}
                        :t0 {:created-by-id 1}}
                       gen))
@@ -203,16 +204,16 @@
                              :todo-list-id  [:tl0 :id]}}))
       (is (only-has-ents? gen #{:tl0 :t0 :u0})))))
 
-(deftest test-franken-gen-omit
+(deftest test-generate-omit
   (testing "Ref not created and attr is not present when omitted"
-    (let [gen (quick-gen franken-gen-schema {:todo-list [[:_ {:refs {:created-by-id ::sm/omit
-                                                                     :updated-by-id ::sm/omit}}]]})]
+    (let [gen (quick-gen generate-schema {:todo-list [[:_ {:refs {:created-by-id ::sm/omit
+                                                                  :updated-by-id ::sm/omit}}]]})]
       (is (ids-present? gen))
       (is (only-has-ents? gen #{:tl0}))
       (is (= [:id] (keys (:tl0 gen))))))
 
   (testing "Ref is created when at least 1 field references it, but omitted attrs are still not present"
-    (let [gen (quick-gen franken-gen-schema {:todo-list [[:_ {:refs {:updated-by-id ::sm/omit}}]]})]
+    (let [gen (quick-gen generate-schema {:todo-list [[:_ {:refs {:updated-by-id ::sm/omit}}]]})]
       (is (td/submap? {:u0 {:user-name "Luigi"}} gen))
       (is (ids-present? gen))
       (is (ids-match? gen
@@ -221,51 +222,51 @@
       (is (= [:id :created-by-id] (keys (:tl0 gen))))))
 
   (testing "Overwriting value of omitted ref with custom value"
-    (let [gen (quick-gen franken-gen-schema {:todo-list [[:_ {:refs {:updated-by-id ::sm/omit}
-                                                              :set  {:updated-by-id 42}}]]})]
+    (let [gen (quick-gen generate-schema {:todo-list [[:_ {:refs {:updated-by-id ::sm/omit}
+                                                           :set  {:updated-by-id 42}}]]})]
       (is (ids-present? gen))
       (is (= 42 (-> gen :tl0 :updated-by-id)))))
 
   (testing "Overwriting value of omitted ref with nil"
-    (let [gen (quick-gen franken-gen-schema {:todo-list [[:_ {:refs {:updated-by-id ::sm/omit}
-                                                              :set  {:updated-by-id nil}}]]})]
+    (let [gen (quick-gen generate-schema {:todo-list [[:_ {:refs {:updated-by-id ::sm/omit}
+                                                           :set  {:updated-by-id nil}}]]})]
       (is (ids-present? gen))
       (is (= nil (-> gen :tl0 :updated-by-id))))))
 
 (deftest overwriting
   (testing "Overwriting generated value with query map"
-    (let [gen (quick-gen franken-gen-schema {:todo-list [[:_ {:set {:updated-by-id 42}}]]})]
+    (let [gen (quick-gen generate-schema {:todo-list [[:_ {:set {:updated-by-id 42}}]]})]
       (is (ids-present? gen))
       (is (= 42 (-> gen :tl0 :updated-by-id)))))
 
   (testing "Overwriting generated value with query fn"
-    (let [gen (quick-gen franken-gen-schema {:todo-list [[:_ {:set #(assoc % :updated-by-id :foo)}]]})]
+    (let [gen (quick-gen generate-schema {:todo-list [[:_ {:set #(assoc % :updated-by-id :foo)}]]})]
       (is (ids-present? gen))
       (is (= :foo (-> gen :tl0 :updated-by-id)))))
 
   (testing "Overwriting generated value with schema map"
-    (let [gen (quick-gen (assoc-in franken-gen-schema [:todo :set :todo-title] "schema title")
+    (let [gen (quick-gen (assoc-in generate-schema [:todo :set :todo-title] "schema title")
                          {:todo [[:_ {:set #(assoc % :updated-by-id :foo)}]]})]
       (is (ids-present? gen))
       (is (= "schema title" (-> gen :t0 :todo-title)))))
 
   (testing "Overwriting generated value with schema fn"
-    (let [gen (quick-gen (assoc-in franken-gen-schema [:todo :set] #(assoc % :todo-title "boop whooop"))
+    (let [gen (quick-gen (assoc-in generate-schema [:todo :set] #(assoc % :todo-title "boop whooop"))
                          {:todo [[:_ {:set #(assoc % :updated-by-id :foo)}]]})]
       (is (ids-present? gen))
       (is (= "boop whooop" (-> gen :t0 :todo-title))))))
 
 (deftest test-idempotency
   (testing "Gen traversal won't replace already generated data with newly generated data"
-    (let [gen-fn     #(franken-gen/generate % {:todo [[:t0 {:set {:todo-title "pet the dog"}}]]})
-          first-pass (gen-fn {:schema franken-gen-schema})]
+    (let [gen-fn     #(generate/generate % {:todo [[:t0 {:set {:todo-title "pet the dog"}}]]})
+          first-pass (gen-fn {:schema generate-schema})]
       (is (= (:data first-pass)
              (:data (gen-fn first-pass)))))))
 
 
 (deftest test-coll-relval-order
   (testing "When a relation has a `:coll` constraint, order its vals correctly")
-  (let [gen (quick-gen franken-gen-schema {:project [[:_ {:refs {:todo-list-ids 3}}]]})]
+  (let [gen (quick-gen generate-schema {:project [[:_ {:refs {:todo-list-ids 3}}]]})]
     (is (td/submap? {:u0 {:user-name "Luigi"}} gen))
     (is (ids-present? gen))
     (is (= (:todo-list-ids (:p0 gen))
@@ -275,7 +276,7 @@
     (is (only-has-ents? gen #{:tl0 :tl1 :tl2 :u0 :p0}))))
 
 (deftest test-sets-custom-relation-val
-  (let [gen (quick-gen franken-gen-schema
+  (let [gen (quick-gen generate-schema
                        {:user      [[:custom-user {:set {:id 100}}]]
                         :todo-list [[:custom-tl {:refs {:created-by-id :custom-user
                                                         :updated-by-id :custom-user}}]]})]
@@ -293,10 +294,10 @@
   [{:keys [data] :as db} {:keys [ent-name visit-key attrs]}]
   (swap! gen-data-db conj [(:ent-type attrs)
                            ent-name
-                           (::franken-gen/generated attrs)]))
+                           (::generate/generated attrs)]))
 
 (deftest test-insert-gen-data
-  (-> (franken-gen/generate {:schema franken-gen-schema} {:todo [[1]]})
+  (-> (generate/generate {:schema generate-schema} {:todo [[1]]})
       (sm/visit-ents-once :inserted-data insert))
 
   ;; gen data is something like:
@@ -329,9 +330,9 @@
 (deftest inserts-novel-data
   (testing "Given a db with a todo already added, next call adds a new
   todo that references the same todo list and user"
-    (let [db1 (-> (franken-gen/generate {:schema franken-gen-schema} {:todo [[1]]})
+    (let [db1 (-> (generate/generate {:schema generate-schema} {:todo [[1]]})
                   (sm/visit-ents-once :inserted-data insert))]
-      (-> (franken-gen/generate db1 {:todo [[1]]})
+      (-> (generate/generate db1 {:todo [[1]]})
           (sm/visit-ents-once :inserted-data insert))
 
       (let [gen-data @gen-data-db]
@@ -360,17 +361,17 @@
 (defn insert-cycle
   [db {:keys [ent-name visit-key]}]
   (swap! gen-data-cycle-db conj ent-name)
-  (sm/ent-attr db ent-name ::franken-gen/generated))
+  (sm/ent-attr db ent-name ::generate/generated))
 
 (deftest handle-cycles-with-constraints-and-reordering
   (testing "todo-list is inserted before todo because todo requires todo-list"
-    (-> (franken-gen/generate {:schema td/cycle-schema} {:todo [[1]]})
+    (-> (generate/generate {:schema td/cycle-schema} {:todo [[1]]})
         (sm/visit-ents :insert-cycle insert-cycle))
     (is (= @gen-data-cycle-db
            [:tl0 :t0]))))
 
 (deftest handles-cycle-ids
-  (testing "franken-gen correctly sets foreign keys for cycles"
+  (testing "generate correctly sets foreign keys for cycles"
     (let [gen (quick-gen td/cycle-schema {:todo [[1]]})]
       (is (ids-present? gen))
       (is (ids-match? gen
@@ -379,7 +380,7 @@
 
 
 ;; NOTE: do not use this strategy or all you entities will be the same
-(defmethod franken-gen/generate-entity ::const [_ const] const)
+(defmethod generate/generate-entity ::const [_ const] const)
 
 (deftest custom-generation-strategy-test
   (is (= {:custom true, :updated-by-id nil}
