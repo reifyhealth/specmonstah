@@ -2,6 +2,9 @@
 
 # Specmonstah
 
+## A message from the author
+This project is no longer maintained.  We would be happy to link to a fork here if anyone is interested in taking over as maintainer of this project, please let us know.
+
 * [Short Sweet Example](https://sweet-tooth.gitbook.io/specmonstah/#short-sweet-example)
 * [Infomercial](https://sweet-tooth.gitbook.io/specmonstah/infomercial)
 * [Tutorial](https://sweet-tooth.gitbook.io/specmonstah/tutorial)
