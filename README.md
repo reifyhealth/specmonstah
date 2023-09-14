@@ -3,7 +3,7 @@
 # Specmonstah
 
 ## A message from the author
-> This project is no longer maintained.  If you are interested in using a maintained version we suggest that you look at the fork called [datapotato](https://github.com/donut-party/datapotato).
+> This project is no longer maintained.  If you are interested in using a maintained version we suggest that you look at [datapotato](https://github.com/donut-party/datapotato).
 
 
 * [Short Sweet Example](https://sweet-tooth.gitbook.io/specmonstah/#short-sweet-example)
